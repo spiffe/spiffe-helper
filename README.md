@@ -1,2 +1,2 @@
-# sidecar
-SPIRE certificate helper utility 
+# SPIRE Sidecar
+
