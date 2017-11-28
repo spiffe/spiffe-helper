@@ -8,10 +8,14 @@ import (
 
 // SidecarConfig is HCL config data
 type SidecarConfig struct {
-	AgentAddress   string `hcl:"agentAddress"`
-	GhostunnelCmd  string `hcl:"ghostunnelCmd"`
-	GhostunnelArgs string `hcl:"ghostunnelArgs"`
-	CertDir        string `hcl:"certDir"`
+	AgentAddress       string `hcl:"agentAddress"`
+	Cmd                string `hcl:"cmd"`
+	CmdArgs            string `hcl:"cmdArgs"`
+	CertDir            string `hcl:"certDir"`
+	SvidFileName       string `hcl:"svidFileName"`
+	SvidKeyFileName    string `hcl:"svidKeyFileName"`
+	SvidBundleFileName string `hcl:"svidBundleFileName"`
+	RenewSignal        string `hcl:"renewSignal"`
 }
 
 // ParseConfig parses the given HCL file into a SidecarConfig struct
@@ -36,5 +40,5 @@ func ParseConfig(file string) (sidecarConfig *SidecarConfig, err error) {
 		return nil, err
 	}
 
-	return
+	return sidecarConfig, nil
 }

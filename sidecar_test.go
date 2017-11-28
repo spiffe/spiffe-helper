@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	workload "github.com/spiffe/sidecar/wlapi"
-	//workload "github.com/spiffe/spire/pkg/api/workload"
+	"github.com/spiffe/spire/proto/api/workload"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -18,10 +17,10 @@ const (
 	testTTL         = 10
 )
 
-// TestSidecar_Integration will run the sidecar with an 'echo' command simulating ghostunnel
+// TestSidecar_Integration will run the sidecar with an 'echo' command
 // and a simple webserver to mock the Workload API to the sidecar.
 // The objetive is to make sure sidecar is requesting certs and invoking command successfully.
-// TODO: 'echo' command exits immediately so we cannot test SIGUSR1 signalling. Improve this.
+// TODO: 'echo' command exits immediately so we cannot test signalling. Improve this.
 func TestSidecar_Integration(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "test-certs")
 	if err != nil {
@@ -30,8 +29,11 @@ func TestSidecar_Integration(t *testing.T) {
 	defer os.RemoveAll(tmpdir)
 
 	config := &SidecarConfig{
-		GhostunnelCmd: "echo",
-		CertDir:       tmpdir,
+		Cmd:                "echo",
+		CertDir:            tmpdir,
+		SvidFileName:       "svid.pem",
+		SvidKeyFileName:    "svid_key.pem",
+		SvidBundleFileName: "svid_bundle.pem",
 	}
 
 	fmt.Printf("Will test for %d seconds.\n", testTimeSeconds)

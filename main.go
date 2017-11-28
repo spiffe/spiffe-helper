@@ -2,35 +2,40 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"net"
 	"time"
 
-	workload "github.com/spiffe/sidecar/wlapi"
+	"github.com/spiffe/spire/proto/api/workload"
 	"google.golang.org/grpc"
-)
-
-const (
-	configFile = "sidecar_config.hcl"
 )
 
 func main() {
 	// 0. Load configuration
 	// 1. Request certs using Workload API
 	// 2. Put cert on disk
-	// 3. Start ghostunnel if not running, otherwise send SIGUSR1 to reload cert
-	// 4. Wait until TTL expires
+	// 3. Start the specified process if it is not running, otherwise send the configured signal to renew the certificates
+	// 4. Wait until TTL/2
 	// 5. Goto 1
 
-	config, err := ParseConfig(configFile)
+	configFile := flag.String("config", "sidecar_config.hcl", "<configFile> Configuration file path")
+	flag.Parse()
+
+	config, err := ParseConfig(*configFile)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("error parsing configuration file: %v\n%v", *configFile, err))
 	}
 	log("Sidecar is up! Will use agent at %s\n\n", config.AgentAddress)
+	if config.Cmd == "" {
+		log("Warning: no cmd defined to execute.\n")
+	}
+	log("Using configuration file: %v\n", *configFile)
 
 	workloadClient, ctx, cancel, err := createGrpcClient(config)
 	defer cancel()
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("error creating GRPC client.\n%v", err))
 	}
 
 	sidecar := NewSidecar(ctx, config, workloadClient)
@@ -53,5 +58,5 @@ func createGrpcClient(config *SidecarConfig) (workloadClient workload.WorkloadCl
 
 	workloadClient = workload.NewWorkloadClient(conn)
 
-	return
+	return workloadClient, ctx, cancel, err
 }
