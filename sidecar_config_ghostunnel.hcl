@@ -1,0 +1,8 @@
+agentAddress = "/tmp/agent.sock"
+cmd = "ghostunnel"
+cmdArgs = "server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
+certDir = "certs"
+renewSignal = "SIGUSR1"
+svidFileName = "svid.pem"
+svidKeyFileName = "svid_key.pem"
+svidBundleFileName = "svid_bundle.pem"

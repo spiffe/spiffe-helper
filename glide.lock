@@ -1,5 +1,5 @@
-hash: 09b1e69982af8cdd1f51f77967bfa7ea2ec131f8bab0e4c010112fef554bb3c5
-updated: 2017-10-05T19:51:10.476533717-07:00
+hash: 349eda423729475b952e36f6f33329bbec2627ffb76c13753335b970a6ea1f3f
+updated: 2017-11-28T00:22:22.452119-03:00
 imports:
 - name: github.com/golang/protobuf
   version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
@@ -20,6 +20,10 @@ imports:
   - json/parser
   - json/scanner
   - json/token
+- name: github.com/spiffe/spire
+  version: a52337e05017a8dc85ccec7b0049e18e215e7b20
+  subpackages:
+  - proto/api/workload
 - name: golang.org/x/net
   version: f5079bd7f6f74e23c4d65efa0f4ce14cbd6a3c0f
   subpackages:
@@ -42,11 +46,14 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: f92cdcd7dcdc69e81b2d7b338479a19a8723cfa3
+  version: 5a9f7b402fe85096d2e1d0383435ee1876e863d0
   subpackages:
+  - balancer
+  - balancer/roundrobin
   - codes
   - connectivity
   - credentials
+  - encoding
   - grpclb/grpc_lb_v1/messages
   - grpclog
   - internal
@@ -54,12 +61,11 @@ imports:
   - metadata
   - naming
   - peer
+  - resolver
+  - resolver/dns
+  - resolver/passthrough
   - stats
   - status
   - tap
   - transport
-testImports:
-- name: github.com/spiffe/spiffe-example
-  version: a8af8c00b8211ee05fb5d6a4d5d874d59e3c6585
-  subpackages:
-  - rosemary/build/tools/sidecar/wlapi
+testImports: []
