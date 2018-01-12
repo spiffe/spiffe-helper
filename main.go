@@ -19,7 +19,7 @@ func main() {
 	// 4. Wait until TTL/2
 	// 5. Goto 1
 
-	configFile := flag.String("config", "sidecar_config.hcl", "<configFile> Configuration file path")
+	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
 	flag.Parse()
 
 	config, err := ParseConfig(*configFile)

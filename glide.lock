@@ -1,5 +1,5 @@
-hash: 349eda423729475b952e36f6f33329bbec2627ffb76c13753335b970a6ea1f3f
-updated: 2017-11-28T00:22:22.452119-03:00
+hash: dacb8c2e4fed9e1d475f798a5216623a0786f1990273fed5f367892334360af9
+updated: 2018-01-12T07:12:32.125858-08:00
 imports:
 - name: github.com/golang/protobuf
   version: 0a4f71a498b7c4812f64969510bcb4eca251e33a
@@ -46,9 +46,10 @@ imports:
   subpackages:
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 5a9f7b402fe85096d2e1d0383435ee1876e863d0
+  version: 7cea4cc846bcf00cbb27595b07da5de875ef7de9
   subpackages:
   - balancer
+  - balancer/base
   - balancer/roundrobin
   - codes
   - connectivity

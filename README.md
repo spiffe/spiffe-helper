@@ -3,11 +3,11 @@
 The SPIFFE Helper is a simple utility for fetching X.509 SVID certificates from the SPIFFE Workload API, launch a process that makes use of the certificates and continuosly get new certificates before they expire. The launched process is signaled to reload the certificates when is needed.
 
 ### Usage
-`$ sidecar -config <config_file>`
+`$ spiffe-helper -config <config_file>`
 
 `<config_file>`: file path to the configuration file.
 
-If `-config` is not specified, the default value `sidecar_config.hcl` is assumed. 
+If `-config` is not specified, the default value `helper.conf` is assumed. 
 
 ### Configuration
 The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted file that defines the following configurations:

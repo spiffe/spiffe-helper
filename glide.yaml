@@ -1,4 +1,4 @@
-package: github.com/spiffe/sidecar
+package: github.com/spiffe/spiffe-helper
 import:
 - package: github.com/hashicorp/hcl
 - package: google.golang.org/grpc
