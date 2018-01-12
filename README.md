@@ -1,6 +1,6 @@
-# SPIRE Sidecar
+# SPIFFE Helper
 
-The SPIRE Sidecar is a simple utility for fetching X.509 SVID certificates from the SPIRE Workload API, launch a process that makes use of the certificates and continuosly get new certificates before they expire. The launched process is signaled to reload the certificates when is needed.
+The SPIFFE Helper is a simple utility for fetching X.509 SVID certificates from the SPIFFE Workload API, launch a process that makes use of the certificates and continuosly get new certificates before they expire. The launched process is signaled to reload the certificates when is needed.
 
 ### Usage
 `$ sidecar -config <config_file>`
