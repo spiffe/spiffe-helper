@@ -16,6 +16,7 @@ type SidecarConfig struct {
 	SvidKeyFileName    string `hcl:"svidKeyFileName"`
 	SvidBundleFileName string `hcl:"svidBundleFileName"`
 	RenewSignal        string `hcl:"renewSignal"`
+	Timeout            string `hcl:"timeout"`
 }
 
 // ParseConfig parses the given HCL file into a SidecarConfig struct
