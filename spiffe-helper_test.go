@@ -21,7 +21,8 @@ import (
 func TestSidecar_RunDaemon(t *testing.T) {
 
 	var wg sync.WaitGroup
-	tmpdir, err := ioutil.TempDir("", "test-certs")
+
+	tmpdir, err := ioutil.TempDir("", "sidecar-run-daemon")
 	require.NoError(t, err)
 
 	defer os.RemoveAll(tmpdir)

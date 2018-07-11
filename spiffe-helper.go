@@ -15,19 +15,18 @@ import (
 	"os/signal"
 	"path"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
+	"go.uber.org/atomic"
 )
 
 // sidecar is the component that consumes the Workload API and renews certs
 // implements the interface Sidecar
 type sidecar struct {
 	config            *SidecarConfig
-	processRunning    bool
+	processRunning    atomic.Bool
 	process           *os.Process
 	workloadAPIClient workload.X509Client
-	mux               sync.Mutex
 }
 
 const (
@@ -36,6 +35,7 @@ const (
 	defaultTimeout = time.Duration(5 * time.Second)
 
 	certsFileMode = os.FileMode(0644)
+	keyFileMode = os.FileMode(0600)
 )
 
 // NewSidecar creates a new sidecar
@@ -58,7 +58,7 @@ func NewSidecar(config *SidecarConfig) (*sidecar, error) {
 func (s *sidecar) RunDaemon(ctx context.Context) error {
 	// Create channel for interrupt signal
 	interrupt := make(chan os.Signal, 1)
-	errorChan := make(chan error)
+	errorChan := make(chan error, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	updateChan := s.workloadAPIClient.UpdateChan()
@@ -76,14 +76,7 @@ func (s *sidecar) RunDaemon(ctx context.Context) error {
 	for {
 		select {
 		case svidResponse := <-updateChan:
-			err := s.dumpBundles(svidResponse)
-			if err != nil {
-				log.Error(err.Error())
-			}
-			err = s.signalProcess()
-			if err != nil {
-				log.Error(err.Error())
-			}
+			updateCertificates(s, svidResponse)
 		case <-interrupt:
 			return nil
 		case err := <-errorChan:
@@ -91,6 +84,19 @@ func (s *sidecar) RunDaemon(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		}
+	}
+}
+
+// Updates the certificates stored in disk and signal the Process to restart
+func updateCertificates(s *sidecar, svidResponse *proto.X509SVIDResponse) {
+	err := s.dumpBundles(svidResponse)
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	err = s.signalProcess()
+	if err != nil {
+		log.Error(err.Error())
 	}
 }
 
@@ -110,7 +116,7 @@ func newWorkloadAPIClient(agentAddress string, timeout time.Duration) workload.X
 //signalProcess sends the configured Renew signal to the process running the proxy
 //to reload itself so that the proxy uses the new SVID
 func (s *sidecar) signalProcess() (err error) {
-	if !s.processRunning {
+	if !s.processRunning.Load() {
 		cmd := exec.Command(s.config.Cmd, strings.Split(s.config.CmdArgs, " ")...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -137,11 +143,9 @@ func (s *sidecar) signalProcess() (err error) {
 }
 
 func (s *sidecar) checkProcessExit() {
-	s.mux.Lock()
-	defer s.mux.Unlock()
-	s.processRunning = true
+	s.processRunning.Store(true)
 	s.process.Wait()
-	s.processRunning = false
+	s.processRunning.Store(false)
 }
 
 //dumpBundles takes a X509SVIDResponse, representing a svid message from
@@ -202,7 +206,7 @@ func (s *sidecar) writeKey(file string, data []byte) error {
 		Bytes: data,
 	}
 
-	return ioutil.WriteFile(file, pem.EncodeToMemory(b), certsFileMode)
+	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
 }
 
 // parses a time.Duration from the the SidecarConfig,
