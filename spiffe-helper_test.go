@@ -9,6 +9,10 @@ import (
 	"path"
 	"testing"
 	"time"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
+	"context"
+	"sync"
 )
 
 //Creates a Sidecar with a Mocked WorkloadAPIClient and tests that
@@ -16,10 +20,10 @@ import (
 //UpdateChan on the WorkloadAPI client, the PEM files are stored on disk
 func TestSidecar_RunDaemon(t *testing.T) {
 
+	var wg sync.WaitGroup
 	tmpdir, err := ioutil.TempDir("", "test-certs")
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	defer os.RemoveAll(tmpdir)
 
 	config := &SidecarConfig{
@@ -30,7 +34,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		SvidBundleFileName: "svid_bundle.pem",
 	}
 
-	updateMockChan := make(chan *workload.X509SVIDResponse, 1)
+	updateMockChan := make(chan *workload.X509SVIDResponse)
 	workloadClient := MockWorkloadClient{
 		mockChan: updateMockChan,
 	}
@@ -40,11 +44,12 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		workloadAPIClient: workloadClient,
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	wg.Add(1)
 	go func() {
-		err = sidecar.RunDaemon()
-		if err != nil {
-			panic(err)
-		}
+		defer wg.Done()
+		err = sidecar.RunDaemon(ctx)
+		require.NoError(t, err)
 	}()
 
 	x509SvidTestResponse := x509SvidResponse(t)
@@ -52,53 +57,66 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	//send a X509SVIDResponse to Updates channel
 	updateMockChan <- x509SvidTestResponse
 
-	//sleep this routine so the dumpBundles on the Sidecar is run
-	time.Sleep(1 * time.Millisecond)
+	//send signal to stop the Daemon
+	cancel()
+	wg.Wait()
 
 	//The expected files
 	svidFile := path.Join(tmpdir, config.SvidFileName)
 	svidKeyFile := path.Join(tmpdir, config.SvidKeyFileName)
 	svidBundleFile := path.Join(tmpdir, config.SvidBundleFileName)
 
-	if _, err := os.Stat(svidFile); os.IsNotExist(err) {
-		t.Errorf("svid file was not created: %v", err)
+	if _, err := os.Stat(svidFile); err != nil {
+		t.Errorf("error %v with file: %v", err, svidFile)
 	}
-
-	if _, err := os.Stat(svidKeyFile); os.IsNotExist(err) {
-		t.Errorf("svid key file was not created: %v", err)
+	if _, err := os.Stat(svidKeyFile); err != nil {
+		t.Errorf("error %v with file: %v", err, svidKeyFile)
 	}
-
-	if _, err := os.Stat(svidBundleFile); os.IsNotExist(err) {
-		t.Errorf("svid bundle file was not created: %v", err)
+	if _, err := os.Stat(svidBundleFile); err != nil {
+		t.Errorf("error %v with file: %v", err, svidBundleFile)
 	}
 }
 
-//Tests that when there is no timeout in the config, it uses
-//the default timeout set in a constant in the spiffe_helper
+//Tests that when there is no defaultTimeout in the config, it uses
+//the default defaultTimeout set in a constant in the spiffe_helper
 func Test_getTimeout_default(t *testing.T) {
 	config := &SidecarConfig{}
 
-	expectedTimeout := timeout
-	actualTimeout := getTimeout(config)
+	expectedTimeout := defaultTimeout
+	actualTimeout, err := getTimeout(config)
 
+	assert.NoError(t, err)
 	if actualTimeout != expectedTimeout {
-		t.Errorf("Expected timeout : %v, got %v", expectedTimeout, actualTimeout)
+		t.Errorf("Expected defaultTimeout : %v, got %v", expectedTimeout, actualTimeout)
 	}
 }
 
-//Tests that when there
+//Tests that when there is a timeout set in the config, it's used that one
 func Test_getTimeout_custom(t *testing.T) {
 	config := &SidecarConfig{
 		Timeout: "10s",
 	}
 
-	expectedTimeout, _ := time.ParseDuration(config.Timeout)
-	actualTimeout := getTimeout(config)
+	expectedTimeout := time.Second * 10
+	actualTimeout, err := getTimeout(config)
 
+	assert.NoError(t, err)
 	if actualTimeout != expectedTimeout {
-		t.Errorf("Expected timeout : %v, got %v", expectedTimeout, actualTimeout)
+		t.Errorf("Expected defaultTimeout : %v, got %v", expectedTimeout, actualTimeout)
 	}
 }
+
+func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
+	config := &SidecarConfig{
+		Timeout:"invalid",
+	}
+
+	actualTimeout, err := getTimeout(config)
+
+	assert.Empty(t, actualTimeout)
+	assert.NotEmpty(t, err)
+}
+
 
 type MockWorkloadClient struct {
 	mockChan chan *workload.X509SVIDResponse

@@ -15,11 +15,10 @@ import (
 	"github.com/spiffe/spire/api/workload"
 	"net"
 	proto "github.com/spiffe/spire/proto/api/workload"
+	"sync"
+	"context"
+	"github.com/apex/log"
 )
-
-type Sidecar interface {
-	RunDaemon()
-}
 
 // sidecar is the component that consumes the Workload API and renews certs
 // implements the interface Sidecar
@@ -28,25 +27,36 @@ type sidecar struct {
 	processRunning    bool
 	process           *os.Process
 	workloadAPIClient workload.X509Client
+	mux sync.Mutex
 }
 
-// default timeout Duration for the workloadAPI client when the timeout
-// is not configured in the .conf file
-const timeout = time.Duration(5 * time.Second)
+const (
+	// default timeout Duration for the workloadAPI client when the defaultTimeout
+	// is not configured in the .conf file
+	defaultTimeout = time.Duration(5 * time.Second)
+
+	certificatePermissions = os.FileMode(0644)
+	keyPermissions = os.FileMode(0644)
+	)
 
 // NewSidecar creates a new sidecar
-func NewSidecar(config *SidecarConfig) *sidecar {
+func NewSidecar(config *SidecarConfig) (*sidecar, error) {
+	timeout, err := getTimeout(config)
+	if err != nil {
+		return nil, err
+	}
+
 	return &sidecar{
 		config:            config,
-		workloadAPIClient: newWorkloadAPIClient(config.AgentAddress, getTimeout(config)),
-	}
+		workloadAPIClient: newWorkloadAPIClient(config.AgentAddress, timeout),
+	}, nil
 }
 
 // RunDaemon starts the main loop
 // Starts the workload API client to listen for new SVID updates
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
-func (s *sidecar) RunDaemon() error {
+func (s *sidecar) RunDaemon(ctx context.Context) error {
 	// Create channel for interrupt signal
 	interrupt := make(chan os.Signal, 1)
 	errorChan := make(chan error)
@@ -58,26 +68,29 @@ func (s *sidecar) RunDaemon() error {
 	go func() {
 		err := s.workloadAPIClient.Start()
 		if err != nil {
+			log.Error(err.Error())
 			errorChan <- err
 		}
 	}()
+	defer s.workloadAPIClient.Stop()
 
 	for {
 		select {
 		case svidResponse := <-updateChan:
 			err := s.dumpBundles(svidResponse)
 			if err != nil {
-				return err
+				log.Error(err.Error())
 			}
 			err = s.signalProcess()
 			if err != nil {
-				return err
+				log.Error(err.Error())
 			}
 		case <-interrupt:
-			s.workloadAPIClient.Stop()
 			return nil
 		case err := <-errorChan:
 			return err
+		case <-ctx.Done():
+			return nil
 		}
 	}
 }
@@ -125,6 +138,8 @@ func (s *sidecar) signalProcess() (err error) {
 }
 
 func (s *sidecar) checkProcessExit() {
+	s.mux.Lock()
+	defer s.mux.Unlock()
 	s.processRunning = true
 	s.process.Wait()
 	s.processRunning = false
@@ -177,7 +192,7 @@ func (s *sidecar) writeCerts(file string, data []byte) error {
 		pemData = append(pemData, pem.EncodeToMemory(b)...)
 	}
 
-	return ioutil.WriteFile(file, pemData, os.ModePerm)
+	return ioutil.WriteFile(file, pemData, certificatePermissions)
 }
 
 // writeKey takes a private key as a slice of bytes,
@@ -188,19 +203,23 @@ func (s *sidecar) writeKey(file string, data []byte) error {
 		Bytes: data,
 	}
 
-	return ioutil.WriteFile(file, pem.EncodeToMemory(b), os.ModePerm)
+	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyPermissions)
 }
 
 // parses a time.Duration from the the SidecarConfig,
 // if there's an error during parsing, maybe because
 // it's not well defined or not defined at all in the
-// config, returns the default timeout constant
-func getTimeout(config *SidecarConfig) time.Duration {
+// config, returns the defaultTimeout constant
+func getTimeout(config *SidecarConfig) (time.Duration, error) {
+	if config.Timeout == "" {
+		return defaultTimeout, nil
+	}
+
 	t, err := time.ParseDuration(config.Timeout)
 	if err != nil {
-		return timeout
+		return 0, err
 	}
-	return t
+	return t, nil
 }
 
 func getSignal(s string) (sig syscall.Signal, err error) {
@@ -270,7 +289,3 @@ func getSignal(s string) (sig syscall.Signal, err error) {
 	return sig, err
 }
 
-func log(format string, a ...interface{}) {
-	fmt.Print(time.Now().Format(time.Stamp), ": ")
-	fmt.Printf(format, a...)
-}

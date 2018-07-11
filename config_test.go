@@ -8,9 +8,7 @@ import (
 func TestParseConfig(t *testing.T) {
 	c, err := ParseConfig("./test/fixture/config/helper.conf")
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	expectedAgentAddress := "/tmp/agent.sock"
 	expectedCmd := "hot-restarter.py"

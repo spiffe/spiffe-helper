@@ -2,7 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"context"
+	"github.com/apex/log"
 )
 
 func main() {
@@ -15,17 +16,23 @@ func main() {
 
 	config, err := ParseConfig(*configFile)
 	if err != nil {
-		panic(fmt.Errorf("error parsing configuration file: %v\n%v", *configFile, err))
+		log.Fatalf("error parsing configuration file: %v\n%v", *configFile, err)
 	}
-	log("Sidecar is up! Will use agent at %s\n\n", config.AgentAddress)
+
+	log.Infof("Sidecar is up! Will use agent at %s\n\n", config.AgentAddress)
 	if config.Cmd == "" {
-		log("Warning: no cmd defined to execute.\n")
+		log.Warn("Warning: no cmd defined to execute.\n")
 	}
-	log("Using configuration file: %v\n", *configFile)
 
-	sidecar := NewSidecar(config)
+	log.Infof("Using configuration file: %v\n", *configFile)
 
-	err = sidecar.RunDaemon()
+	sidecar, err := NewSidecar(config)
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+	err = sidecar.RunDaemon(ctx)
 	if err != nil {
 		panic(err)
 	}
