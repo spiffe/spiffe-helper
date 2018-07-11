@@ -1,18 +1,18 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"github.com/spiffe/spire/proto/api/workload"
 	"github.com/spiffe/spire/test/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/assert"
-	"context"
-	"sync"
 )
 
 //Creates a Sidecar with a Mocked WorkloadAPIClient and tests that
@@ -108,7 +108,7 @@ func Test_getTimeout_custom(t *testing.T) {
 
 func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
 	config := &SidecarConfig{
-		Timeout:"invalid",
+		Timeout: "invalid",
 	}
 
 	actualTimeout, err := getTimeout(config)
@@ -116,7 +116,6 @@ func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
 	assert.Empty(t, actualTimeout)
 	assert.NotEmpty(t, err)
 }
-
 
 type MockWorkloadClient struct {
 	mockChan chan *workload.X509SVIDResponse

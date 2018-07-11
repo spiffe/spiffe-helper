@@ -1,23 +1,23 @@
 package main
 
 import (
+	"context"
+	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"github.com/apex/log"
+	"github.com/spiffe/spire/api/workload"
+	proto "github.com/spiffe/spire/proto/api/workload"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
-	"crypto/x509"
-	"github.com/spiffe/spire/api/workload"
-	"net"
-	proto "github.com/spiffe/spire/proto/api/workload"
-	"sync"
-	"context"
-	"github.com/apex/log"
 )
 
 // sidecar is the component that consumes the Workload API and renews certs
@@ -27,7 +27,7 @@ type sidecar struct {
 	processRunning    bool
 	process           *os.Process
 	workloadAPIClient workload.X509Client
-	mux sync.Mutex
+	mux               sync.Mutex
 }
 
 const (
@@ -35,9 +35,8 @@ const (
 	// is not configured in the .conf file
 	defaultTimeout = time.Duration(5 * time.Second)
 
-	certificatePermissions = os.FileMode(0644)
-	keyPermissions = os.FileMode(0644)
-	)
+	certsFileMode = os.FileMode(0644)
+)
 
 // NewSidecar creates a new sidecar
 func NewSidecar(config *SidecarConfig) (*sidecar, error) {
@@ -192,7 +191,7 @@ func (s *sidecar) writeCerts(file string, data []byte) error {
 		pemData = append(pemData, pem.EncodeToMemory(b)...)
 	}
 
-	return ioutil.WriteFile(file, pemData, certificatePermissions)
+	return ioutil.WriteFile(file, pemData, certsFileMode)
 }
 
 // writeKey takes a private key as a slice of bytes,
@@ -203,7 +202,7 @@ func (s *sidecar) writeKey(file string, data []byte) error {
 		Bytes: data,
 	}
 
-	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyPermissions)
+	return ioutil.WriteFile(file, pem.EncodeToMemory(b), certsFileMode)
 }
 
 // parses a time.Duration from the the SidecarConfig,
@@ -288,4 +287,3 @@ func getSignal(s string) (sig syscall.Signal, err error) {
 
 	return sig, err
 }
-
