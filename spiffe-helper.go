@@ -17,14 +17,14 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"go.uber.org/atomic"
+	"sync/atomic"
 )
 
 // sidecar is the component that consumes the Workload API and renews certs
 // implements the interface Sidecar
 type sidecar struct {
 	config            *SidecarConfig
-	processRunning    atomic.Bool
+	processRunning    int32
 	process           *os.Process
 	workloadAPIClient workload.X509Client
 }
@@ -116,7 +116,7 @@ func newWorkloadAPIClient(agentAddress string, timeout time.Duration) workload.X
 //signalProcess sends the configured Renew signal to the process running the proxy
 //to reload itself so that the proxy uses the new SVID
 func (s *sidecar) signalProcess() (err error) {
-	if !s.processRunning.Load() {
+	if atomic.LoadInt32(&s.processRunning) == 0 {
 		cmd := exec.Command(s.config.Cmd, strings.Split(s.config.CmdArgs, " ")...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -143,9 +143,9 @@ func (s *sidecar) signalProcess() (err error) {
 }
 
 func (s *sidecar) checkProcessExit() {
-	s.processRunning.Store(true)
+	atomic.StoreInt32(&s.processRunning, 1)
 	s.process.Wait()
-	s.processRunning.Store(false)
+	atomic.StoreInt32(&s.processRunning, 0)
 }
 
 //dumpBundles takes a X509SVIDResponse, representing a svid message from
