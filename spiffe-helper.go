@@ -15,9 +15,9 @@ import (
 	"os/signal"
 	"path"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
-	"sync/atomic"
 )
 
 // sidecar is the component that consumes the Workload API and renews certs
@@ -35,7 +35,7 @@ const (
 	defaultTimeout = time.Duration(5 * time.Second)
 
 	certsFileMode = os.FileMode(0644)
-	keyFileMode = os.FileMode(0600)
+	keyFileMode   = os.FileMode(0600)
 )
 
 // NewSidecar creates a new sidecar
@@ -165,9 +165,19 @@ func (s *sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
 		return err
 	}
 
-	err = s.writeKey(svidKeyFile, svid.X509SvidKey)
-	if err != nil {
-		return err
+	if svidKeyFile == svidFile {
+
+		err = s.appendKey(svidKeyFile, svid.X509SvidKey)
+		if err != nil {
+			return err
+		}
+
+	} else {
+
+		err = s.writeKey(svidKeyFile, svid.X509SvidKey)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = s.writeCerts(svidBundleFile, svid.Bundle)
@@ -207,6 +217,28 @@ func (s *sidecar) writeKey(file string, data []byte) error {
 	}
 
 	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
+}
+
+// writeKey takes a private key as a slice of bytes,
+// formats as PEM, and appends it to file
+func (s *sidecar) appendKey(file string, data []byte) error {
+	b := &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: data,
+	}
+
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, keyFileMode)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(pem.EncodeToMemory(b))
+	if err != nil {
+		return err
+	}
+
+	err = f.Close()
+	return err
 }
 
 // parses a time.Duration from the the SidecarConfig,
