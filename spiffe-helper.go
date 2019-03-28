@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/apex/log"
+	"github.com/pkg/errors"
 	"github.com/spiffe/spire/api/workload"
 	proto "github.com/spiffe/spire/proto/api/workload"
 	"io/ioutil"
@@ -15,9 +16,9 @@ import (
 	"os/signal"
 	"path"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
-	"sync/atomic"
 )
 
 // sidecar is the component that consumes the Workload API and renews certs
@@ -35,7 +36,7 @@ const (
 	defaultTimeout = time.Duration(5 * time.Second)
 
 	certsFileMode = os.FileMode(0644)
-	keyFileMode = os.FileMode(0600)
+	keyFileMode   = os.FileMode(0600)
 )
 
 // NewSidecar creates a new sidecar
@@ -206,7 +207,22 @@ func (s *sidecar) writeKey(file string, data []byte) error {
 		Bytes: data,
 	}
 
-	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, keyFileMode)
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(pem.EncodeToMemory(b))
+	if err != nil {
+		err1 := f.Close()
+		if err1 != nil {
+			return errors.Wrap(err1, err.Error())
+		}
+		return err
+	}
+
+	err = f.Close()
+	return err
 }
 
 // parses a time.Duration from the the SidecarConfig,
