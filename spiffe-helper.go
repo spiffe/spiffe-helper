@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/apex/log"
+	"github.com/pkg/errors"
 	"github.com/spiffe/spire/api/workload"
 	proto "github.com/spiffe/spire/proto/api/workload"
 	"io/ioutil"
@@ -165,19 +166,9 @@ func (s *sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
 		return err
 	}
 
-	if svidKeyFile == svidFile {
-
-		err = s.appendKey(svidKeyFile, svid.X509SvidKey)
-		if err != nil {
-			return err
-		}
-
-	} else {
-
-		err = s.writeKey(svidKeyFile, svid.X509SvidKey)
-		if err != nil {
-			return err
-		}
+	err = s.writeKey(svidKeyFile, svid.X509SvidKey)
+	if err != nil {
+		return err
 	}
 
 	err = s.writeCerts(svidBundleFile, svid.Bundle)
@@ -216,17 +207,6 @@ func (s *sidecar) writeKey(file string, data []byte) error {
 		Bytes: data,
 	}
 
-	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
-}
-
-// writeKey takes a private key as a slice of bytes,
-// formats as PEM, and appends it to file
-func (s *sidecar) appendKey(file string, data []byte) error {
-	b := &pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: data,
-	}
-
 	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, keyFileMode)
 	if err != nil {
 		return err
@@ -234,6 +214,10 @@ func (s *sidecar) appendKey(file string, data []byte) error {
 
 	_, err = f.Write(pem.EncodeToMemory(b))
 	if err != nil {
+		err1 := f.Close()
+		if err1 != nil {
+			return errors.Wrap(err1, err.Error())
+		}
 		return err
 	}
 
