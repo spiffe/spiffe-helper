@@ -3,7 +3,7 @@
 The SPIFFE Helper is a simple utility for fetching X.509 SVID certificates from the SPIFFE Workload API, launch a process that makes use of the certificates and continuously get new certificates before they expire. The launched process is signaled to reload the certificates when is needed.
 
 ### Usage
-`$ spiffe-helper -config <config_file>`
+`$ sidecar -config <config_file>`
 
 `<config_file>`: file path to the configuration file.
 
