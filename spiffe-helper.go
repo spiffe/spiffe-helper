@@ -5,11 +5,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"github.com/apex/log"
-	"github.com/pkg/errors"
-	"github.com/spiffe/spire/api/workload"
-	proto "github.com/spiffe/spire/proto/api/workload"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -19,6 +16,9 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/spiffe/spire/api/workload"
+	proto "github.com/spiffe/spire/proto/api/workload"
 )
 
 // sidecar is the component that consumes the Workload API and renews certs
@@ -68,7 +68,7 @@ func (s *sidecar) RunDaemon(ctx context.Context) error {
 	go func() {
 		err := s.workloadAPIClient.Start()
 		if err != nil {
-			log.Error(err.Error())
+			log.Println(err.Error())
 			errorChan <- err
 		}
 	}()
@@ -90,14 +90,16 @@ func (s *sidecar) RunDaemon(ctx context.Context) error {
 
 // Updates the certificates stored in disk and signal the Process to restart
 func updateCertificates(s *sidecar, svidResponse *proto.X509SVIDResponse) {
+	log.Println("Updating certificates")
+
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
-		log.Error(err.Error())
+		log.Println(err.Error())
 		return
 	}
 	err = s.signalProcess()
 	if err != nil {
-		log.Error(err.Error())
+		log.Println(err.Error())
 	}
 }
 
@@ -207,22 +209,7 @@ func (s *sidecar) writeKey(file string, data []byte) error {
 		Bytes: data,
 	}
 
-	f, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_APPEND, keyFileMode)
-	if err != nil {
-		return err
-	}
-
-	_, err = f.Write(pem.EncodeToMemory(b))
-	if err != nil {
-		err1 := f.Close()
-		if err1 != nil {
-			return errors.Wrap(err1, err.Error())
-		}
-		return err
-	}
-
-	err = f.Close()
-	return err
+	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
 }
 
 // parses a time.Duration from the the SidecarConfig,

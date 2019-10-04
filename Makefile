@@ -3,14 +3,13 @@
 build:
 	go build
 
-all: utils vendor build test
+all: utils build test
 
 utils:
-	go get github.com/Masterminds/glide
 	go get github.com/goreleaser/goreleaser
 
-vendor: glide.yaml glide.lock
-	glide install
+vendor:
+	go mod vendor
 
 test:
 	go test

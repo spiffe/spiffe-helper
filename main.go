@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/apex/log"
+	"log"
 )
 
 func main() {
@@ -19,12 +19,12 @@ func main() {
 		log.Fatalf("error parsing configuration file: %v\n%v", *configFile, err)
 	}
 
-	log.Infof("Sidecar is up! Will use agent at %s\n\n", config.AgentAddress)
+	log.Printf("Connecting to agent at %q\n", config.AgentAddress)
 	if config.Cmd == "" {
-		log.Warn("Warning: no cmd defined to execute.\n")
+		log.Println("Warning: no cmd defined to execute.")
 	}
 
-	log.Infof("Using configuration file: %v\n", *configFile)
+	log.Printf("Using configuration file: %q\n", *configFile)
 
 	sidecar, err := NewSidecar(config)
 	if err != nil {

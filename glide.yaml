@@ -1,6 +1,0 @@
-package: github.com/spiffe/spiffe-helper
-import:
-- package: github.com/hashicorp/hcl
-- package: google.golang.org/grpc
-  version: ^1.6.0
-- package: github.com/spiffe/spire/proto/api/workload
