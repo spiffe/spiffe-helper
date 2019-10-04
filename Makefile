@@ -1,3 +1,5 @@
+export GO111MODULE=on
+
 .PHONY: all utils build test clean distclean
 
 build:
