@@ -1,6 +1,6 @@
 module github.com/spiffe/spiffe-helper
 
-go 1.13
+go 1.12
 
 require (
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129
