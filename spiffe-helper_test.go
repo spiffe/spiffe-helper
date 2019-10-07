@@ -3,17 +3,22 @@ package main
 import (
 	"context"
 	"crypto/x509"
-	"github.com/spiffe/spire/proto/api/workload"
-	"github.com/spiffe/spire/test/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/spiffe/spire/test/util"
+
+	"github.com/spiffe/go-spiffe/proto/spiffe/workload"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+const contextTimeOut = 2 * time.Minute
 
 //Creates a Sidecar with a Mocked WorkloadAPIClient and tests that
 //running the Sidecar Daemon, when a SVID Response is sent to the
@@ -45,7 +50,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		workloadAPIClient: workloadClient,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), contextTimeOut)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -120,6 +125,9 @@ func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
 
 type MockWorkloadClient struct {
 	mockChan chan *workload.X509SVIDResponse
+	current  *workload.X509SVIDResponse
+
+	mu *sync.RWMutex
 }
 
 func (m MockWorkloadClient) Start() error {
@@ -130,6 +138,16 @@ func (m MockWorkloadClient) Stop() {}
 
 func (m MockWorkloadClient) UpdateChan() <-chan *workload.X509SVIDResponse {
 	return m.mockChan
+}
+
+func (m MockWorkloadClient) CurrentSVID() (*workload.X509SVIDResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.current == nil {
+		return nil, errors.New("no SVID received yet")
+	}
+	return m.current, nil
 }
 
 // creates a X509SVIDResponse reading test certs from files
