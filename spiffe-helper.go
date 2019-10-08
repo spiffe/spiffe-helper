@@ -35,8 +35,8 @@ const (
 	// default timeout Duration for the workloadAPI client when the defaultTimeout
 	// is not configured in the .conf file
 	defaultTimeout = 5 * time.Second
-	DelayMin       = time.Second
-	DelayMax       = time.Minute
+	delayMin       = time.Second
+	delayMax       = time.Minute
 
 	certsFileMode = os.FileMode(0644)
 	keyFileMode   = os.FileMode(0600)
@@ -70,7 +70,7 @@ func (s *sidecar) RunDaemon(ctx context.Context) error {
 	//start the workloadAPIClient
 	go func() {
 		clk := clock.New()
-		delay := DelayMin
+		delay := delayMin
 		for {
 			err := s.workloadAPIClient.Start()
 			if err != nil {
@@ -85,8 +85,8 @@ func (s *sidecar) RunDaemon(ctx context.Context) error {
 				}
 
 				delay = time.Duration(float64(delay) * 1.5)
-				if delay > DelayMax {
-					delay = DelayMax
+				if delay > delayMax {
+					delay = delayMax
 				}
 			}
 		}

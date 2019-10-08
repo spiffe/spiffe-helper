@@ -16,7 +16,7 @@ var (
 	caPath      = path.Join(ProjectRoot(), "test/fixture/certs/ca.pem")
 )
 
-// LoadCAFixture reads, parses, and returns the pre-defined CA fixture and key
+// LoadCA reads, parses, and returns the pre-defined CA fixture
 func LoadCA() (ca *x509.Certificate, err error) {
 	return LoadCert(caPath)
 }
