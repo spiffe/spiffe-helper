@@ -10,8 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spiffe/spiffe-helper/test/util"
+
 	"github.com/spiffe/spire/proto/api/workload"
-	"github.com/spiffe/spire/test/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -139,9 +140,9 @@ func x509SvidResponse(t *testing.T) *workload.X509SVIDResponse {
 	if err != nil {
 		t.Errorf("could not load svid fixture: %v", err)
 	}
-	ca, _, err := util.LoadCAFixture()
+	ca, err := util.LoadCA()
 	if err != nil {
-		t.Errorf("could not load ca fixture: %v", err)
+		t.Errorf("could not load ca: %v", err)
 	}
 
 	keyData, err := x509.MarshalPKCS8PrivateKey(key)

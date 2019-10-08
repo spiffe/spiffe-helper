@@ -80,6 +80,7 @@ func (s *sidecar) RunDaemon(ctx context.Context) error {
 				case <-timer.C:
 				case <-ctx.Done():
 					timer.Stop()
+					errorChan <- ctx.Err()
 					return
 				}
 
