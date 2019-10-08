@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/andres-erbsen/clock"
 	"github.com/spiffe/spire/api/workload"
 	proto "github.com/spiffe/spire/proto/api/workload"
 )
@@ -33,7 +34,9 @@ type sidecar struct {
 const (
 	// default timeout Duration for the workloadAPI client when the defaultTimeout
 	// is not configured in the .conf file
-	defaultTimeout = time.Duration(5 * time.Second)
+	defaultTimeout = 5 * time.Second
+	DelayMin       = time.Second
+	DelayMax       = time.Minute
 
 	certsFileMode = os.FileMode(0644)
 	keyFileMode   = os.FileMode(0600)
@@ -66,10 +69,25 @@ func (s *sidecar) RunDaemon(ctx context.Context) error {
 
 	//start the workloadAPIClient
 	go func() {
-		err := s.workloadAPIClient.Start()
-		if err != nil {
-			log.Println(err.Error())
-			errorChan <- err
+		clk := clock.New()
+		delay := DelayMin
+		for {
+			err := s.workloadAPIClient.Start()
+			if err != nil {
+				log.Printf("failed: %v; retrying in %s", err, delay)
+				timer := clk.Timer(delay)
+				select {
+				case <-timer.C:
+				case <-ctx.Done():
+					timer.Stop()
+					return
+				}
+
+				delay = time.Duration(float64(delay) * 1.5)
+				if delay > DelayMax {
+					delay = DelayMax
+				}
+			}
 		}
 	}()
 	defer s.workloadAPIClient.Stop()

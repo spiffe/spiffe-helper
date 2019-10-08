@@ -1,6 +1,7 @@
 module github.com/spiffe/spiffe-helper
 
 require (
+	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce
 	github.com/onsi/ginkgo v1.10.1 // indirect
