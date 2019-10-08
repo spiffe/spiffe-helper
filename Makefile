@@ -21,4 +21,4 @@ distclean:
 	rm -rf vendor dist
 
 release:
-	curl -sL https://git.io/goreleaser | bash
+	curl -sL https://git.io/goreleaser | bash || true
