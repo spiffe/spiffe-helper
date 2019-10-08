@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/andres-erbsen/clock"
+	proto "github.com/spiffe/go-spiffe/proto/spiffe/workload"
 	"github.com/spiffe/spire/api/workload"
-	proto "github.com/spiffe/spire/proto/api/workload"
 )
 
 // sidecar is the component that consumes the Workload API and renews certs

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/x509"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/spiffe/spiffe-helper/test/util"
 
-	"github.com/spiffe/spire/proto/api/workload"
+	"github.com/spiffe/go-spiffe/proto/spiffe/workload"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,6 +41,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	updateMockChan := make(chan *workload.X509SVIDResponse)
 	workloadClient := MockWorkloadClient{
 		mockChan: updateMockChan,
+		mtx:      &sync.RWMutex{},
 	}
 
 	sidecar := sidecar{
@@ -122,6 +124,9 @@ func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
 
 type MockWorkloadClient struct {
 	mockChan chan *workload.X509SVIDResponse
+	current  *workload.X509SVIDResponse
+
+	mtx *sync.RWMutex
 }
 
 func (m MockWorkloadClient) Start() error {
@@ -134,8 +139,19 @@ func (m MockWorkloadClient) UpdateChan() <-chan *workload.X509SVIDResponse {
 	return m.mockChan
 }
 
+func (m MockWorkloadClient) CurrentSVID() (*workload.X509SVIDResponse, error) {
+	m.mtx.RLock()
+	defer m.mtx.RUnlock()
+
+	if m.current == nil {
+		return nil, errors.New("no SVID received yet")
+	}
+	return m.current, nil
+}
+
 // creates a X509SVIDResponse reading test certs from files
 func x509SvidResponse(t *testing.T) *workload.X509SVIDResponse {
+	// TODO: refactor to generate certificates instead reading from disk
 	svid, key, err := util.LoadSVIDFixture()
 	if err != nil {
 		t.Errorf("could not load svid fixture: %v", err)

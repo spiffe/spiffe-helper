@@ -82,19 +82,6 @@ func LoadPEM(path string) (*pem.Block, error) {
 	return blk, nil
 }
 
-func LoadBundle(path string) ([]*x509.Certificate, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("error reading bundle at %s: %s", path, err)
-	}
-
-	bundle, err := x509.ParseCertificates(data)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing bundle at %s: %s", path, err)
-	}
-	return bundle, nil
-}
-
 func ProjectRoot() string {
 	_, p, _, _ := runtime.Caller(0)
 	return path.Join(p, "../../../")
