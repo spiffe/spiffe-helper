@@ -4,7 +4,6 @@ dist: trusty
 language: go
 
 script:
-    - make utils
     - make vendor
     - make build
     - make test

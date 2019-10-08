@@ -1,14 +1,11 @@
 export GO111MODULE=on
 
-.PHONY: all utils build test clean distclean
+.PHONY: all build test clean distclean
 
 build:
 	go build
 
-all: utils build test
-
-utils:
-	go get github.com/goreleaser/goreleaser
+all: build test
 
 vendor:
 	go mod vendor
@@ -24,4 +21,4 @@ distclean:
 	rm -rf vendor dist
 
 release:
-	goreleaser || true
+	curl -sL https://git.io/goreleaser | bash || true
