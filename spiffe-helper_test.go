@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"crypto/x509"
-	"github.com/spiffe/spire/proto/api/workload"
-	"github.com/spiffe/spire/test/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
 	"path"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/spiffe/spire/proto/api/workload"
+	"github.com/spiffe/spire/test/util"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 //Creates a Sidecar with a Mocked WorkloadAPIClient and tests that
@@ -45,7 +46,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		workloadAPIClient: workloadClient,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
