@@ -11,7 +11,7 @@ This guide sets up the authentication configuration for the username: `postgres-
 
 ### Considerations
 The following assumptions are made:
-+ At least one SPIRE server and one agent are deployed.
++ At least one SPIRE server and one agent are deployed with trust domain `example.org`.
 
 + Postgres 12 is used in this guide but each step should be easily applicable to other versions as well.
 
@@ -57,13 +57,13 @@ hostssl     all             all             0.0.0.0/0               cert clientc
 ```
 
 ### 5. Start SPIRE server
-Start the SPIRE server using this example [configuration file](agent.conf):
+Start the SPIRE server:
 ```bash
 ./spire-server run
 ```
 
 ### 6. Start SPIRE agent
-Start the SPIRE agent using this example [configuration file](agent.conf):
+Start the SPIRE agent:
 ```bash
 ./spire-server bundle show > conf/agent/dummy_root_ca.crt
 TOKEN=$(./spire-server token generate -spiffeID spiffe://example.org/agent)| awk '{print $2}')

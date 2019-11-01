@@ -17,7 +17,7 @@ This guide sets up the authentication configuration for the username: `mysql-use
 
 ### Considerations
 The following assumptions are made:
-+ At least one SPIRE server and one agent are deployed.
++ At least one SPIRE server and one agent are deployed with trust domain `example.org`.
 
 + Mysql 8.0 is used in this guide but each step should be easily applicable to other versions as well.
 
@@ -45,13 +45,13 @@ mv /var/lib/mysql/ca.pem /var/lib/mysql/ca.pem.bk
 It is also possible to use a different directory. If that case, you should update the MySQL and the spiffe-helper configuration files.
 
 ### 4. Start SPIRE server
-Start the SPIRE server using this example [configuration file](agent.conf):
+Start SPIRE server:
 ```bash
 ./spire-server run
 ```
 
 ### 5. Start SPIRE agent
-Start the SPIRE agent using this example [configuration file](agent.conf):
+Start SPIRE agent:
 ```bash
 ./spire-server bundle show > conf/agent/dummy_root_ca.crt
 TOKEN=$(./spire-server token generate -spiffeID spiffe://example.org/agent)| awk '{print $2}')
