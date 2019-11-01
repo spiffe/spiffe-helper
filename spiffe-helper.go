@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/x509"
+	"encoding/csv"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -113,12 +114,12 @@ func updateCertificates(s *sidecar, svidResponse *proto.X509SVIDResponse) {
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
-		log.Println(err.Error())
+		log.Printf("unable to dump bundle: %v", err)
 		return
 	}
 	err = s.signalProcess()
 	if err != nil {
-		log.Println(err.Error())
+		log.Printf("unable to signal process: %v", err)
 	}
 }
 
@@ -139,7 +140,12 @@ func newWorkloadAPIClient(agentAddress string, timeout time.Duration) workload.X
 //to reload itself so that the proxy uses the new SVID
 func (s *sidecar) signalProcess() (err error) {
 	if atomic.LoadInt32(&s.processRunning) == 0 {
-		cmd := exec.Command(s.config.Cmd, strings.Split(s.config.CmdArgs, " ")...)
+		cmdArgs, err := getCmdArgs(s.config.CmdArgs)
+		if err != nil {
+			return fmt.Errorf("error parsing cmd arguments: %v", err)
+		}
+
+		cmd := exec.Command(s.config.Cmd, cmdArgs...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err = cmd.Start()
@@ -162,6 +168,23 @@ func (s *sidecar) signalProcess() (err error) {
 	}
 
 	return nil
+}
+
+// getCmdArgs receives the command line arguments as a string
+// and split it at spaces, except when the space is inside quotation marks
+func getCmdArgs(args string) ([]string, error) {
+	if args == "" {
+		return []string{}, nil
+	}
+
+	r := csv.NewReader(strings.NewReader(args))
+	r.Comma = ' ' // space
+	cmdArgs, err := r.Read()
+	if err != nil {
+		return cmdArgs, err
+	}
+
+	return cmdArgs, nil
 }
 
 func (s *sidecar) checkProcessExit() {
