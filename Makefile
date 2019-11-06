@@ -14,7 +14,7 @@ rpm_image_name = centos_rpm_builder_img
 version_number := $(shell git tag --points-at HEAD)
 
 # If it is not a tagged build, use the git commit
-ifneq ($(gittag),)
+ifeq ($(version_number),)
 	version_number := $(shell git rev-list -1 HEAD)
 endif
 
