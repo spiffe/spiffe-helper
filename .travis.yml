@@ -1,11 +1,19 @@
 sudo: false
 dist: trusty
-
 language: go
 
-script:
-    - make vendor
-    - make build
-    - make test
-    - make release
+stages:
+    - build
+    - release
 
+jobs:
+  include:
+    - stage: build
+      script:
+        - make build
+        - make test
+    - stage: release
+      if: type = push AND tag IS present
+      script:
+        - make goreleaser
+        - make release
