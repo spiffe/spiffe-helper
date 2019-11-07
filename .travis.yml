@@ -16,4 +16,5 @@ jobs:
       if: type = push AND tag IS present
       script:
         - make goreleaser
+        - make vendor
         - make release
