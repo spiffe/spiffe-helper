@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"log"
+
+	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
 func main() {
@@ -26,13 +28,13 @@ func main() {
 
 	log.Printf("Using configuration file: %q\n", *configFile)
 
-	sidecar, err := NewSidecar(config)
+	spiffeSidecar, err := sidecar.NewSidecar(config)
 	if err != nil {
 		panic(err)
 	}
 
 	ctx := context.Background()
-	err = sidecar.RunDaemon(ctx)
+	err = spiffeSidecar.RunDaemon(ctx)
 	if err != nil {
 		panic(err)
 	}

@@ -1,4 +1,4 @@
-package main
+package sidecar
 
 import (
 	"context"
@@ -30,7 +30,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 
 	defer os.RemoveAll(tmpdir)
 
-	config := &SidecarConfig{
+	config := &Config{
 		Cmd:                "echo",
 		CertDir:            tmpdir,
 		SvidFileName:       "svid.pem",
@@ -44,7 +44,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		mtx:      &sync.RWMutex{},
 	}
 
-	sidecar := sidecar{
+	sidecar := Sidecar{
 		config:            config,
 		workloadAPIClient: workloadClient,
 	}
@@ -83,9 +83,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 }
 
 //Tests that when there is no defaultTimeout in the config, it uses
-//the default defaultTimeout set in a constant in the spiffe_helper
+//the default defaultTimeout set in a constant in the spiffe_sidecar
 func Test_getTimeout_default(t *testing.T) {
-	config := &SidecarConfig{}
+	config := &Config{}
 
 	expectedTimeout := defaultTimeout
 	actualTimeout, err := getTimeout(config)
@@ -98,7 +98,7 @@ func Test_getTimeout_default(t *testing.T) {
 
 //Tests that when there is a timeout set in the config, it's used that one
 func Test_getTimeout_custom(t *testing.T) {
-	config := &SidecarConfig{
+	config := &Config{
 		Timeout: "10s",
 	}
 
@@ -112,7 +112,7 @@ func Test_getTimeout_custom(t *testing.T) {
 }
 
 func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
-	config := &SidecarConfig{
+	config := &Config{
 		Timeout: "invalid",
 	}
 

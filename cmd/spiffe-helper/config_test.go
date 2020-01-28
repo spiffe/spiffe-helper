@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseConfig(t *testing.T) {
-	c, err := ParseConfig("./test/fixture/config/helper.conf")
+	c, err := ParseConfig("../../test/fixture/config/helper.conf")
 
 	assert.NoError(t, err)
 
