@@ -1,3 +1,5 @@
 vendor
-dist
-spiffe-helper
+/spiffe-helper
+/artifacts
+/releases
+/.build

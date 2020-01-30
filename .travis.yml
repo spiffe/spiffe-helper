@@ -1,11 +1,54 @@
 sudo: false
-dist: trusty
 
 language: go
 
-script:
-    - make vendor
-    - make build
-    - make test
-    - make release
+go:
+    - 1.13.6
 
+cache:
+  directories:
+    - .cache
+    - $HOME/.build
+    - $HOME/go/pkg/mod
+    - $HOME/go/bin
+
+stages:
+    - build and test
+    - build release
+
+jobs:
+  include:
+    - stage: build and test
+      name: lint
+      script:
+        - make lint
+        - make tidy-check
+        - shellcheck script/*.sh
+        - shellcheck .travis/*.sh
+    - stage: build and test
+      name: linux build and test
+      script:
+        - make build
+        - make test
+      os: linux
+      dist: xenial
+    - stage: build and test
+      name: macos build and test
+      script:
+        - make build
+        - make test
+      os: macos
+    - stage: build release
+      script:
+        - .travis/build-release.sh
+      os: linux
+      dist: xenial
+      deploy:
+        - provider: releases
+          API_KEY: $GITHUB_TOKEN
+          file_glob: true
+          file: releases/*
+          skip_cleanup: true
+          on:
+            tags: true
+            condition: $GITHUB_TOKEN != ""

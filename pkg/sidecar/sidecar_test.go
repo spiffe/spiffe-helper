@@ -22,7 +22,6 @@ import (
 //running the Sidecar Daemon, when a SVID Response is sent to the
 //UpdateChan on the WorkloadAPI client, the PEM files are stored on disk
 func TestSidecar_RunDaemon(t *testing.T) {
-
 	var wg sync.WaitGroup
 
 	tmpdir, err := ioutil.TempDir("", "sidecar-run-daemon")
