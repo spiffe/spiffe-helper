@@ -20,7 +20,7 @@ help:
 	@echo "$(bold)Usage:$(reset) make $(cyan)<target>$(reset)"
 	@echo
 	@echo "$(bold)Build:$(reset)"
-	@echo "  $(cyan)build$(reset)                         - build all SPIFFE Helper binary (default)"
+	@echo "  $(cyan)build$(reset)                         - build SPIFFE Helper binary (default)"
 	@echo "  $(cyan)artifact$(reset)                      - build SPIFFE Helper tarball artifact"
 	@echo
 	@echo "$(bold)Test:$(reset)"
