@@ -26,6 +26,10 @@ help:
 	@echo "$(bold)Test:$(reset)"
 	@echo "  $(cyan)test$(reset)                          - run unit tests"
 	@echo
+	@echo "$(bold)Code cleanliness:$(reset)"
+	@echo "  $(cyan)lint$(reset)                          - run linters aggregator"
+	@echo "  $(cyan)tidy$(reset)                          - prune any no-longer-needed dependencies"
+	@echo
 	@echo "$(bold)Build and test:$(reset)"
 	@echo "  $(cyan)all$(reset)                           - build SPIFFE Helper binary, lint the code, and run unit tests"
 	@echo
