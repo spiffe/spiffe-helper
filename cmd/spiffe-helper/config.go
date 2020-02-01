@@ -8,7 +8,7 @@ import (
 )
 
 // ParseConfig parses the given HCL file into a SidecarConfig struct
-func ParseConfig(file string) (Config *sidecar.Config, err error) {
+func ParseConfig(file string) (config *sidecar.Config, err error) {
 	sidecarConfig := new(sidecar.Config)
 
 	// Read HCL file

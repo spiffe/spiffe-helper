@@ -208,7 +208,6 @@ func (s *Sidecar) checkProcessExit() {
 // the Workload API, and calls writeCerts and writeKey to write to disk
 // the svid, key and bundle of certificates
 func (s *Sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
-
 	// There may be more than one certificate, but we are interested in the first one only
 	svid := svidResponse.Svids[0]
 
