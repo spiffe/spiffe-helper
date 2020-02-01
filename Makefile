@@ -27,7 +27,7 @@ help:
 	@echo "  $(cyan)test$(reset)                          - run unit tests"
 	@echo
 	@echo "$(bold)Build and test:$(reset)"
-	@echo "  $(cyan)all$(reset)                           - build all SPIFFE Helper binary, lint the code, and run unit tests"
+	@echo "  $(cyan)all$(reset)                           - build SPIFFE Helper binary, lint the code, and run unit tests"
 	@echo
 	@echo "$(bold)Clean:$(reset)"
 	@echo "  $(cyan)clean$(reset)                         - remove object files from package source directories"
