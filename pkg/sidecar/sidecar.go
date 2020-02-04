@@ -23,16 +23,20 @@ import (
 
 // Config contains config variables when creating a SPIFFE Sidecar.
 type Config struct {
-	AgentAddress          string `hcl:"agentAddress"`
-	Cmd                   string `hcl:"cmd"`
-	CmdArgs               string `hcl:"cmdArgs"`
-	CertDir               string `hcl:"certDir"`
-	SvidFileName          string `hcl:"svidFileName"`
-	SvidKeyFileName       string `hcl:"svidKeyFileName"`
-	SvidBundleFileName    string `hcl:"svidBundleFileName"`
-	RenewSignal           string `hcl:"renewSignal"`
-	Timeout               string `hcl:"timeout"`
-	ReloadExternalProcess func() error
+	AgentAddress string `hcl:"agentAddress"`
+	Cmd          string `hcl:"cmd"`
+	CmdArgs      string `hcl:"cmdArgs"`
+	CertDir      string `hcl:"certDir"`
+	// Merge intermediate certificates into Bundle file instead of SVID file,
+	// it is useful is some scenarios like MySQL,
+	// where this is the expected format for presented certificates and bundles
+	MergeCAWithIntermediates bool   `hcl:"mergeCAWithIntermediates"`
+	SvidFileName             string `hcl:"svidFileName"`
+	SvidKeyFileName          string `hcl:"svidKeyFileName"`
+	SvidBundleFileName       string `hcl:"svidBundleFileName"`
+	RenewSignal              string `hcl:"renewSignal"`
+	Timeout                  string `hcl:"timeout"`
+	ReloadExternalProcess    func() error
 }
 
 // Sidecar is the component that consumes the Workload API and renews certs
@@ -206,7 +210,8 @@ func (s *Sidecar) checkProcessExit() {
 
 // dumpBundles takes a X509SVIDResponse, representing a svid message from
 // the Workload API, and calls writeCerts and writeKey to write to disk
-// the svid, key and bundle of certificates
+// the svid, key and bundle of certificates.
+// It is possible to change output setting `MergeCAWithIntermediates` as true.
 func (s *Sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
 	// There may be more than one certificate, but we are interested in the first one only
 	svid := svidResponse.Svids[0]
@@ -215,33 +220,41 @@ func (s *Sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
 	svidKeyFile := path.Join(s.config.CertDir, s.config.SvidKeyFileName)
 	svidBundleFile := path.Join(s.config.CertDir, s.config.SvidBundleFileName)
 
-	err := s.writeCerts(svidFile, svid.X509Svid)
+	certs, err := x509.ParseCertificates(svid.X509Svid)
 	if err != nil {
 		return err
 	}
 
-	err = s.writeKey(svidKeyFile, svid.X509SvidKey)
+	bundles, err := x509.ParseCertificates(svid.Bundle)
 	if err != nil {
 		return err
 	}
 
-	err = s.writeCerts(svidBundleFile, svid.Bundle)
-	if err != nil {
+	// In case of `MergeCAWithIntermediates` add intermediates into bundles, and remove them from certs
+	if s.config.MergeCAWithIntermediates {
+		bundles = append(bundles, certs[1:]...)
+		certs = []*x509.Certificate{certs[0]}
+	}
+
+	if err := s.writeCerts(svidFile, certs); err != nil {
+		return err
+	}
+
+	if err := s.writeKey(svidKeyFile, svid.X509SvidKey); err != nil {
+		return err
+	}
+
+	if err := s.writeCerts(svidBundleFile, bundles); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// writeCerts takes a slice of bytes, which may contain multiple certificates,
+// writeCerts takes an array of certificates,
 // and encodes them as PEM blocks, writing them to file
-func (s *Sidecar) writeCerts(file string, data []byte) error {
-	certs, err := x509.ParseCertificates(data)
-	if err != nil {
-		return err
-	}
-
-	pemData := []byte{}
+func (s *Sidecar) writeCerts(file string, certs []*x509.Certificate) error {
+	var pemData []byte
 	for _, cert := range certs {
 		b := &pem.Block{
 			Type:  "CERTIFICATE",

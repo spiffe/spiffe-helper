@@ -2,7 +2,9 @@ package sidecar
 
 import (
 	"context"
+	"crypto"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -11,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spiffe/spiffe-helper/test/util"
-
 	"github.com/spiffe/go-spiffe/proto/spiffe/workload"
+	"github.com/spiffe/go-spiffe/spiffetest"
+	"github.com/spiffe/spire/pkg/common/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +24,37 @@ import (
 //running the Sidecar Daemon, when a SVID Response is sent to the
 //UpdateChan on the WorkloadAPI client, the PEM files are stored on disk
 func TestSidecar_RunDaemon(t *testing.T) {
-	var wg sync.WaitGroup
+	// Create root CA
+	domain1CA := spiffetest.NewCA(t)
+	// Create an intermediate certificate
+	domain1Inter := domain1CA.CreateCA()
+	domain1Bundle := domain1CA.Roots()
+
+	// Svid with intermediate
+	svidChainWithIntermediate, svidKeyWithIntermediate := domain1Inter.CreateX509SVID("spiffe://example.test/workloadWithIntermediate")
+	require.Len(t, svidChainWithIntermediate, 2)
+
+	// Add cert with intermediate into an svid
+	svidWithIntermediate := []spiffetest.X509SVID{
+		{
+			CertChain: svidChainWithIntermediate,
+			Key:       svidKeyWithIntermediate,
+		},
+	}
+
+	// Concat bundles with intermediate certificate
+	bundleWithIntermediate := domain1CA.Roots()
+	bundleWithIntermediate = append(bundleWithIntermediate, svidChainWithIntermediate[1:]...)
+
+	// Create a single svid without intermediate
+	svidChain, svidKey := domain1CA.CreateX509SVID("spiffe://example.test/workload")
+	require.Len(t, svidChain, 1)
+	svid := []spiffetest.X509SVID{
+		{
+			CertChain: svidChain,
+			Key:       svidKey,
+		},
+	}
 
 	tmpdir, err := ioutil.TempDir("", "sidecar-run-daemon")
 	require.NoError(t, err)
@@ -46,38 +78,97 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	sidecar := Sidecar{
 		config:            config,
 		workloadAPIClient: workloadClient,
+		certReadyChan:     make(chan struct{}, 1),
 	}
+	defer close(sidecar.certReadyChan)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	wg.Add(1)
+	defer cancel()
 	go func() {
-		defer wg.Done()
 		err = sidecar.RunDaemon(ctx)
 		require.NoError(t, err)
 	}()
 
-	x509SvidTestResponse := x509SvidResponse(t)
+	testCases := []struct {
+		name     string
+		response *spiffetest.X509SVIDResponse
+		certs    []*x509.Certificate
+		key      crypto.Signer
+		bundle   []*x509.Certificate
 
-	//send a X509SVIDResponse to Updates channel
-	updateMockChan <- x509SvidTestResponse
+		intermediateInBundle bool
+	}{
+		{
+			name: "svid with intermediate",
+			response: &spiffetest.X509SVIDResponse{
+				Bundle: domain1Bundle,
+				SVIDs:  svidWithIntermediate,
+			},
+			certs:  svidChainWithIntermediate,
+			key:    svidKeyWithIntermediate,
+			bundle: domain1Bundle,
+		},
+		{
+			name: "intermediate in bundle",
+			response: &spiffetest.X509SVIDResponse{
+				Bundle: domain1Bundle,
+				SVIDs:  svidWithIntermediate,
+			},
+			// Only first certificate is expected
+			certs: []*x509.Certificate{svidChainWithIntermediate[0]},
+			key:   svidKeyWithIntermediate,
+			// A concatenation between bundle and intermediate is expected
+			bundle: bundleWithIntermediate,
 
-	//send signal to stop the Daemon
-	cancel()
-	wg.Wait()
+			intermediateInBundle: true,
+		},
+		{
+			name: "single svid ",
+			response: &spiffetest.X509SVIDResponse{
+				Bundle: domain1CA.Roots(),
+				SVIDs:  svid,
+			},
+			certs:  svidChain,
+			key:    svidKey,
+			bundle: domain1Bundle,
+		},
+	}
 
-	//The expected files
 	svidFile := path.Join(tmpdir, config.SvidFileName)
 	svidKeyFile := path.Join(tmpdir, config.SvidKeyFileName)
 	svidBundleFile := path.Join(tmpdir, config.SvidBundleFileName)
 
-	if _, err := os.Stat(svidFile); err != nil {
-		t.Errorf("error %v with file: %v", err, svidFile)
-	}
-	if _, err := os.Stat(svidKeyFile); err != nil {
-		t.Errorf("error %v with file: %v", err, svidKeyFile)
-	}
-	if _, err := os.Stat(svidBundleFile); err != nil {
-		t.Errorf("error %v with file: %v", err, svidBundleFile)
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			sidecar.config.MergeCAWithIntermediates = testCase.intermediateInBundle
+
+			// Push response to start updating process
+			updateMockChan <- testCase.response.ToProto(t)
+
+			// Wait until response is processed
+			select {
+			case <-sidecar.CertReadyChan():
+			//continue
+			case <-ctx.Done():
+				require.NoError(t, ctx.Err())
+			}
+
+			// Load certificates from disk and validate it is expected
+			certs, err := util.LoadCertificates(svidFile)
+			require.NoError(t, err)
+			require.Equal(t, testCase.certs, certs)
+
+			// Load key from disk and validate it is expected
+			key, err := loadPrivateKey(svidKeyFile)
+			require.NoError(t, err)
+			require.Equal(t, testCase.key, key)
+
+			// Load bundle from disk and validate it is expected
+			bundles, err := util.LoadCertificates(svidBundleFile)
+			require.NoError(t, err)
+			require.Equal(t, testCase.bundle, bundles)
+		})
 	}
 }
 
@@ -148,30 +239,18 @@ func (m MockWorkloadClient) CurrentSVID() (*workload.X509SVIDResponse, error) {
 	return m.current, nil
 }
 
-// creates a X509SVIDResponse reading test certs from files
-func x509SvidResponse(t *testing.T) *workload.X509SVIDResponse {
-	// TODO: refactor to generate certificates instead reading from disk
-	svid, key, err := util.LoadSVIDFixture()
+func loadPrivateKey(path string) (crypto.Signer, error) {
+	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		t.Errorf("could not load svid fixture: %v", err)
-	}
-	ca, err := util.LoadCA()
-	if err != nil {
-		t.Errorf("could not load ca: %v", err)
+		return nil, err
 	}
 
-	keyData, err := x509.MarshalPKCS8PrivateKey(key)
+	block, _ := pem.Decode(data)
+
+	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		t.Errorf("could not marshal private key: %v", err)
+		return nil, err
 	}
 
-	svidMsg := &workload.X509SVID{
-		SpiffeId:    "spiffe://example.org/foo",
-		X509Svid:    svid.Raw,
-		X509SvidKey: keyData,
-		Bundle:      ca.Raw,
-	}
-	return &workload.X509SVIDResponse{
-		Svids: []*workload.X509SVID{svidMsg},
-	}
+	return key.(crypto.Signer), nil
 }

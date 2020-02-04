@@ -30,4 +30,5 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
 	assert.Equal(t, expectedTimeOut, c.Timeout)
+	assert.True(t, c.MergeCAWithIntermediates)
 }

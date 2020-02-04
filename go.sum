@@ -199,6 +199,7 @@ github.com/spiffe/go-spiffe v0.0.0-20190922191205-018e7197ed1c h1:wpwh25WjvKF8/+
 github.com/spiffe/go-spiffe v0.0.0-20190922191205-018e7197ed1c/go.mod h1:HyNeJnVYkDyQgB2qcSPxVYkAA2F3lQu51bDxNpFcKxY=
 github.com/spiffe/spire v0.0.0-20191007205405-52bcf313f4f6 h1:2lLO9rR2rXlfWjeOC5YR5sHMyw5LGwF/mFJpmiZJdK4=
 github.com/spiffe/spire v0.0.0-20191007205405-52bcf313f4f6/go.mod h1:Pnjj4CO6q5pS/vsXyqVHs/HNoDXWmn8+jZekriyWPmM=
+github.com/spiffe/spire/proto/spire v0.0.0-20190723205943-8d4a2538e330 h1:n5uIC5TcJhMmGGTPcsV9rvZvuncc49xeWxullDtx4fg=
 github.com/spiffe/spire/proto/spire v0.0.0-20190723205943-8d4a2538e330/go.mod h1:qNEFMfiHxU6h7JTH8Op7b5aHGRsSwfQXYnPd/F0Hm8c=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
@@ -210,6 +211,7 @@ github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqri
 github.com/uber-go/tally v3.3.12+incompatible/go.mod h1:YDTIBxdXyOU/sCWilKB4bgyufu1cEi0jdVnRdxvjnmU=
 github.com/yuin/gopher-lua v0.0.0-20190514113301-1cd887cd7036/go.mod h1:gqRgreBUhTSL0GeU64rtZ3Uq3wtjOa/TB2YfrtkCbVQ=
 github.com/zaffka/mongodb-boltdb-mock v0.0.0-20180816124423-49954d88fa3e/go.mod h1:GsDD1qsG+86MeeCG7ndi6Ei3iGthKL3wQ7PTFigDfNY=
+github.com/zeebo/errs v1.2.0 h1:Tk8UszIOLEjtx6DWnvfmMJe6N8q7vu03Bj95HMWDUkc=
 github.com/zeebo/errs v1.2.0/go.mod h1:sgbWHsvVuTPHcqJJGQ1WhI5KbWlHYz+2+2C/LSEtCw4=
 go.opencensus.io v0.20.1/go.mod h1:6WKK9ahsWS3RSO+PY9ZHZUfv2irvY6gN279GOPZjmmk=
 go.opencensus.io v0.20.2/go.mod h1:6WKK9ahsWS3RSO+PY9ZHZUfv2irvY6gN279GOPZjmmk=
