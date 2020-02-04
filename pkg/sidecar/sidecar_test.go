@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -13,9 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spiffe/spiffe-helper/test/util"
+
 	"github.com/spiffe/go-spiffe/proto/spiffe/workload"
 	"github.com/spiffe/go-spiffe/spiffetest"
-	"github.com/spiffe/spire/pkg/common/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -160,7 +160,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			require.Equal(t, testCase.certs, certs)
 
 			// Load key from disk and validate it is expected
-			key, err := loadPrivateKey(svidKeyFile)
+			key, err := util.LoadPrivateKey(svidKeyFile)
 			require.NoError(t, err)
 			require.Equal(t, testCase.key, key)
 
@@ -237,20 +237,4 @@ func (m MockWorkloadClient) CurrentSVID() (*workload.X509SVIDResponse, error) {
 		return nil, errors.New("no SVID received yet")
 	}
 	return m.current, nil
-}
-
-func loadPrivateKey(path string) (crypto.Signer, error) {
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(data)
-
-	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return key.(crypto.Signer), nil
 }
