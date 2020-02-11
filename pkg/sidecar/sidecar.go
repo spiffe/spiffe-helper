@@ -168,7 +168,7 @@ func (s *Sidecar) signalProcess() (err error) {
 				return fmt.Errorf("error parsing cmd arguments: %v", err)
 			}
 
-			cmd := exec.Command(s.config.Cmd, cmdArgs...)
+			cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			err = cmd.Start()
