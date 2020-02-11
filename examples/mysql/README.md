@@ -110,6 +110,13 @@ sudo ./spiffe-helper -config examples/mysql/helper.conf
 The spiffe-helper is now notified by the WorkloadAPI on each SVID rotation. It updates the certificates and signal MySQL to reload the configuration.
 
 ### 9. Connect to MySQL
+Create an `svids` folder owned by the `mysql-client` user to store the SVIDs retrieved from the Workload API.
+
+```bash
+mkdir examples/mysql/svids
+sudo chown mysql-client:mysql-client examples/mysql/svids
+```
+
 Connect to mysql running the provided script with the `mysql-client` user.
 ```
 sudo -u mysql-client examples/mysql/connect.sh

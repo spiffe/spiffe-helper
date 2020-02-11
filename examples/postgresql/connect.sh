@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-# Create a directory to store the certificate, key and bundle
-declare -r SVIDS_DIR=./svids
-mkdir -p $SVIDS_DIR
+# Directory to store the certificate, key and bundle fetched from the Workload API
+declare -r SVIDS_DIR=examples/postgresql/svids
 
 # Fetch SVIDs from SPIRE agent
 /opt/spire/spire-agent api fetch -write ${SVIDS_DIR}

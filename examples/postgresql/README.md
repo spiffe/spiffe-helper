@@ -25,7 +25,7 @@ systemctl status postgresql@12-main
 Create the `postgres-user` using the [provided script](create_user.sql).
 It creates a test database (`testdb`) and grants privileges to it.
 ```sql
-sudo -u postgres psql -c create_user.sql
+sudo -u postgres psql -f create_user.sql
 ```
 
 ### 3. Configure PosgreSQL SSL settings
@@ -123,6 +123,13 @@ sudo -u postgres ./spiffe-helper -config examples/postgresql/helper.conf
 The spiffe-helper is now notified by the WorkloadAPI on each SVID rotation. It updates the certificates and signal PostgreSQL to reload the configuration.
 
 ### 9. Connect to postgresql
+Create an `svids` folder owned by the `postgresql-client` user to store the SVIDs retrieved from the Workload API.
+
+```bash
+mkdir examples/postgresql/svids
+sudo chown postgresql-client:postgresql-client examples/postgresql/svids
+```
+
 Connect to posgresql running the provided script with the `postgresql-client` user.
 ```
 sudo -u postgresql-client examples/postgresql/connect.sh
