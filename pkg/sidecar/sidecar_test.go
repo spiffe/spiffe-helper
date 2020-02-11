@@ -122,34 +122,46 @@ func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
 }
 
 func TestGetCmdArgs(t *testing.T) {
-
 	cases := []struct {
-		name string
-		in   string
-		args []string
+		name         string
+		in           string
+		expectedArgs []string
+		expectedErr  string
 	}{
 		{
-			name: "Empty input arguments",
-			in:   "",
-			args: []string{},
+			name:         "Empty input arguments",
+			in:           "",
+			expectedArgs: []string{},
 		},
 		{
-			name: "Arguments without double quoted spaces",
-			in:   "-flag1 value1 -flag2 value2",
-			args: []string{"-flag1", "value1", "-flag2", "value2"},
+			name:         "Arguments without double quoted spaces",
+			in:           "-flag1 value1 -flag2 value2",
+			expectedArgs: []string{"-flag1", "value1", "-flag2", "value2"},
 		},
 		{
-			name: "Arguments with double quoted spaces",
-			in:   `-flag1 "value 1" -flag2 "value 2"`,
-			args: []string{"-flag1", "value 1", "-flag2", "value 2"},
+			name:         "Arguments with double quoted spaces",
+			in:           `-flag1 "value 1" -flag2 "value 2"`,
+			expectedArgs: []string{"-flag1", "value 1", "-flag2", "value 2"},
+		},
+		{
+			name:        "Missing quote",
+			in:          `-flag1 "value 1`,
+			expectedErr: `missing " in quoted-field`,
 		},
 	}
 
 	for _, c := range cases {
+		c := c
 		t.Run(c.name, func(t *testing.T) {
 			args, err := getCmdArgs(c.in)
+			if c.expectedErr != "" {
+				require.NotNil(t, err)
+				require.Nil(t, args)
+				require.Contains(t, err.Error(), c.expectedErr)
+				return
+			}
 			require.NoError(t, err)
-			assert.Equal(t, c.args, args)
+			assert.Equal(t, c.expectedArgs, args)
 		})
 	}
 }

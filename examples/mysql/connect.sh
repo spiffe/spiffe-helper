@@ -4,7 +4,7 @@
 declare -r SVIDS_DIR=examples/mysql/svids
 mkdir -p $SVIDS_DIR
 
-# Fetch the credentials from SPIRE agent
+# Fetch the credentials from SPIRE agent and write it into $SVIDS_DIR
 /opt/spire/spire-agent api fetch -write ${SVIDS_DIR}
 
 # Connecto to mysql using the certificates fetched

@@ -11,9 +11,9 @@ This guide sets up the authentication configuration for the username: `postgres-
 
 ### Considerations
 The following assumptions are made:
-+ At least one SPIRE server and one agent are deployed with trust domain `example.org`.
++ Postgres 12 is used in this guide but each step should be easily applicable to other versions as well. Check the considerations for other versions in [helper.conf](./helper.conf).
 
-+ Postgres 12 is used in this guide but each step should be easily applicable to other versions as well.
++ At least one SPIRE server and one agent are deployed with trust domain `example.org`.
 
 ### 1. Install PosgreSQL
 Install [PosgreSQL](https://www.postgresql.org/docs/12/tutorial-install.html) and make sure the service is up running.
@@ -23,6 +23,7 @@ systemctl status postgresql@12-main
 
 ### 2. Create the user
 Create the `postgres-user` using the [provided script](create_user.sql).
+It creates a test database (`testdb`) and grants privileges to it.
 ```sql
 sudo -u postgres psql -c create_user.sql
 ```
@@ -57,28 +58,45 @@ hostssl     all             all             0.0.0.0/0               cert clientc
 ```
 
 ### 5. Start SPIRE server
-Start the SPIRE server:
+Start SPIRE server using the SPIRE Server [configuration file](./spire-server.conf):
 ```bash
 ./spire-server run
 ```
 
 ### 6. Start SPIRE agent
-Start the SPIRE agent:
+The server configuration file sets `upstream_bundle=false`. In this case,
+the server bundle must be set as the agent trust bundle.
+
 ```bash
 ./spire-server bundle show > conf/agent/dummy_root_ca.crt
-TOKEN=$(./spire-server token generate -spiffeID spiffe://example.org/agent)| awk '{print $2}')
+```
+
+Get a join token:
+
+```bash
+TOKEN=$((./spire-server token generate -spiffeID spiffe://example.org/agent)| awk '{print $2}')
+```
+
+Start the agent using the SPIRE Agent [configuration file](./spire-agent.conf):
+```bash
 ./spire-agent run -joinToken $TOKEN
 ```
 
-### 7. Create the registration entries
+### 7. Create a user for the PostgreSQL client workload
+Create a unix user with name `postgresql-client`. This is the user that will run the PostgreSQL client workload.
+```bash
+useradd postgresql-client
+```
+
+### 8. Create the registration entries
 Create the following registration entries:
 
-+ For the PostgreSQL client, the DNS name must match the database user name. The selector used in this case is your current user id.
++ For the PostgreSQL client, the DNS name must match the database user name. The selector used for this entry is the user name: `postgresql-client`.
 ```bash
 ./spire-server entry create \
     -spiffeID spiffe://example.org/psql-client \
     -parentID spiffe://example.org/agent \
-    -selector unix:uid:1000 \
+    -selector unix:user:postgresql-client \
     -ttl 60 \
     -dns postgres-user
 ```
@@ -102,8 +120,10 @@ Start spiffe-helper using this example [configuration file](examples/postgresql/
 sudo -u postgres ./spiffe-helper -config examples/postgresql/helper.conf
 ```
 
+The spiffe-helper is now notified by the WorkloadAPI on each SVID rotation. It updates the certificates and signal PostgreSQL to reload the configuration.
+
 ### 9. Connect to postgresql
-Connect to posgresql running the provided script with your current user.
+Connect to posgresql running the provided script with the `postgresql-client` user.
 ```
-examples/postgresql/connect.sh
+sudo -u postgresql-client examples/postgresql/connect.sh
 ```

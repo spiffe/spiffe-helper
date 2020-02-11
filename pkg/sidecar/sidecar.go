@@ -163,12 +163,12 @@ func (s *Sidecar) signalProcess() (err error) {
 	switch s.config.ReloadExternalProcess {
 	case nil:
 		if atomic.LoadInt32(&s.processRunning) == 0 {
-		cmdArgs, err := getCmdArgs(s.config.CmdArgs)
-		if err != nil {
-			return fmt.Errorf("error parsing cmd arguments: %v", err)
-		}
+			cmdArgs, err := getCmdArgs(s.config.CmdArgs)
+			if err != nil {
+				return fmt.Errorf("error parsing cmd arguments: %v", err)
+			}
 
-		cmd := exec.Command(s.config.Cmd, cmdArgs...)
+			cmd := exec.Command(s.config.Cmd, cmdArgs...)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			err = cmd.Start()
@@ -211,7 +211,7 @@ func getCmdArgs(args string) ([]string, error) {
 	r.Comma = ' ' // space
 	cmdArgs, err := r.Read()
 	if err != nil {
-		return cmdArgs, err
+		return nil, err
 	}
 
 	return cmdArgs, nil
