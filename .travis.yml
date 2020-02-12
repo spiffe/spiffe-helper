@@ -23,7 +23,7 @@ jobs:
       script:
         - make lint
         - make tidy-check
-        - shellcheck script/*.sh
+        - shellcheck script/*/*.sh
         - shellcheck .travis/*.sh
     - stage: build and test
       name: linux build and test
