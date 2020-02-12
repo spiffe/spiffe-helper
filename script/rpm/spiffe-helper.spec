@@ -61,6 +61,8 @@ cp -p /root/spiffe-helper/helper.conf %{buildroot}/%{_helper_root}/
 
 cp -p /root/spiffe-helper/helper_envoy.conf %{buildroot}/%{_examples}/
 cp -p /root/spiffe-helper/helper_ghostunnel.conf %{buildroot}/%{_examples}/
+cp -p /root/spiffe-helper/examples/mysql/helper.conf %{buildroot}/%{_examples}/helper_mysql.conf
+cp -p /root/spiffe-helper/examples/postgresql/helper.conf %{buildroot}/%{_examples}/helper_postgresql.conf
 
 
 %files
