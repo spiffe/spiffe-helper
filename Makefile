@@ -1,94 +1,157 @@
 export GO111MODULE=on
+DIR := ${CURDIR}
 
-# Help message settings
-cyan := $(shell which tput > /dev/null && tput setaf 6 || echo "")
-reset := $(shell which tput > /dev/null && tput sgr0 || echo "")
-bold  := $(shell which tput > /dev/null && tput bold || echo "")
-target_max_char=25
-
-# RPM builder constants
-rpm_container_name = centos_rpm_builder
-rpm_image_name = centos_rpm_builder_img
-
-# Use the git tag as version
-version_number := $(shell git tag --points-at HEAD)
-
-# If it is not a tagged build, use the git commit
-ifeq ($(version_number),)
-	version_number := $(shell git rev-list -1 HEAD)
+E:=@
+ifeq ($(V),1)
+	E=
 endif
 
-# don't provide the git tag or commit if the git status is dirty.
-gitdirty := $(shell git status -s)
-ifneq ($(gitdirty),)
-	version_number :=unknown
+cyan := $(shell which tput > /dev/null && tput setaf 6 2>/dev/null || echo "")
+reset := $(shell which tput > /dev/null && tput sgr0 2>/dev/null || echo "")
+bold  := $(shell which tput > /dev/null && tput bold 2>/dev/null || echo "")
+
+.PHONY: default all help
+
+default: build
+
+all: build lint test
+
+help:
+	@echo "$(bold)Usage:$(reset) make $(cyan)<target>$(reset)"
+	@echo
+	@echo "$(bold)Build:$(reset)"
+	@echo "  $(cyan)build$(reset)                         - build SPIFFE Helper binary (default)"
+	@echo "  $(cyan)artifact$(reset)                      - build SPIFFE Helper tarball artifact"
+	@echo
+	@echo "$(bold)Test:$(reset)"
+	@echo "  $(cyan)test$(reset)                          - run unit tests"
+	@echo
+	@echo "$(bold)Code cleanliness:$(reset)"
+	@echo "  $(cyan)lint$(reset)                          - run linters aggregator"
+	@echo "  $(cyan)tidy$(reset)                          - prune any no-longer-needed dependencies"
+	@echo
+	@echo "$(bold)Build and test:$(reset)"
+	@echo "  $(cyan)all$(reset)                           - build SPIFFE Helper binary, lint the code, and run unit tests"
+	@echo
+	@echo "$(bold)Clean:$(reset)"
+	@echo "  $(cyan)clean$(reset)                         - remove object files from package source directories"
+	@echo
+	@echo "For verbose output set V=1"
+	@echo "  for example: $(cyan)make V=1 build$(reset)"
+
+
+############################################################################
+# OS/ARCH detection
+############################################################################
+os1=$(shell uname -s)
+os2=
+ifeq ($(os1),Darwin)
+os1=darwin
+os2=osx
+else ifeq ($(os1),Linux)
+os1=linux
+os2=linux
+else
+$(error unsupported OS: $(os1))
 endif
 
-# Get build number from travis env variable
-build_number := $(TRAVIS_BUILD_NUMBER)
-ifeq ($(build_number),)
-	build_number :=unknown
+arch1=$(shell uname -m)
+ifeq ($(arch1),x86_64)
+arch2=amd64
+else
+$(error unsupported ARCH: $(arch1))
 endif
 
-.PHONY: all build test clean distclean help rpm rpm-container-create rpm-build rpm-container-clean
+############################################################################
+# Vars
+############################################################################
 
-##@ Building
+build_dir := $(DIR)/.build/$(os1)-$(arch1)
 
-all: build test ## Builds and run unit tests
+go_version := $(shell cat .go-version)
+go_dir := $(build_dir)/go/$(go_version)
+go_bin_dir := $(go_dir)/bin
+go_url = https://storage.googleapis.com/golang/go$(go_version).$(os1)-$(arch2).tar.gz
+go := PATH="$(go_bin_dir):$(PATH)" go
 
-build: ## Builds spiffe-helper
-	go build
+golangci_lint_version = v1.21.0
+golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
+golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
 
-test: ## Run spiffe-helper unit tests
-	go test
+############################################################################
+# Install toolchain
+############################################################################
 
-vendor: ## Creates a vendored copy of dependencies
-	go mod vendor
+go-check:
+ifneq (go$(go_version), $(shell $(go) version 2>/dev/null | cut -f3 -d' '))
+	@echo "Installing go$(go_version)..."
+	$(E)rm -rf $(dir $(go_dir))
+	$(E)mkdir -p $(go_dir)
+	$(E)curl -sSfL $(go_url) | tar xz -C $(go_dir) --strip-components=1
+endif
 
-clean: ## Removes object files from package source directories
-	go clean
+install-toolchain: install-golangci-lint | go-check
 
-distclean: ## Removes installed binary, vendored dependencies and dist
-	go clean -i
-	rm -rf vendor dist
+install-golangci-lint: $(golangci_lint_bin)
 
-release: ## Downloads and run goreleaser
-	curl -sL https://git.io/goreleaser | bash || true
+$(golangci_lint_bin):
+	@echo "Installing golangci-lint $(golangci_lint_version)..."
+	$(E)rm -rf $(dir $(golangci_lint_dir))
+	$(E)mkdir -p $(golangci_lint_dir)
+	$(E)curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(golangci_lint_dir) $(golangci_lint_version)
 
-##@ RPM
+#############################################################################
+# Utility functions and targets
+#############################################################################
 
-rpm: rpm-container-create rpm-build rpm-container-clean ## Builds a RPM package for spiffe-helper in the 'rpm/' directory
+.PHONY: git-clean-check
 
-rpm-container-create: ## Creates a container image for building spiffe-helper RPM package
-	docker build --tag $(rpm_image_name) rpm/
+git-clean-check:
+ifneq ($(git_dirty),)
+	git diff
+	@echo "Git repository is dirty!"
+	@false
+else
+	@echo "Git repository is clean."
+endif
 
-rpm-build: ## Builds spiffe-helper RPM using the rpm-container
-	# Start container
-	docker run -t -d --name $(rpm_container_name) $(rpm_image_name)
 
-	# Create RPM build structure
-	docker exec $(rpm_container_name) sh -c "mkdir -p ~/rpmbuild/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}"
+#############################################################################
+# Code cleanliness
+#############################################################################
 
-	# Copy sources into container
-	docker cp . $(rpm_container_name):/root/spiffe-helper
+.PHONY: tidy tidy-check lint lint-code
+tidy: | go-check
+	$(E)$(go) mod tidy
 
-	# Copy RPM spec to RPM build structure
-	docker exec $(rpm_container_name) sh -c "cp -p /root/spiffe-helper/rpm/spiffe-helper.spec /root/rpmbuild/SPECS/."
+tidy-check:
+ifneq ($(git_dirty),)
+	$(error tidy-check must be invoked on a clean repository)
+endif
+	@echo "Running go tidy..."
+	$(E)$(MAKE) tidy
+	@echo "Ensuring git repository is clean..."
+	$(E)$(MAKE) git-clean-check
 
-	# Create tarball of spiffe-helper and copy to RPM build structure
-	docker exec $(rpm_container_name) sh -c "tar -zcvf ~/rpmbuild/SOURCES/spiffe-helper.tar.gz -C /root spiffe-helper"
+lint: lint-code
 
-	# Build RPM package (version: build version of the RPM, build_number: build / patch level number of RPM)
-	docker exec $(rpm_container_name) sh -c "rpmbuild --define='version $(version_number)' --define='build_number $(build_number)' -bb ~/rpmbuild/SPECS/spiffe-helper.spec"
+lint-code: $(golangci_lint_bin) | go-check
+	$(E)PATH="$(PATH):$(go_bin_dir)" $(golangci_lint_bin) run ./...
 
-	# Copy the RPM out of the container
-	docker cp $(rpm_container_name):/root/rpmbuild/RPMS/x86_64/spiffe-helper-$(version_number)-$(build_number).el7.x86_64.rpm rpm/
+############################################################################
+# Build targets
+############################################################################
 
-rpm-container-clean: ## Stop and removes the container used for building the RPM package
-	docker container stop $(rpm_container_name)
-	docker container rm $(rpm_container_name)
+.PHONY: build test clean distclean artifact
 
-##@ Help
+build: | go-check
+	go build -o spiffe-helper ./cmd/spiffe-helper
 
-help: ## Show this help message
-	@awk 'BEGIN {FS = ":.*##"; printf "\n$(bold)Usage:$(reset) make $(cyan)<target>$(reset)\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(cyan)%-$(target_max_char)s$(reset) %s\n", $$1, $$2 } /^##@/ { printf "\n $(bold)%s$(reset) \n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+artifact: build
+	@OUTDIR="$(OUTDIR)" TAG="$(TAG)" ./script/build-artifact.sh
+
+test: | go-check
+	go test ./...
+
+clean: | go-check
+	go clean ./cmd/spiffe-helper
