@@ -45,7 +45,7 @@ jobs:
       dist: xenial
       deploy:
         - provider: releases
-          API_KEY: $GITHUB_TOKEN
+          api_key: $GITHUB_TOKEN
           file_glob: true
           file: releases/*
           skip_cleanup: true
