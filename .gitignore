@@ -1,4 +1,6 @@
 vendor
-dist
-spiffe-helper
-goreleaser
+/spiffe-helper
+/artifacts
+/releases
+rpm/*.rpm
+/.build
