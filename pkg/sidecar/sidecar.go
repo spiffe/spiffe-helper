@@ -3,6 +3,7 @@ package sidecar
 import (
 	"context"
 	"crypto/x509"
+	"encoding/csv"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -128,12 +129,12 @@ func updateCertificates(s *Sidecar, svidResponse *proto.X509SVIDResponse) {
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
-		log.Println(err.Error())
+		log.Printf("unable to dump bundle: %v", err)
 		return
 	}
 	err = s.signalProcess()
 	if err != nil {
-		log.Println(err.Error())
+		log.Printf("unable to signal process: %v", err)
 	}
 
 	select {
@@ -166,7 +167,12 @@ func (s *Sidecar) signalProcess() (err error) {
 	switch s.config.ReloadExternalProcess {
 	case nil:
 		if atomic.LoadInt32(&s.processRunning) == 0 {
-			cmd := exec.Command(s.config.Cmd, strings.Split(s.config.CmdArgs, " ")...) // #nosec
+			cmdArgs, err := getCmdArgs(s.config.CmdArgs)
+			if err != nil {
+				return fmt.Errorf("error parsing cmd arguments: %v", err)
+			}
+
+			cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			err = cmd.Start()
@@ -196,6 +202,23 @@ func (s *Sidecar) signalProcess() (err error) {
 	}
 
 	return nil
+}
+
+// getCmdArgs receives the command line arguments as a string
+// and split it at spaces, except when the space is inside quotation marks
+func getCmdArgs(args string) ([]string, error) {
+	if args == "" {
+		return []string{}, nil
+	}
+
+	r := csv.NewReader(strings.NewReader(args))
+	r.Comma = ' ' // space
+	cmdArgs, err := r.Read()
+	if err != nil {
+		return nil, err
+	}
+
+	return cmdArgs, nil
 }
 
 func (s *Sidecar) checkProcessExit() {

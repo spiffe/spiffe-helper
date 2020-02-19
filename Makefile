@@ -21,7 +21,9 @@ help:
 	@echo
 	@echo "$(bold)Build:$(reset)"
 	@echo "  $(cyan)build$(reset)                         - build SPIFFE Helper binary (default)"
-	@echo "  $(cyan)artifact$(reset)                      - build SPIFFE Helper tarball artifact"
+	@echo "  $(cyan)artifact$(reset)                      - build SPIFFE Helper tarball and RPM artifacts"
+	@echo "  $(cyan)tarball$(reset)                       - build SPIFFE Helper tarball artifact"
+	@echo "  $(cyan)rpm$(reset)                           - build SPIFFE Helper RPM artifact"
 	@echo
 	@echo "$(bold)Test:$(reset)"
 	@echo "  $(cyan)test$(reset)                          - run unit tests"
@@ -142,13 +144,18 @@ lint-code: $(golangci_lint_bin) | go-check
 # Build targets
 ############################################################################
 
-.PHONY: build test clean distclean artifact
+.PHONY: build test clean distclean artifact tarball rpm
 
 build: | go-check
 	go build -o spiffe-helper ./cmd/spiffe-helper
 
-artifact: build
-	@OUTDIR="$(OUTDIR)" TAG="$(TAG)" ./script/build-artifact.sh
+artifact: tarball rpm
+
+tarball: build
+	@OUTDIR="$(OUTDIR)" TAG="$(TAG)" ./script/tarball/build-tarball.sh
+
+rpm:
+	@OUTDIR="$(OUTDIR)" TAG="$(TAG)" BUILD="$(BUILD)" ./script/rpm/build-rpm.sh
 
 test: | go-check
 	go test ./...

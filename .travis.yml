@@ -1,5 +1,8 @@
 sudo: false
 
+services:
+    - docker
+
 language: go
 
 go:
@@ -23,7 +26,7 @@ jobs:
       script:
         - make lint
         - make tidy-check
-        - shellcheck script/*.sh
+        - shellcheck script/*/*.sh
         - shellcheck .travis/*.sh
     - stage: build and test
       name: linux build and test
@@ -45,7 +48,7 @@ jobs:
       dist: xenial
       deploy:
         - provider: releases
-          API_KEY: $GITHUB_TOKEN
+          api_key: $GITHUB_TOKEN
           file_glob: true
           file: releases/*
           skip_cleanup: true
