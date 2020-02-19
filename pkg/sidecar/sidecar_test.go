@@ -83,10 +83,10 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	defer close(sidecar.certReadyChan)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
+	errCh := make(chan error, 1)
 	go func() {
 		err = sidecar.RunDaemon(ctx)
-		require.NoError(t, err)
+		errCh <- err
 	}()
 
 	testCases := []struct {
@@ -123,7 +123,18 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			intermediateInBundle: true,
 		},
 		{
-			name: "single svid ",
+			name: "single svid with intermediate in bundle",
+			response: &spiffetest.X509SVIDResponse{
+				Bundle: domain1CA.Roots(),
+				SVIDs:  svid,
+			},
+			certs:                svidChain,
+			key:                  svidKey,
+			bundle:               domain1Bundle,
+			intermediateInBundle: true,
+		},
+		{
+			name: "single svid",
 			response: &spiffetest.X509SVIDResponse{
 				Bundle: domain1CA.Roots(),
 				SVIDs:  svid,
@@ -141,7 +152,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
-			sidecar.config.MergeCAWithIntermediates = testCase.intermediateInBundle
+			sidecar.config.AddIntermediatesToBundle = testCase.intermediateInBundle
 
 			// Push response to start updating process
 			updateMockChan <- testCase.response.ToProto(t)
@@ -170,6 +181,10 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			require.Equal(t, testCase.bundle, bundles)
 		})
 	}
+
+	cancel()
+	err = <-errCh
+	require.NoError(t, err)
 }
 
 //Tests that when there is no defaultTimeout in the config, it uses

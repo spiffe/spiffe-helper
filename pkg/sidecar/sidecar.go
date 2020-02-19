@@ -31,7 +31,7 @@ type Config struct {
 	// Merge intermediate certificates into Bundle file instead of SVID file,
 	// it is useful is some scenarios like MySQL,
 	// where this is the expected format for presented certificates and bundles
-	MergeCAWithIntermediates bool   `hcl:"mergeCAWithIntermediates"`
+	AddIntermediatesToBundle bool   `hcl:"addIntermediatesToBundle"`
 	SvidFileName             string `hcl:"svidFileName"`
 	SvidKeyFileName          string `hcl:"svidKeyFileName"`
 	SvidBundleFileName       string `hcl:"svidBundleFileName"`
@@ -234,7 +234,7 @@ func (s *Sidecar) checkProcessExit() {
 // dumpBundles takes a X509SVIDResponse, representing a svid message from
 // the Workload API, and calls writeCerts and writeKey to write to disk
 // the svid, key and bundle of certificates.
-// It is possible to change output setting `MergeCAWithIntermediates` as true.
+// It is possible to change output setting `addIntermediatesToBundle` as true.
 func (s *Sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
 	// There may be more than one certificate, but we are interested in the first one only
 	svid := svidResponse.Svids[0]
@@ -253,8 +253,8 @@ func (s *Sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
 		return err
 	}
 
-	// In case of `MergeCAWithIntermediates` add intermediates into bundles, and remove them from certs
-	if s.config.MergeCAWithIntermediates {
+	// Add intermediates into bundles, and remove them from certs
+	if s.config.AddIntermediatesToBundle {
 		bundles = append(bundles, certs[1:]...)
 		certs = []*x509.Certificate{certs[0]}
 	}
