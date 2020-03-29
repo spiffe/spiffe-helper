@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
+	"os"
+	"os/signal"
 
+	"github.com/spiffe/go-spiffe/v2/logger"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
@@ -13,29 +15,39 @@ func main() {
 	// 1. Create Sidecar
 	// 2. Run Sidecar's Daemon
 
+	log := logger.Std
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
 	flag.Parse()
 
 	config, err := ParseConfig(*configFile)
 	if err != nil {
-		log.Fatalf("error parsing configuration file: %v\n%v", *configFile, err)
-	}
-
-	log.Printf("Connecting to agent at %q\n", config.AgentAddress)
-	if config.Cmd == "" {
-		log.Println("Warning: no cmd defined to execute.")
-	}
-
-	log.Printf("Using configuration file: %q\n", *configFile)
-
-	spiffeSidecar, err := sidecar.NewSidecar(config)
-	if err != nil {
+		log.Errorf("error parsing configuration file: %v\n%v", *configFile, err)
 		panic(err)
 	}
+	config.Log = log
 
-	ctx := context.Background()
+	log.Infof("Connecting to agent at %q\n", config.AgentAddress)
+	if config.Cmd == "" {
+		log.Warnf("No cmd defined to execute.")
+	}
+
+	log.Infof("Using configuration file: %q\n", *configFile)
+
+	spiffeSidecar := sidecar.NewSidecar(config)
+	ctx, cancel := context.WithCancel(context.Background())
 	err = spiffeSidecar.RunDaemon(ctx)
 	if err != nil {
 		panic(err)
+	}
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt)
+	select {
+	case err = <-spiffeSidecar.ErrChan:
+		panic(err)
+	case <-signalCh:
+		cancel()
+	case <-ctx.Done():
+		log.Infof("Exiting")
 	}
 }
