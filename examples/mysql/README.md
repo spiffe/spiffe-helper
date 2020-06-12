@@ -37,10 +37,17 @@ sudo mysql -u root < examples/mysql/create_user.sql
 This guide uses the MySQL default certificates path for simplicity. You may want to create a backup of these files.
 
 ```bash
-mv /var/lib/mysql/server-cert.pem /var/lib/mysql/server-cert.pem.bk
-mv /var/lib/mysql/server-key.pem /var/lib/mysql/server-key.pem.bk
-mv /var/lib/mysql/ca.pem /var/lib/mysql/ca.pem.bk
+cp /var/lib/mysql/server-cert.pem /var/lib/mysql/server-cert.pem.bk
+cp /var/lib/mysql/server-key.pem /var/lib/mysql/server-key.pem.bk
+cp /var/lib/mysql/ca.pem /var/lib/mysql/ca.pem.bk
 ```
+Update the file permissions allowing the os user access to update the certificates:
+```bash
+chmod 660 /var/lib/mysql/server-cert.pem
+chmod 660 /var/lib/mysql/server-key.pem
+chmod 660 /var/lib/mysql/ca.pem
+```
+Make sure the os user belongs to the same groups as the user running the mysql server.
 
 It is also possible to use a different directory. In that case, you should update the MySQL and the spiffe-helper configuration files.
 
