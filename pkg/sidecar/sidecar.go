@@ -92,7 +92,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		for {
 			err := s.workloadAPIClient.Start()
 			if err != nil {
-				log.Printf("failed: %v; retrying in %s", err, delay)
+				log.Printf("spiffe helper: failed: %v; retrying in %s", err, delay)
 				timer := clk.Timer(delay)
 				select {
 				case <-timer.C:
@@ -129,12 +129,12 @@ func updateCertificates(s *Sidecar, svidResponse *proto.X509SVIDResponse) {
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
-		log.Printf("unable to dump bundle: %v", err)
+		log.Printf("spiffe helper: unable to dump bundle: %v", err)
 		return
 	}
 	err = s.signalProcess()
 	if err != nil {
-		log.Printf("unable to signal process: %v", err)
+		log.Printf("spiffe helper: unable to signal process: %v", err)
 	}
 
 	select {
@@ -169,7 +169,7 @@ func (s *Sidecar) signalProcess() (err error) {
 		if atomic.LoadInt32(&s.processRunning) == 0 {
 			cmdArgs, err := getCmdArgs(s.config.CmdArgs)
 			if err != nil {
-				return fmt.Errorf("error parsing cmd arguments: %v", err)
+				return fmt.Errorf("spiffe helper: error parsing cmd arguments: %v", err)
 			}
 
 			cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
@@ -177,7 +177,7 @@ func (s *Sidecar) signalProcess() (err error) {
 			cmd.Stderr = os.Stderr
 			err = cmd.Start()
 			if err != nil {
-				return fmt.Errorf("error executing process: %v\n%v", s.config.Cmd, err)
+				return fmt.Errorf("spiffe helper: error executing process: %v\n%v", s.config.Cmd, err)
 			}
 			s.process = cmd.Process
 			go s.checkProcessExit()
@@ -185,19 +185,19 @@ func (s *Sidecar) signalProcess() (err error) {
 			// Signal to reload certs
 			sig := unix.SignalNum(s.config.RenewSignal)
 			if sig == 0 {
-				return fmt.Errorf("error getting signal: %v", s.config.RenewSignal)
+				return fmt.Errorf("spiffe helper: error getting signal: %v", s.config.RenewSignal)
 			}
 
 			err = s.process.Signal(sig)
 			if err != nil {
-				return fmt.Errorf("error signaling process with signal: %v\n%v", sig, err)
+				return fmt.Errorf("spiffe helper: error signaling process with signal: %v\n%v", sig, err)
 			}
 		}
 
 	default:
 		err = s.config.ReloadExternalProcess()
 		if err != nil {
-			return fmt.Errorf("error reloading external process: %v", err)
+			return fmt.Errorf("spiffe helper: error reloading external process: %v", err)
 		}
 	}
 
@@ -225,7 +225,7 @@ func (s *Sidecar) checkProcessExit() {
 	atomic.StoreInt32(&s.processRunning, 1)
 	_, err := s.process.Wait()
 	if err != nil {
-		log.Printf("error waiting for process exit: %v", err)
+		log.Printf("spiffe-helper: error waiting for process exit: %v", err)
 	}
 
 	atomic.StoreInt32(&s.processRunning, 0)
