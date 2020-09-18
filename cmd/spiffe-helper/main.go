@@ -24,6 +24,11 @@ func main() {
 		log.Errorf("error parsing configuration file: %v\n%v", *configFile, err)
 		panic(err)
 	}
+	timeout, err := sidecar.GetTimeout(config)
+	if err != nil {
+		log.Errorf("error parsing timeout: %s\n%v", config.Timeout, err)
+		panic(err)
+	}
 	config.Log = log
 
 	log.Infof("Connecting to agent at %q\n", config.AgentAddress)
@@ -34,7 +39,7 @@ func main() {
 	log.Infof("Using configuration file: %q\n", *configFile)
 
 	spiffeSidecar := sidecar.NewSidecar(config)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	err = spiffeSidecar.RunDaemon(ctx)
 	if err != nil {
 		panic(err)

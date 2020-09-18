@@ -55,8 +55,6 @@ const (
 	// default timeout Duration for the workloadAPI client when the defaultTimeout
 	// is not configured in the .conf file
 	defaultTimeout = 5 * time.Second
-	delayMin       = time.Second
-	delayMax       = time.Minute
 
 	certsFileMode = os.FileMode(0644)
 	keyFileMode   = os.FileMode(0600)
@@ -277,7 +275,7 @@ func (s *Sidecar) writeKey(file string, data []byte) error {
 // if there's an error during parsing, maybe because
 // it's not well defined or not defined at all in the
 // config, returns the defaultTimeout constant
-func getTimeout(config *Config) (time.Duration, error) {
+func GetTimeout(config *Config) (time.Duration, error) {
 	if config.Timeout == "" {
 		return defaultTimeout, nil
 	}

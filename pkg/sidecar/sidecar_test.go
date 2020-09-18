@@ -33,15 +33,15 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	domain1Bundle := domain1CA.Roots()
 
 	// Svid with intermediate
-	spiffeIdWithIntermediate, err := spiffeid.FromString("spiffe://example.test/workloadWithIntermediate")
+	spiffeIDWithIntermediate, err := spiffeid.FromString("spiffe://example.test/workloadWithIntermediate")
 	require.NoError(t, err)
-	svidChainWithIntermediate, svidKeyWithIntermediate := domain1Inter.CreateX509SVID(spiffeIdWithIntermediate.String())
+	svidChainWithIntermediate, svidKeyWithIntermediate := domain1Inter.CreateX509SVID(spiffeIDWithIntermediate.String())
 	require.Len(t, svidChainWithIntermediate, 2)
 
 	// Add cert with intermediate into an svid
 	svidWithIntermediate := []*x509svid.SVID{
 		{
-			ID:           spiffeIdWithIntermediate,
+			ID:           spiffeIDWithIntermediate,
 			Certificates: svidChainWithIntermediate,
 			PrivateKey:   svidKeyWithIntermediate,
 		},
@@ -52,13 +52,13 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	bundleWithIntermediate = append(bundleWithIntermediate, svidChainWithIntermediate[1:]...)
 
 	// Create a single svid without intermediate
-	spiffeId, err := spiffeid.FromString("spiffe://example.test/workload")
+	spiffeID, err := spiffeid.FromString("spiffe://example.test/workload")
 	require.NoError(t, err)
-	svidChain, svidKey := domain1CA.CreateX509SVID(spiffeId.String())
+	svidChain, svidKey := domain1CA.CreateX509SVID(spiffeID.String())
 	require.Len(t, svidChain, 1)
 	svid := []*x509svid.SVID{
 		{
-			ID:           spiffeId,
+			ID:           spiffeID,
 			Certificates: svidChain,
 			PrivateKey:   svidKey,
 		},
@@ -97,7 +97,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		{
 			name: "svid with intermediate",
 			response: &workloadapi.X509Context{
-				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeIdWithIntermediate.TrustDomain(), domain1Bundle)),
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeIDWithIntermediate.TrustDomain(), domain1Bundle)),
 				SVIDs:   svidWithIntermediate,
 			},
 			certs:  svidChainWithIntermediate,
@@ -107,7 +107,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		{
 			name: "intermediate in bundle",
 			response: &workloadapi.X509Context{
-				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeIdWithIntermediate.TrustDomain(), domain1Bundle)),
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeIDWithIntermediate.TrustDomain(), domain1Bundle)),
 				SVIDs:   svidWithIntermediate,
 			},
 			// Only first certificate is expected
@@ -121,7 +121,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		{
 			name: "single svid with intermediate in bundle",
 			response: &workloadapi.X509Context{
-				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeId.TrustDomain(), domain1CA.Roots())),
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), domain1CA.Roots())),
 				SVIDs:   svid,
 			},
 			certs:                svidChain,
@@ -132,7 +132,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		{
 			name: "single svid",
 			response: &workloadapi.X509Context{
-				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeId.TrustDomain(), domain1CA.Roots())),
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), domain1CA.Roots())),
 				SVIDs:   svid,
 			},
 			certs:  svidChain,
@@ -190,7 +190,7 @@ func Test_getTimeout_default(t *testing.T) {
 	config := &Config{}
 
 	expectedTimeout := defaultTimeout
-	actualTimeout, err := getTimeout(config)
+	actualTimeout, err := GetTimeout(config)
 
 	assert.NoError(t, err)
 	if actualTimeout != expectedTimeout {
@@ -205,7 +205,7 @@ func Test_getTimeout_custom(t *testing.T) {
 	}
 
 	expectedTimeout := time.Second * 10
-	actualTimeout, err := getTimeout(config)
+	actualTimeout, err := GetTimeout(config)
 
 	assert.NoError(t, err)
 	if actualTimeout != expectedTimeout {
@@ -218,7 +218,7 @@ func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
 		Timeout: "invalid",
 	}
 
-	actualTimeout, err := getTimeout(config)
+	actualTimeout, err := GetTimeout(config)
 
 	assert.Empty(t, actualTimeout)
 	assert.NotEmpty(t, err)
