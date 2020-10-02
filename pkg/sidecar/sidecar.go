@@ -62,6 +62,9 @@ const (
 
 // NewSidecar creates a new SPIFFE sidecar
 func NewSidecar(config *Config) *Sidecar {
+	if config.Log == nil {
+		config.Log = logger.Std
+	}
 	return &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}),
