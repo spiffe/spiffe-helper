@@ -222,7 +222,10 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	svidBundleFile := path.Join(s.config.CertDir, s.config.SvidBundleFileName)
 
 	certs := svid.Certificates
-	bundleSet, _ := svidResponse.Bundles.Get(svid.ID.TrustDomain())
+	bundleSet, found := svidResponse.Bundles.Get(svid.ID.TrustDomain())
+	if !found {
+		return fmt.Errorf("No bundles found")
+	}
 	bundles := bundleSet.X509Authorities()
 	bundles = bundles[len(bundles)-1:]
 	privateKey := svid.PrivateKey.(crypto.PrivateKey)
