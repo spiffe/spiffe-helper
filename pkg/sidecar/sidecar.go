@@ -224,7 +224,7 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	certs := svid.Certificates
 	bundleSet, found := svidResponse.Bundles.Get(svid.ID.TrustDomain())
 	if !found {
-		return fmt.Errorf("No bundles found")
+		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
 	}
 	bundles := bundleSet.X509Authorities()
 	bundles = bundles[len(bundles)-1:]
