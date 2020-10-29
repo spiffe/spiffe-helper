@@ -7,7 +7,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/spiffe/go-spiffe v1.1.0
-	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.1
+	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.2
 	github.com/stretchr/testify v1.5.1
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4 // indirect
 	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980 // indirect
