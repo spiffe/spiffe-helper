@@ -93,29 +93,8 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	return nil
 }
 
-// x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface
-type x509Watcher struct {
-	sidecar *Sidecar
-}
-
-// OnX509ContextUpdate is run every time an SVID is updated
-func (w x509Watcher) OnX509ContextUpdate(svids *workloadapi.X509Context) {
-	for _, svid := range svids.SVIDs {
-		w.sidecar.config.Log.Infof("SVID updated for spiffeID: %q", svid.ID)
-	}
-
-	updateCertificates(w.sidecar, svids)
-}
-
-// OnX509ContextWatchError is run when the client runs into an error
-func (w x509Watcher) OnX509ContextWatchError(err error) {
-	if status.Code(err) != codes.Canceled {
-		w.sidecar.config.Log.Infof("Watching x509 context: %v", err)
-	}
-}
-
 // Updates the certificates stored in disk and signal the Process to restart
-func updateCertificates(s *Sidecar, svidResponse *workloadapi.X509Context) {
+func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Infof("Updating certificates")
 
 	err := s.dumpBundles(svidResponse)
@@ -275,6 +254,27 @@ func (s *Sidecar) writeKey(file string, data []byte) error {
 	}
 
 	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
+}
+
+// x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface
+type x509Watcher struct {
+	sidecar *Sidecar
+}
+
+// OnX509ContextUpdate is run every time an SVID is updated
+func (w x509Watcher) OnX509ContextUpdate(svids *workloadapi.X509Context) {
+	for _, svid := range svids.SVIDs {
+		w.sidecar.config.Log.Infof("SVID updated for spiffeID: %q", svid.ID)
+	}
+
+	w.sidecar.updateCertificates(svids)
+}
+
+// OnX509ContextWatchError is run when the client runs into an error
+func (w x509Watcher) OnX509ContextWatchError(err error) {
+	if status.Code(err) != codes.Canceled {
+		w.sidecar.config.Log.Infof("Watching x509 context: %v", err)
+	}
 }
 
 // parses a time.Duration from the the Config,
