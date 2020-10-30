@@ -24,7 +24,7 @@ func main() {
 		log.Errorf("error parsing configuration file: %v\n%v", *configFile, err)
 		panic(err)
 	}
-	timeout, err := sidecar.GetTimeout(config)
+	timeout, err := GetTimeout(config)
 	if err != nil {
 		log.Errorf("error parsing timeout: %s\n%v", config.Timeout, err)
 		panic(err)

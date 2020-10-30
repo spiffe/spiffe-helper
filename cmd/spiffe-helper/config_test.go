@@ -2,8 +2,10 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -31,4 +33,44 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
 	assert.Equal(t, expectedTimeOut, c.Timeout)
 	assert.True(t, c.AddIntermediatesToBundle)
+}
+
+//Tests that when there is no defaultTimeout in the config, it uses
+//the default defaultTimeout set in a constant in the spiffe_sidecar
+func Test_getTimeout_default(t *testing.T) {
+	config := &sidecar.Config{}
+
+	expectedTimeout := defaultTimeout
+	actualTimeout, err := GetTimeout(config)
+
+	assert.NoError(t, err)
+	if actualTimeout != expectedTimeout {
+		t.Errorf("Expected defaultTimeout : %v, got %v", expectedTimeout, actualTimeout)
+	}
+}
+
+//Tests that when there is a timeout set in the config, it's used that one
+func Test_getTimeout_custom(t *testing.T) {
+	config := &sidecar.Config{
+		Timeout: "10s",
+	}
+
+	expectedTimeout := time.Second * 10
+	actualTimeout, err := GetTimeout(config)
+
+	assert.NoError(t, err)
+	if actualTimeout != expectedTimeout {
+		t.Errorf("Expected defaultTimeout : %v, got %v", expectedTimeout, actualTimeout)
+	}
+}
+
+func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
+	config := &sidecar.Config{
+		Timeout: "invalid",
+	}
+
+	actualTimeout, err := GetTimeout(config)
+
+	assert.Empty(t, actualTimeout)
+	assert.NotEmpty(t, err)
 }

@@ -13,7 +13,6 @@ import (
 	"path"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/spiffe/go-spiffe/v2/logger"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
@@ -52,10 +51,6 @@ type Sidecar struct {
 }
 
 const (
-	// default timeout Duration for the workloadAPI client when the defaultTimeout
-	// is not configured in the .conf file
-	defaultTimeout = 5 * time.Second
-
 	certsFileMode = os.FileMode(0644)
 	keyFileMode   = os.FileMode(0600)
 )
@@ -161,23 +156,6 @@ func (s *Sidecar) signalProcess() (err error) {
 	return nil
 }
 
-// getCmdArgs receives the command line arguments as a string
-// and split it at spaces, except when the space is inside quotation marks
-func getCmdArgs(args string) ([]string, error) {
-	if args == "" {
-		return []string{}, nil
-	}
-
-	r := csv.NewReader(strings.NewReader(args))
-	r.Comma = ' ' // space
-	cmdArgs, err := r.Read()
-	if err != nil {
-		return nil, err
-	}
-
-	return cmdArgs, nil
-}
-
 func (s *Sidecar) checkProcessExit() {
 	atomic.StoreInt32(&s.processRunning, 1)
 	_, err := s.process.Wait()
@@ -277,18 +255,19 @@ func (w x509Watcher) OnX509ContextWatchError(err error) {
 	}
 }
 
-// parses a time.Duration from the the Config,
-// if there's an error during parsing, maybe because
-// it's not well defined or not defined at all in the
-// config, returns the defaultTimeout constant
-func GetTimeout(config *Config) (time.Duration, error) {
-	if config.Timeout == "" {
-		return defaultTimeout, nil
+// getCmdArgs receives the command line arguments as a string
+// and split it at spaces, except when the space is inside quotation marks
+func getCmdArgs(args string) ([]string, error) {
+	if args == "" {
+		return []string{}, nil
 	}
 
-	t, err := time.ParseDuration(config.Timeout)
+	r := csv.NewReader(strings.NewReader(args))
+	r.Comma = ' ' // space
+	cmdArgs, err := r.Read()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return t, nil
+
+	return cmdArgs, nil
 }
