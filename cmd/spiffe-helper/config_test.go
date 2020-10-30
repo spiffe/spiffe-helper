@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseConfig(t *testing.T) {

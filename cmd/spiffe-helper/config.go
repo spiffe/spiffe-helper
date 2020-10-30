@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
+
 const (
 	// default timeout Duration for the workloadAPI client when the defaultTimeout
 	// is not configured in the .conf file

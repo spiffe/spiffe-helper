@@ -184,8 +184,6 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	cancel()
 }
 
-
-
 func TestGetCmdArgs(t *testing.T) {
 	cases := []struct {
 		name         string
