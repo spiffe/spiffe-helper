@@ -86,7 +86,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		defer client.Close()
 		err := client.WatchX509Context(ctx, &x509Watcher{s})
 		if err != nil && status.Code(err) != codes.Canceled {
-			w.sidecar.config.Log.Infof("Wathcing x509 context: %v", err)
+			s.ErrChan <- err
 		}
 	}()
 
@@ -110,7 +110,7 @@ func (w x509Watcher) OnX509ContextUpdate(svids *workloadapi.X509Context) {
 // OnX509ContextWatchError is run when the client runs into an error
 func (w x509Watcher) OnX509ContextWatchError(err error) {
 	if status.Code(err) != codes.Canceled {
-		w.sidecar.ErrChan <- err
+		w.sidecar.config.Log.Infof("Watching x509 context: %v", err)
 	}
 }
 
