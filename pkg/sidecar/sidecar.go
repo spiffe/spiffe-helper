@@ -63,7 +63,7 @@ const (
 // NewSidecar creates a new SPIFFE sidecar
 func NewSidecar(config *Config) *Sidecar {
 	if config.Log == nil {
-		config.Log = logger.Std
+		config.Log = logger.Null
 	}
 	return &Sidecar{
 		config:        config,
@@ -86,7 +86,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		defer client.Close()
 		err := client.WatchX509Context(ctx, &x509Watcher{s})
 		if err != nil && status.Code(err) != codes.Canceled {
-			s.ErrChan <- fmt.Errorf("Error watching X.509 context: %v", err)
+			w.sidecar.config.Log.Infof("Wathcing x509 context: %v", err)
 		}
 	}()
 
