@@ -251,7 +251,7 @@ func (w x509Watcher) OnX509ContextUpdate(svids *workloadapi.X509Context) {
 // OnX509ContextWatchError is run when the client runs into an error
 func (w x509Watcher) OnX509ContextWatchError(err error) {
 	if status.Code(err) != codes.Canceled {
-		w.sidecar.config.Log.Infof("Watching x509 context: %v", err)
+		w.sidecar.config.Log.Errorf("Watching x509 context: %v", err)
 	}
 }
 
