@@ -40,6 +40,7 @@ func main() {
 
 	spiffeSidecar := sidecar.NewSidecar(config)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 	err = spiffeSidecar.RunDaemon(ctx)
 	if err != nil {
 		panic(err)
