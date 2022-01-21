@@ -183,7 +183,10 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
 	}
 	bundles := bundleSet.X509Authorities()
-	privateKeyBytes, _ := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
+	privateKey, err := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
+	if err != nil {
+		return err
+	}
 
 	// Add intermediates into bundles, and remove them from certs
 	if s.config.AddIntermediatesToBundle {
@@ -195,7 +198,7 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 		return err
 	}
 
-	if err := s.writeKey(svidKeyFile, privateKeyBytes); err != nil {
+	if err := s.writeKey(svidKeyFile, privateKey); err != nil {
 		return err
 	}
 
