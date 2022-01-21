@@ -212,7 +212,7 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 // writeCerts takes an array of certificates,
 // and encodes them as PEM blocks, writing them to file
 func (s *Sidecar) writeCerts(file string, certs []*x509.Certificate) error {
-	pemData := make([]byte, 0, len(certs))
+	var pemData []byte
 	for _, cert := range certs {
 		b := &pem.Block{
 			Type:  "CERTIFICATE",
