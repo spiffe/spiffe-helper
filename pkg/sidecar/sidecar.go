@@ -2,7 +2,6 @@ package sidecar
 
 import (
 	"context"
-	"crypto"
 	"crypto/x509"
 	"encoding/csv"
 	"encoding/pem"
@@ -184,8 +183,7 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
 	}
 	bundles := bundleSet.X509Authorities()
-	privateKey := svid.PrivateKey.(crypto.PrivateKey)
-	privateKeyBytes, _ := x509.MarshalPKCS8PrivateKey(privateKey)
+	privateKeyBytes, _ := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
 
 	// Add intermediates into bundles, and remove them from certs
 	if s.config.AddIntermediatesToBundle {
