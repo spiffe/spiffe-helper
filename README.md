@@ -1,3 +1,10 @@
+``` diff
++ MAINTENANCE STATUS: SEEKING NEW MAINTAINERS +
+
++ HELP WANTED: This simple but invaluable tool is used in production by dozens of companies but can use some love! +
++ If you're interested in helping to maintain this project, please reach out to spire-maintainers@spiffe.io +
+```
+
 # SPIFFE Helper
 
 The SPIFFE Helper is a simple utility for fetching X.509 SVID certificates from the SPIFFE Workload API, launch a process that makes use of the certificates and continuously get new certificates before they expire. The launched process is signaled to reload the certificates when is needed.
