@@ -11,8 +11,7 @@ import (
 	"time"
 
 	"github.com/spiffe/spiffe-helper/test/util"
-
-	"github.com/spiffe/go-spiffe/spiffetest"
+	"github.com/spiffe/spiffe-helper/internal/spiffetest"
 	"github.com/spiffe/go-spiffe/v2/bundle/x509bundle"
 	"github.com/spiffe/go-spiffe/v2/logger"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
