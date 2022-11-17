@@ -31,24 +31,16 @@ func main() {
 		log.Warnf("No cmd defined to execute.")
 	}
 
-	log.Infof("Using configuration file: %q\n", *configFile)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 
+	log.Infof("Using configuration file: %q\n", *configFile)
 	spiffeSidecar := sidecar.NewSidecar(config)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+
 	err = spiffeSidecar.RunDaemon(ctx)
 	if err != nil {
 		panic(err)
 	}
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt)
-	select {
-	case err = <-spiffeSidecar.ErrChan:
-		panic(err)
-	case <-signalCh:
-		cancel()
-	case <-ctx.Done():
-		log.Infof("Exiting")
-	}
+	log.Infof("Exiting")
 }

@@ -45,7 +45,6 @@ type Sidecar struct {
 	processRunning int32
 	process        *os.Process
 	certReadyChan  chan struct{}
-	ErrChan        chan error
 }
 
 const (
@@ -61,7 +60,6 @@ func NewSidecar(config *Config) *Sidecar {
 	return &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}),
-		ErrChan:       make(chan error, 1),
 	}
 }
 
@@ -75,13 +73,11 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create new workloadapi client: %v", err)
 	}
-	go func() {
-		defer client.Close()
-		err := client.WatchX509Context(ctx, &x509Watcher{s})
-		if err != nil && status.Code(err) != codes.Canceled {
-			s.ErrChan <- err
-		}
-	}()
+	defer client.Close()
+	err = client.WatchX509Context(ctx, &x509Watcher{s})
+	if err != nil && err != context.Canceled {
+		return err
+	}
 
 	return nil
 }
