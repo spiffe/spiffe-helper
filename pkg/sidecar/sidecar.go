@@ -34,7 +34,6 @@ type Config struct {
 	SvidKeyFileName          string `hcl:"svidKeyFileName"`
 	SvidBundleFileName       string `hcl:"svidBundleFileName"`
 	RenewSignal              string `hcl:"renewSignal"`
-	Timeout                  string `hcl:"timeout"`
 	ReloadExternalProcess    func() error
 	Log                      logger.Logger
 }
