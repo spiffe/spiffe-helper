@@ -232,7 +232,7 @@ type x509Watcher struct {
 // OnX509ContextUpdate is run every time an SVID is updated
 func (w x509Watcher) OnX509ContextUpdate(svids *workloadapi.X509Context) {
 	for _, svid := range svids.SVIDs {
-		w.sidecar.config.Log.Infof("SVID updated for spiffeID: %q", svid.ID)
+		w.sidecar.config.Log.Infof("Received update for spiffeID: %q", svid.ID)
 	}
 
 	w.sidecar.updateCertificates(svids)
