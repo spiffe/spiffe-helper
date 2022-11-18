@@ -68,13 +68,7 @@ func NewSidecar(config *Config) *Sidecar {
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	client, err := workloadapi.New(ctx, workloadapi.WithAddr("unix://"+s.config.AgentAddress),
-		workloadapi.WithLogger(s.config.Log))
-	if err != nil {
-		return fmt.Errorf("unable to create new workloadapi client: %v", err)
-	}
-	defer client.Close()
-	err = client.WatchX509Context(ctx, &x509Watcher{s})
+	err := workloadapi.WatchX509Context(ctx, &x509Watcher{s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
 	if err != nil && err != context.Canceled {
 		return err
 	}
