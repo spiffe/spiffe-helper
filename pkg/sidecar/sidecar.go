@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/csv"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -69,7 +70,7 @@ func NewSidecar(config *Config) *Sidecar {
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	err := workloadapi.WatchX509Context(ctx, &x509Watcher{s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
-	if err != nil && err != context.Canceled {
+	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
 
@@ -109,7 +110,7 @@ func (s *Sidecar) signalProcess() (err error) {
 		if atomic.LoadInt32(&s.processRunning) == 0 {
 			cmdArgs, err := getCmdArgs(s.config.CmdArgs)
 			if err != nil {
-				return fmt.Errorf("error parsing cmd arguments: %v", err)
+				return fmt.Errorf("error parsing cmd arguments: %w", err)
 			}
 
 			cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
@@ -117,7 +118,7 @@ func (s *Sidecar) signalProcess() (err error) {
 			cmd.Stderr = os.Stderr
 			err = cmd.Start()
 			if err != nil {
-				return fmt.Errorf("error executing process: %v\n%v", s.config.Cmd, err)
+				return fmt.Errorf("error executing process: %v\n%w", s.config.Cmd, err)
 			}
 			s.process = cmd.Process
 			go s.checkProcessExit()
@@ -130,14 +131,14 @@ func (s *Sidecar) signalProcess() (err error) {
 
 			err = s.process.Signal(sig)
 			if err != nil {
-				return fmt.Errorf("error signaling process with signal: %v\n%v", sig, err)
+				return fmt.Errorf("error signaling process with signal: %v\n%w", sig, err)
 			}
 		}
 
 	default:
 		err = s.config.ReloadExternalProcess()
 		if err != nil {
-			return fmt.Errorf("error reloading external process: %v", err)
+			return fmt.Errorf("error reloading external process: %w", err)
 		}
 	}
 

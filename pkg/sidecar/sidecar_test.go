@@ -10,20 +10,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spiffe/spiffe-helper/test/util"
-	"github.com/spiffe/spiffe-helper/internal/spiffetest"
 	"github.com/spiffe/go-spiffe/v2/bundle/x509bundle"
 	"github.com/spiffe/go-spiffe/v2/logger"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	"github.com/spiffe/spiffe-helper/internal/spiffetest"
+	"github.com/spiffe/spiffe-helper/test/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-//Creates a Sidecar with a Mocked WorkloadAPIClient and tests that
-//running the Sidecar Daemon, when a SVID Response is sent to the
-//UpdateChan on the WorkloadAPI client, the PEM files are stored on disk
+// Creates a Sidecar with a Mocked WorkloadAPIClient and tests that
+// running the Sidecar Daemon, when a SVID Response is sent to the
+// UpdateChan on the WorkloadAPI client, the PEM files are stored on disk
 func TestSidecar_RunDaemon(t *testing.T) {
 	// Create root CA
 	domain1CA := spiffetest.NewCA(t)
@@ -158,7 +158,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			// Wait until response is processed
 			select {
 			case <-sidecar.CertReadyChan():
-			//continue
+			// continue
 			case <-ctx.Done():
 				require.NoError(t, ctx.Err())
 			}
