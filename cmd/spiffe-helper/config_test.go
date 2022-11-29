@@ -19,7 +19,6 @@ func TestParseConfig(t *testing.T) {
 	expectedSvidFileName := "svid.pem"
 	expectedKeyFileName := "svid_key.pem"
 	expectedSvidBundleFileName := "svid_bundle.pem"
-	expectedTimeOut := "10s"
 
 	assert.Equal(t, expectedAgentAddress, c.AgentAddress)
 	assert.Equal(t, expectedCmd, c.Cmd)
@@ -29,6 +28,5 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedSvidFileName, c.SvidFileName)
 	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
-	assert.Equal(t, expectedTimeOut, c.Timeout)
 	assert.True(t, c.AddIntermediatesToBundle)
 }

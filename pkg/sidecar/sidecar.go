@@ -5,21 +5,20 @@ import (
 	"crypto/x509"
 	"encoding/csv"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
-	"net"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"sync/atomic"
-	"time"
 
-	"github.com/andres-erbsen/clock"
-	proto "github.com/spiffe/go-spiffe/proto/spiffe/workload"
-	"github.com/spiffe/spire/api/workload"
+	"github.com/spiffe/go-spiffe/v2/logger"
+	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"golang.org/x/sys/unix"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Config contains config variables when creating a SPIFFE Sidecar.
@@ -36,43 +35,33 @@ type Config struct {
 	SvidKeyFileName          string `hcl:"svidKeyFileName"`
 	SvidBundleFileName       string `hcl:"svidBundleFileName"`
 	RenewSignal              string `hcl:"renewSignal"`
-	Timeout                  string `hcl:"timeout"`
 	ReloadExternalProcess    func() error
+	Log                      logger.Logger
 }
 
 // Sidecar is the component that consumes the Workload API and renews certs
 // implements the interface Sidecar
 type Sidecar struct {
-	config            *Config
-	processRunning    int32
-	process           *os.Process
-	workloadAPIClient workload.X509Client
-	certReadyChan     chan struct{}
+	config         *Config
+	processRunning int32
+	process        *os.Process
+	certReadyChan  chan struct{}
 }
 
 const (
-	// default timeout Duration for the workloadAPI client when the defaultTimeout
-	// is not configured in the .conf file
-	defaultTimeout = 5 * time.Second
-	delayMin       = time.Second
-	delayMax       = time.Minute
-
 	certsFileMode = os.FileMode(0644)
 	keyFileMode   = os.FileMode(0600)
 )
 
 // NewSidecar creates a new SPIFFE sidecar
-func NewSidecar(config *Config) (*Sidecar, error) {
-	timeout, err := getTimeout(config)
-	if err != nil {
-		return nil, err
+func NewSidecar(config *Config) *Sidecar {
+	if config.Log == nil {
+		config.Log = logger.Null
 	}
-
 	return &Sidecar{
-		config:            config,
-		workloadAPIClient: newWorkloadAPIClient(config.AgentAddress, timeout),
-		certReadyChan:     make(chan struct{}, 1),
-	}, nil
+		config:        config,
+		certReadyChan: make(chan struct{}, 1),
+	}
 }
 
 // RunDaemon starts the main loop
@@ -80,61 +69,26 @@ func NewSidecar(config *Config) (*Sidecar, error) {
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	// Create channel for interrupt signal
-	errorChan := make(chan error, 1)
-
-	updateChan := s.workloadAPIClient.UpdateChan()
-
-	// start the workloadAPIClient
-	go func() {
-		clk := clock.New()
-		delay := delayMin
-		for {
-			err := s.workloadAPIClient.Start()
-			if err != nil {
-				log.Printf("failed: %v; retrying in %s", err, delay)
-				timer := clk.Timer(delay)
-				select {
-				case <-timer.C:
-				case <-ctx.Done():
-					timer.Stop()
-					errorChan <- ctx.Err()
-					return
-				}
-
-				delay = time.Duration(float64(delay) * 1.5)
-				if delay > delayMax {
-					delay = delayMax
-				}
-			}
-		}
-	}()
-	defer s.workloadAPIClient.Stop()
-
-	for {
-		select {
-		case svidResponse := <-updateChan:
-			updateCertificates(s, svidResponse)
-		case err := <-errorChan:
-			return err
-		case <-ctx.Done():
-			return nil
-		}
+	err := workloadapi.WatchX509Context(ctx, &x509Watcher{s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return err
 	}
+
+	return nil
 }
 
 // Updates the certificates stored in disk and signal the Process to restart
-func updateCertificates(s *Sidecar, svidResponse *proto.X509SVIDResponse) {
-	log.Println("Updating certificates")
+func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
+	s.config.Log.Infof("Updating certificates")
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
-		log.Printf("unable to dump bundle: %v", err)
+		s.config.Log.Errorf("unable to dump bundle: %v", err)
 		return
 	}
 	err = s.signalProcess()
 	if err != nil {
-		log.Printf("unable to signal process: %v", err)
+		s.config.Log.Errorf("unable to signal process: %v", err)
 	}
 
 	select {
@@ -148,19 +102,6 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 	return s.certReadyChan
 }
 
-// newWorkloadAPIClient creates a workload.X509Client
-func newWorkloadAPIClient(agentAddress string, timeout time.Duration) workload.X509Client {
-	addr := &net.UnixAddr{
-		Net:  "unix",
-		Name: agentAddress,
-	}
-	config := &workload.X509ClientConfig{
-		Addr:    addr,
-		Timeout: timeout,
-	}
-	return workload.NewX509Client(config)
-}
-
 // signalProcess sends the configured Renew signal to the process running the proxy
 // to reload itself so that the proxy uses the new SVID
 func (s *Sidecar) signalProcess() (err error) {
@@ -169,7 +110,7 @@ func (s *Sidecar) signalProcess() (err error) {
 		if atomic.LoadInt32(&s.processRunning) == 0 {
 			cmdArgs, err := getCmdArgs(s.config.CmdArgs)
 			if err != nil {
-				return fmt.Errorf("error parsing cmd arguments: %v", err)
+				return fmt.Errorf("error parsing cmd arguments: %w", err)
 			}
 
 			cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
@@ -177,7 +118,7 @@ func (s *Sidecar) signalProcess() (err error) {
 			cmd.Stderr = os.Stderr
 			err = cmd.Start()
 			if err != nil {
-				return fmt.Errorf("error executing process: %v\n%v", s.config.Cmd, err)
+				return fmt.Errorf("error executing process: %v\n%w", s.config.Cmd, err)
 			}
 			s.process = cmd.Process
 			go s.checkProcessExit()
@@ -190,42 +131,25 @@ func (s *Sidecar) signalProcess() (err error) {
 
 			err = s.process.Signal(sig)
 			if err != nil {
-				return fmt.Errorf("error signaling process with signal: %v\n%v", sig, err)
+				return fmt.Errorf("error signaling process with signal: %v\n%w", sig, err)
 			}
 		}
 
 	default:
 		err = s.config.ReloadExternalProcess()
 		if err != nil {
-			return fmt.Errorf("error reloading external process: %v", err)
+			return fmt.Errorf("error reloading external process: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// getCmdArgs receives the command line arguments as a string
-// and split it at spaces, except when the space is inside quotation marks
-func getCmdArgs(args string) ([]string, error) {
-	if args == "" {
-		return []string{}, nil
-	}
-
-	r := csv.NewReader(strings.NewReader(args))
-	r.Comma = ' ' // space
-	cmdArgs, err := r.Read()
-	if err != nil {
-		return nil, err
-	}
-
-	return cmdArgs, nil
-}
-
 func (s *Sidecar) checkProcessExit() {
 	atomic.StoreInt32(&s.processRunning, 1)
 	_, err := s.process.Wait()
 	if err != nil {
-		log.Printf("error waiting for process exit: %v", err)
+		s.config.Log.Errorf("error waiting for process exit: %v", err)
 	}
 
 	atomic.StoreInt32(&s.processRunning, 0)
@@ -235,20 +159,21 @@ func (s *Sidecar) checkProcessExit() {
 // the Workload API, and calls writeCerts and writeKey to write to disk
 // the svid, key and bundle of certificates.
 // It is possible to change output setting `addIntermediatesToBundle` as true.
-func (s *Sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
+func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	// There may be more than one certificate, but we are interested in the first one only
-	svid := svidResponse.Svids[0]
+	svid := svidResponse.DefaultSVID()
 
 	svidFile := path.Join(s.config.CertDir, s.config.SvidFileName)
 	svidKeyFile := path.Join(s.config.CertDir, s.config.SvidKeyFileName)
 	svidBundleFile := path.Join(s.config.CertDir, s.config.SvidBundleFileName)
 
-	certs, err := x509.ParseCertificates(svid.X509Svid)
-	if err != nil {
-		return err
+	certs := svid.Certificates
+	bundleSet, found := svidResponse.Bundles.Get(svid.ID.TrustDomain())
+	if !found {
+		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
 	}
-
-	bundles, err := x509.ParseCertificates(svid.Bundle)
+	bundles := bundleSet.X509Authorities()
+	privateKey, err := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
 	if err != nil {
 		return err
 	}
@@ -263,7 +188,7 @@ func (s *Sidecar) dumpBundles(svidResponse *proto.X509SVIDResponse) error {
 		return err
 	}
 
-	if err := s.writeKey(svidKeyFile, svid.X509SvidKey); err != nil {
+	if err := s.writeKey(svidKeyFile, privateKey); err != nil {
 		return err
 	}
 
@@ -300,18 +225,40 @@ func (s *Sidecar) writeKey(file string, data []byte) error {
 	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
 }
 
-// parses a time.Duration from the the Config,
-// if there's an error during parsing, maybe because
-// it's not well defined or not defined at all in the
-// config, returns the defaultTimeout constant
-func getTimeout(config *Config) (time.Duration, error) {
-	if config.Timeout == "" {
-		return defaultTimeout, nil
+// x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface
+type x509Watcher struct {
+	sidecar *Sidecar
+}
+
+// OnX509ContextUpdate is run every time an SVID is updated
+func (w x509Watcher) OnX509ContextUpdate(svids *workloadapi.X509Context) {
+	for _, svid := range svids.SVIDs {
+		w.sidecar.config.Log.Infof("Received update for spiffeID: %q", svid.ID)
 	}
 
-	t, err := time.ParseDuration(config.Timeout)
-	if err != nil {
-		return 0, err
+	w.sidecar.updateCertificates(svids)
+}
+
+// OnX509ContextWatchError is run when the client runs into an error
+func (w x509Watcher) OnX509ContextWatchError(err error) {
+	if status.Code(err) != codes.Canceled {
+		w.sidecar.config.Log.Errorf("Error while watching x509 context: %v", err)
 	}
-	return t, nil
+}
+
+// getCmdArgs receives the command line arguments as a string
+// and split it at spaces, except when the space is inside quotation marks
+func getCmdArgs(args string) ([]string, error) {
+	if args == "" {
+		return []string{}, nil
+	}
+
+	r := csv.NewReader(strings.NewReader(args))
+	r.Comma = ' ' // space
+	cmdArgs, err := r.Read()
+	if err != nil {
+		return nil, err
+	}
+
+	return cmdArgs, nil
 }

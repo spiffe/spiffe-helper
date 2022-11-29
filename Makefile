@@ -60,6 +60,10 @@ endif
 arch1=$(shell uname -m)
 ifeq ($(arch1),x86_64)
 arch2=amd64
+else ifeq ($(arch1),aarch64)
+arch2=arm64
+else ifeq ($(arch1),arm64)
+arch2=arm64
 else
 $(error unsupported ARCH: $(arch1))
 endif
@@ -76,9 +80,10 @@ go_bin_dir := $(go_dir)/bin
 go_url = https://storage.googleapis.com/golang/go$(go_version).$(os1)-$(arch2).tar.gz
 go := PATH="$(go_bin_dir):$(PATH)" go
 
-golangci_lint_version = v1.21.0
+golangci_lint_version = v1.50.0
 golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
 golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
+golangci_lint_cache = $(golangci_lint_dir)/cache
 
 ############################################################################
 # Install toolchain
@@ -96,11 +101,12 @@ install-toolchain: install-golangci-lint | go-check
 
 install-golangci-lint: $(golangci_lint_bin)
 
-$(golangci_lint_bin):
+$(golangci_lint_bin): | go-check
 	@echo "Installing golangci-lint $(golangci_lint_version)..."
 	$(E)rm -rf $(dir $(golangci_lint_dir))
 	$(E)mkdir -p $(golangci_lint_dir)
-	$(E)curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(golangci_lint_dir) $(golangci_lint_version)
+	$(E)mkdir -p $(golangci_lint_cache)
+	$(E)GOBIN=$(golangci_lint_dir) $(go_path) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(golangci_lint_version)
 
 #############################################################################
 # Utility functions and targets

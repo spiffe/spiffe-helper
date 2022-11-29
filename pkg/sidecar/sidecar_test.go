@@ -4,25 +4,26 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
-	"errors"
 	"io/ioutil"
 	"os"
 	"path"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/spiffe/go-spiffe/v2/bundle/x509bundle"
+	"github.com/spiffe/go-spiffe/v2/logger"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
+	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
+	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	"github.com/spiffe/spiffe-helper/test/spiffetest"
 	"github.com/spiffe/spiffe-helper/test/util"
-
-	"github.com/spiffe/go-spiffe/proto/spiffe/workload"
-	"github.com/spiffe/go-spiffe/spiffetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-//Creates a Sidecar with a Mocked WorkloadAPIClient and tests that
-//running the Sidecar Daemon, when a SVID Response is sent to the
-//UpdateChan on the WorkloadAPI client, the PEM files are stored on disk
+// Creates a Sidecar with a Mocked WorkloadAPIClient and tests that
+// running the Sidecar Daemon, when a SVID Response is sent to the
+// UpdateChan on the WorkloadAPI client, the PEM files are stored on disk
 func TestSidecar_RunDaemon(t *testing.T) {
 	// Create root CA
 	domain1CA := spiffetest.NewCA(t)
@@ -31,14 +32,17 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	domain1Bundle := domain1CA.Roots()
 
 	// Svid with intermediate
-	svidChainWithIntermediate, svidKeyWithIntermediate := domain1Inter.CreateX509SVID("spiffe://example.test/workloadWithIntermediate")
+	spiffeIDWithIntermediate, err := spiffeid.FromString("spiffe://example.test/workloadWithIntermediate")
+	require.NoError(t, err)
+	svidChainWithIntermediate, svidKeyWithIntermediate := domain1Inter.CreateX509SVID(spiffeIDWithIntermediate.String())
 	require.Len(t, svidChainWithIntermediate, 2)
 
 	// Add cert with intermediate into an svid
-	svidWithIntermediate := []spiffetest.X509SVID{
+	svidWithIntermediate := []*x509svid.SVID{
 		{
-			CertChain: svidChainWithIntermediate,
-			Key:       svidKeyWithIntermediate,
+			ID:           spiffeIDWithIntermediate,
+			Certificates: svidChainWithIntermediate,
+			PrivateKey:   svidKeyWithIntermediate,
 		},
 	}
 
@@ -47,12 +51,15 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	bundleWithIntermediate = append(bundleWithIntermediate, svidChainWithIntermediate[1:]...)
 
 	// Create a single svid without intermediate
-	svidChain, svidKey := domain1CA.CreateX509SVID("spiffe://example.test/workload")
+	spiffeID, err := spiffeid.FromString("spiffe://example.test/workload")
+	require.NoError(t, err)
+	svidChain, svidKey := domain1CA.CreateX509SVID(spiffeID.String())
 	require.Len(t, svidChain, 1)
-	svid := []spiffetest.X509SVID{
+	svid := []*x509svid.SVID{
 		{
-			CertChain: svidChain,
-			Key:       svidKey,
+			ID:           spiffeID,
+			Certificates: svidChain,
+			PrivateKey:   svidKey,
 		},
 	}
 
@@ -67,31 +74,19 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		SvidFileName:       "svid.pem",
 		SvidKeyFileName:    "svid_key.pem",
 		SvidBundleFileName: "svid_bundle.pem",
+		Log:                logger.Std,
 	}
 
-	updateMockChan := make(chan *workload.X509SVIDResponse)
-	workloadClient := MockWorkloadClient{
-		mockChan: updateMockChan,
-		mtx:      &sync.RWMutex{},
-	}
-
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	sidecar := Sidecar{
-		config:            config,
-		workloadAPIClient: workloadClient,
-		certReadyChan:     make(chan struct{}, 1),
+		config:        config,
+		certReadyChan: make(chan struct{}, 1),
 	}
 	defer close(sidecar.certReadyChan)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	errCh := make(chan error, 1)
-	go func() {
-		err = sidecar.RunDaemon(ctx)
-		errCh <- err
-	}()
-
 	testCases := []struct {
 		name     string
-		response *spiffetest.X509SVIDResponse
+		response *workloadapi.X509Context
 		certs    []*x509.Certificate
 		key      crypto.Signer
 		bundle   []*x509.Certificate
@@ -100,9 +95,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	}{
 		{
 			name: "svid with intermediate",
-			response: &spiffetest.X509SVIDResponse{
-				Bundle: domain1Bundle,
-				SVIDs:  svidWithIntermediate,
+			response: &workloadapi.X509Context{
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeIDWithIntermediate.TrustDomain(), domain1Bundle)),
+				SVIDs:   svidWithIntermediate,
 			},
 			certs:  svidChainWithIntermediate,
 			key:    svidKeyWithIntermediate,
@@ -110,9 +105,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 		{
 			name: "intermediate in bundle",
-			response: &spiffetest.X509SVIDResponse{
-				Bundle: domain1Bundle,
-				SVIDs:  svidWithIntermediate,
+			response: &workloadapi.X509Context{
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeIDWithIntermediate.TrustDomain(), domain1Bundle)),
+				SVIDs:   svidWithIntermediate,
 			},
 			// Only first certificate is expected
 			certs: []*x509.Certificate{svidChainWithIntermediate[0]},
@@ -124,9 +119,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 		{
 			name: "single svid with intermediate in bundle",
-			response: &spiffetest.X509SVIDResponse{
-				Bundle: domain1CA.Roots(),
-				SVIDs:  svid,
+			response: &workloadapi.X509Context{
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), domain1CA.Roots())),
+				SVIDs:   svid,
 			},
 			certs:                svidChain,
 			key:                  svidKey,
@@ -135,9 +130,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 		{
 			name: "single svid",
-			response: &spiffetest.X509SVIDResponse{
-				Bundle: domain1CA.Roots(),
-				SVIDs:  svid,
+			response: &workloadapi.X509Context{
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), domain1CA.Roots())),
+				SVIDs:   svid,
 			},
 			certs:  svidChain,
 			key:    svidKey,
@@ -149,18 +144,21 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	svidKeyFile := path.Join(tmpdir, config.SvidKeyFileName)
 	svidBundleFile := path.Join(tmpdir, config.SvidBundleFileName)
 
+	w := x509Watcher{&sidecar}
+
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			sidecar.config.AddIntermediatesToBundle = testCase.intermediateInBundle
 
 			// Push response to start updating process
-			updateMockChan <- testCase.response.ToProto(t)
+			// updateMockChan <- testCase.response.ToProto(t)
+			w.OnX509ContextUpdate(testCase.response)
 
 			// Wait until response is processed
 			select {
 			case <-sidecar.CertReadyChan():
-			//continue
+			// continue
 			case <-ctx.Done():
 				require.NoError(t, ctx.Err())
 			}
@@ -183,48 +181,6 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	}
 
 	cancel()
-	err = <-errCh
-	require.NoError(t, err)
-}
-
-//Tests that when there is no defaultTimeout in the config, it uses
-//the default defaultTimeout set in a constant in the spiffe_sidecar
-func Test_getTimeout_default(t *testing.T) {
-	config := &Config{}
-
-	expectedTimeout := defaultTimeout
-	actualTimeout, err := getTimeout(config)
-
-	assert.NoError(t, err)
-	if actualTimeout != expectedTimeout {
-		t.Errorf("Expected defaultTimeout : %v, got %v", expectedTimeout, actualTimeout)
-	}
-}
-
-//Tests that when there is a timeout set in the config, it's used that one
-func Test_getTimeout_custom(t *testing.T) {
-	config := &Config{
-		Timeout: "10s",
-	}
-
-	expectedTimeout := time.Second * 10
-	actualTimeout, err := getTimeout(config)
-
-	assert.NoError(t, err)
-	if actualTimeout != expectedTimeout {
-		t.Errorf("Expected defaultTimeout : %v, got %v", expectedTimeout, actualTimeout)
-	}
-}
-
-func Test_getTimeout_return_error_when_parsing_fails(t *testing.T) {
-	config := &Config{
-		Timeout: "invalid",
-	}
-
-	actualTimeout, err := getTimeout(config)
-
-	assert.Empty(t, actualTimeout)
-	assert.NotEmpty(t, err)
 }
 
 func TestGetCmdArgs(t *testing.T) {
@@ -270,31 +226,4 @@ func TestGetCmdArgs(t *testing.T) {
 			assert.Equal(t, c.expectedArgs, args)
 		})
 	}
-}
-
-type MockWorkloadClient struct {
-	mockChan chan *workload.X509SVIDResponse
-	current  *workload.X509SVIDResponse
-
-	mtx *sync.RWMutex
-}
-
-func (m MockWorkloadClient) Start() error {
-	return nil
-}
-
-func (m MockWorkloadClient) Stop() {}
-
-func (m MockWorkloadClient) UpdateChan() <-chan *workload.X509SVIDResponse {
-	return m.mockChan
-}
-
-func (m MockWorkloadClient) CurrentSVID() (*workload.X509SVIDResponse, error) {
-	m.mtx.RLock()
-	defer m.mtx.RUnlock()
-
-	if m.current == nil {
-		return nil, errors.New("no SVID received yet")
-	}
-	return m.current, nil
 }
