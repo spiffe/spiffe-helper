@@ -60,7 +60,7 @@ func NewSidecar(config *Config) *Sidecar {
 	}
 	return &Sidecar{
 		config:        config,
-		certReadyChan: make(chan struct{}),
+		certReadyChan: make(chan struct{}, 1),
 	}
 }
 
