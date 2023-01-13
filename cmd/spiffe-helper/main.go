@@ -15,18 +15,24 @@ func main() {
 	// 1. Create Sidecar
 	// 2. Run Sidecar's Daemon
 
-	log := logger.Std
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
 	flag.Parse()
 
+	log := logger.Std
 	log.Infof("Using configuration file: %q\n", *configFile)
 	config, err := ParseConfig(*configFile)
 	if err != nil {
-		log.Errorf("error parsing configuration file: %v\n%v", *configFile, err)
-		panic(err)
+		log.Errorf("Failed to parse %q: %v", *configFile, err)
+		os.Exit(1)
+	}
+
+	if err := ValidateConfig(config); err != nil {
+		log.Errorf("Invalid configuration: %v", err)
+		os.Exit(1)
 	}
 	config.Log = log
 
+	// TODO: add default agent socket path
 	log.Infof("Connecting to agent at %q\n", config.AgentAddress)
 	if config.Cmd == "" {
 		log.Warnf("No cmd defined to execute.")

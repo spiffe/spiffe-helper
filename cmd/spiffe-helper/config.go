@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io/ioutil"
 
 	"github.com/hashicorp/hcl"
@@ -8,7 +9,7 @@ import (
 )
 
 // ParseConfig parses the given HCL file into a SidecarConfig struct
-func ParseConfig(file string) (config *sidecar.Config, err error) {
+func ParseConfig(file string) (*sidecar.Config, error) {
 	sidecarConfig := new(sidecar.Config)
 
 	// Read HCL file
@@ -23,4 +24,19 @@ func ParseConfig(file string) (config *sidecar.Config, err error) {
 	}
 
 	return sidecarConfig, nil
+}
+
+func ValidateConfig(c *sidecar.Config) error {
+	switch {
+	case c.AgentAddress == "":
+		return errors.New("agentAddress is required")
+	case c.SvidFileName == "":
+		return errors.New("svidFileName is required")
+	case c.SvidKeyFileName == "":
+		return errors.New("svidKeyFileName is required")
+	case c.SvidBundleFileName == "":
+		return errors.New("svidBundleFileName is required")
+	default:
+		return nil
+	}
 }

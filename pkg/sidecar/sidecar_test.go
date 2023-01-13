@@ -78,7 +78,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	sidecar := Sidecar{
+	sidecar := sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
 	}

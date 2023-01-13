@@ -21,6 +21,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	certsFileMode = os.FileMode(0644)
+	keyFileMode   = os.FileMode(0600)
+)
+
 // Config contains config variables when creating a SPIFFE Sidecar.
 type Config struct {
 	AgentAddress string `hcl:"agentAddress"`
@@ -47,11 +52,6 @@ type Sidecar struct {
 	process        *os.Process
 	certReadyChan  chan struct{}
 }
-
-const (
-	certsFileMode = os.FileMode(0644)
-	keyFileMode   = os.FileMode(0600)
-)
 
 // NewSidecar creates a new SPIFFE sidecar
 func NewSidecar(config *Config) *Sidecar {
@@ -83,12 +83,12 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
-		s.config.Log.Errorf("unable to dump bundle: %v", err)
+		s.config.Log.Errorf("Unable to dump bundle: %v", err)
 		return
 	}
 	err = s.signalProcess()
 	if err != nil {
-		s.config.Log.Errorf("unable to signal process: %v", err)
+		s.config.Log.Errorf("Unable to signal process: %v", err)
 	}
 
 	select {
@@ -105,6 +105,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 // signalProcess sends the configured Renew signal to the process running the proxy
 // to reload itself so that the proxy uses the new SVID
 func (s *Sidecar) signalProcess() (err error) {
+	// TODO: is ReloadExternalProcess still used?
 	switch s.config.ReloadExternalProcess {
 	case nil:
 		if atomic.LoadInt32(&s.processRunning) == 0 {
