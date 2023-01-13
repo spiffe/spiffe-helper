@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"io/ioutil"
+	"os"
 
 	"github.com/hashicorp/hcl"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
@@ -13,7 +13,7 @@ func ParseConfig(file string) (*sidecar.Config, error) {
 	sidecarConfig := new(sidecar.Config)
 
 	// Read HCL file
-	dat, err := ioutil.ReadFile(file)
+	dat, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}

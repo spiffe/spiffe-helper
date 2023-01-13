@@ -6,11 +6,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 func LoadPrivateKey(path string) (crypto.Signer, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func LoadPrivateKey(path string) (crypto.Signer, error) {
 // LoadCertificates loads one or more certificates into an []*x509.Certificate from
 // a PEM file on disk.
 func LoadCertificates(path string) ([]*x509.Certificate, error) {
-	rest, err := ioutil.ReadFile(path)
+	rest, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

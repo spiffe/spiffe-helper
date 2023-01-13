@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
-	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 	"time"
@@ -63,10 +61,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 	}
 
-	tmpdir, err := ioutil.TempDir("", "sidecar-run-daemon")
-	require.NoError(t, err)
-
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	config := &Config{
 		Cmd:                "echo",
@@ -78,7 +73,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	sidecar := sidecar{
+	sidecar := Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
 	}

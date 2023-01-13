@@ -7,7 +7,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -212,7 +211,7 @@ func (s *Sidecar) writeCerts(file string, certs []*x509.Certificate) error {
 		pemData = append(pemData, pem.EncodeToMemory(b)...)
 	}
 
-	return ioutil.WriteFile(file, pemData, certsFileMode)
+	return os.WriteFile(file, pemData, certsFileMode)
 }
 
 // writeKey takes a private key as a slice of bytes,
@@ -223,7 +222,7 @@ func (s *Sidecar) writeKey(file string, data []byte) error {
 		Bytes: data,
 	}
 
-	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
+	return os.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
 }
 
 // x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface
