@@ -3,7 +3,9 @@ package main
 import (
 	"testing"
 
+	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -29,4 +31,68 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
 	assert.True(t, c.AddIntermediatesToBundle)
+}
+
+func TestValidateConfig(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		config      *sidecar.Config
+		expectError string
+	}{
+		{
+			name: "no error",
+			config: &sidecar.Config{
+				AgentAddress:       "path",
+				SvidFileName:       "cert.pem",
+				SvidKeyFileName:    "key.pem",
+				SvidBundleFileName: "bundle.pem",
+			},
+		},
+		{
+			name: "no address",
+			config: &sidecar.Config{
+				SvidFileName:       "cert.pem",
+				SvidKeyFileName:    "key.pem",
+				SvidBundleFileName: "bundle.pem",
+			},
+			expectError: "agentAddress is required",
+		},
+		{
+			name: "no SVID file",
+			config: &sidecar.Config{
+				AgentAddress:       "path",
+				SvidKeyFileName:    "key.pem",
+				SvidBundleFileName: "bundle.pem",
+			},
+			expectError: "svidFileName is required",
+		},
+		{
+			name: "no key file",
+			config: &sidecar.Config{
+				AgentAddress:       "path",
+				SvidFileName:       "cert.pem",
+				SvidBundleFileName: "bundle.pem",
+			},
+			expectError: "svidKeyFileName is required",
+		},
+		{
+			name: "no bundle file",
+			config: &sidecar.Config{
+				AgentAddress:    "path",
+				SvidFileName:    "cert.pem",
+				SvidKeyFileName: "key.pem",
+			},
+			expectError: "svidBundleFileName is required",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateConfig(tt.config)
+			if tt.expectError != "" {
+				require.Error(t, err, tt.expectError)
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
 }
