@@ -7,7 +7,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -19,6 +18,11 @@ import (
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	certsFileMode = os.FileMode(0644)
+	keyFileMode   = os.FileMode(0600)
 )
 
 // Config contains config variables when creating a SPIFFE Sidecar.
@@ -47,11 +51,6 @@ type Sidecar struct {
 	process        *os.Process
 	certReadyChan  chan struct{}
 }
-
-const (
-	certsFileMode = os.FileMode(0644)
-	keyFileMode   = os.FileMode(0600)
-)
 
 // NewSidecar creates a new SPIFFE sidecar
 func NewSidecar(config *Config) *Sidecar {
@@ -83,12 +82,12 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
-		s.config.Log.Errorf("unable to dump bundle: %v", err)
+		s.config.Log.Errorf("Unable to dump bundle: %v", err)
 		return
 	}
 	err = s.signalProcess()
 	if err != nil {
-		s.config.Log.Errorf("unable to signal process: %v", err)
+		s.config.Log.Errorf("Unable to signal process: %v", err)
 	}
 
 	select {
@@ -105,6 +104,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 // signalProcess sends the configured Renew signal to the process running the proxy
 // to reload itself so that the proxy uses the new SVID
 func (s *Sidecar) signalProcess() (err error) {
+	// TODO: is ReloadExternalProcess still used?
 	switch s.config.ReloadExternalProcess {
 	case nil:
 		if atomic.LoadInt32(&s.processRunning) == 0 {
@@ -211,7 +211,7 @@ func (s *Sidecar) writeCerts(file string, certs []*x509.Certificate) error {
 		pemData = append(pemData, pem.EncodeToMemory(b)...)
 	}
 
-	return ioutil.WriteFile(file, pemData, certsFileMode)
+	return os.WriteFile(file, pemData, certsFileMode)
 }
 
 // writeKey takes a private key as a slice of bytes,
@@ -222,7 +222,7 @@ func (s *Sidecar) writeKey(file string, data []byte) error {
 		Bytes: data,
 	}
 
-	return ioutil.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
+	return os.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
 }
 
 // x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface

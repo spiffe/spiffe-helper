@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
-	"io/ioutil"
-	"os"
 	"path"
 	"testing"
 	"time"
@@ -63,10 +61,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 	}
 
-	tmpdir, err := ioutil.TempDir("", "sidecar-run-daemon")
-	require.NoError(t, err)
-
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	config := &Config{
 		Cmd:                "echo",
