@@ -8,6 +8,28 @@ permissions:
   contents: read
 
 jobs:
+  cache-deps:
+    name: cache-deps (linux)
+    runs-on: ubuntu-20.04
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Setup dep cache
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Pull go deps
+        run: go mod download
+
   lint:
     name: lint (linux)
     runs-on: ubuntu-20.04
