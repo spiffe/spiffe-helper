@@ -61,3 +61,30 @@ jobs:
         run: make lint
       - name: Tidy check
         run: make tidy-check
+
+  unit-test:
+    strategy:
+      matrix:
+        OS: [ubuntu-22.04, macos-latest]
+    runs-on: ${{ matrix.OS }}
+    needs: cache-deps
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Load cached deps
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Run unit tests
+        run: make test
+      - name: Run clean check
+        run: make git-clean-check
