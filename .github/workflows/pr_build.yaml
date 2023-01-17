@@ -10,7 +10,7 @@ permissions:
 jobs:
   cache-deps:
     name: cache-deps (linux)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     permissions:
       contents: read
@@ -32,7 +32,7 @@ jobs:
 
   lint:
     name: lint (linux)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: cache-deps
 
     permissions:
