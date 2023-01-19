@@ -118,10 +118,8 @@ jobs:
             ${{ runner.os }}-tools-
       - name: Build images
         run: make build
-      - name: Export images
-        run: tar -czvf spiffe-helper.tar.gz spiffe-helper
       - name: Archive image
-        uses: actions/upload-artifact@v3.1.2
+        uses: actions/upload-artifact@v3
         with:
-          name: image
-          path: spiffe-helper.tar.gz
+          name: spiffe-helper
+          path: spiffe-helper
