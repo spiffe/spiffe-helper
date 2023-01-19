@@ -25,24 +25,6 @@ const (
 	keyFileMode   = os.FileMode(0600)
 )
 
-// Config contains config variables when creating a SPIFFE Sidecar.
-type Config struct {
-	AgentAddress string `hcl:"agentAddress"`
-	Cmd          string `hcl:"cmd"`
-	CmdArgs      string `hcl:"cmdArgs"`
-	CertDir      string `hcl:"certDir"`
-	// Merge intermediate certificates into Bundle file instead of SVID file,
-	// it is useful is some scenarios like MySQL,
-	// where this is the expected format for presented certificates and bundles
-	AddIntermediatesToBundle bool   `hcl:"addIntermediatesToBundle"`
-	SvidFileName             string `hcl:"svidFileName"`
-	SvidKeyFileName          string `hcl:"svidKeyFileName"`
-	SvidBundleFileName       string `hcl:"svidBundleFileName"`
-	RenewSignal              string `hcl:"renewSignal"`
-	ReloadExternalProcess    func() error
-	Log                      logger.Logger
-}
-
 // Sidecar is the component that consumes the Workload API and renews certs
 // implements the interface Sidecar
 type Sidecar struct {
@@ -52,15 +34,32 @@ type Sidecar struct {
 	certReadyChan  chan struct{}
 }
 
-// NewSidecar creates a new SPIFFE sidecar
-func NewSidecar(config *Config) *Sidecar {
-	if config.Log == nil {
-		config.Log = logger.Null
+// New creates a new SPIFFE sidecar
+func New(configPath string, log logger.Logger) (*Sidecar, error) {
+	config, err := ParseConfig(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
 	}
+
+	if err := ValidateConfig(config); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	if log == nil {
+		log = logger.Null
+	}
+	config.Log = log
+
+	// TODO: add default agent socket path
+	log.Infof("Connecting to agent at %q\n", config.AgentAddress)
+	if config.Cmd == "" {
+		log.Warnf("No cmd defined to execute.")
+	}
+
 	return &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
-	}
+	}, nil
 }
 
 // RunDaemon starts the main loop
@@ -68,7 +67,7 @@ func NewSidecar(config *Config) *Sidecar {
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	err := workloadapi.WatchX509Context(ctx, &x509Watcher{s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
+	err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
 	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
@@ -76,7 +75,12 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	return nil
 }
 
-// Updates the certificates stored in disk and signal the Process to restart
+// CertReadyChan returns a channel to know when the certificates are ready
+func (s *Sidecar) CertReadyChan() <-chan struct{} {
+	return s.certReadyChan
+}
+
+// updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Infof("Updating certificates")
 
@@ -94,11 +98,6 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	case s.certReadyChan <- struct{}{}:
 	default:
 	}
-}
-
-// CertReadyChan returns a channel to know when the certificates are ready
-func (s *Sidecar) CertReadyChan() <-chan struct{} {
-	return s.certReadyChan
 }
 
 // signalProcess sends the configured Renew signal to the process running the proxy
@@ -184,45 +183,19 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 		certs = []*x509.Certificate{certs[0]}
 	}
 
-	if err := s.writeCerts(svidFile, certs); err != nil {
+	if err := writeCerts(svidFile, certs); err != nil {
 		return err
 	}
 
-	if err := s.writeKey(svidKeyFile, privateKey); err != nil {
+	if err := writeKey(svidKeyFile, privateKey); err != nil {
 		return err
 	}
 
-	if err := s.writeCerts(svidBundleFile, bundles); err != nil {
+	if err := writeCerts(svidBundleFile, bundles); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// writeCerts takes an array of certificates,
-// and encodes them as PEM blocks, writing them to file
-func (s *Sidecar) writeCerts(file string, certs []*x509.Certificate) error {
-	var pemData []byte
-	for _, cert := range certs {
-		b := &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cert.Raw,
-		}
-		pemData = append(pemData, pem.EncodeToMemory(b)...)
-	}
-
-	return os.WriteFile(file, pemData, certsFileMode)
-}
-
-// writeKey takes a private key as a slice of bytes,
-// formats as PEM, and writes it to file
-func (s *Sidecar) writeKey(file string, data []byte) error {
-	b := &pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: data,
-	}
-
-	return os.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
 }
 
 // x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface
@@ -244,6 +217,32 @@ func (w x509Watcher) OnX509ContextWatchError(err error) {
 	if status.Code(err) != codes.Canceled {
 		w.sidecar.config.Log.Errorf("Error while watching x509 context: %v", err)
 	}
+}
+
+// writeCerts takes an array of certificates,
+// and encodes them as PEM blocks, writing them to file
+func writeCerts(file string, certs []*x509.Certificate) error {
+	var pemData []byte
+	for _, cert := range certs {
+		b := &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		}
+		pemData = append(pemData, pem.EncodeToMemory(b)...)
+	}
+
+	return os.WriteFile(file, pemData, certsFileMode)
+}
+
+// writeKey takes a private key as a slice of bytes,
+// formats as PEM, and writes it to file
+func writeKey(file string, data []byte) error {
+	b := &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: data,
+	}
+
+	return os.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
 }
 
 // getCmdArgs receives the command line arguments as a string
