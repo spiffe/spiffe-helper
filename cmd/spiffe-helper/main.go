@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -18,27 +19,11 @@ func main() {
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
 	flag.Parse()
 
+	// TODO: logger will be replaced in a near future
 	log := logger.Std
 	log.Infof("Using configuration file: %q\n", *configFile)
-	config, err := ParseConfig(*configFile)
-	if err != nil {
-		log.Errorf("Failed to parse %q: %v", *configFile, err)
-		os.Exit(1)
-	}
 
-	if err := ValidateConfig(config); err != nil {
-		log.Errorf("Invalid configuration: %v", err)
-		os.Exit(1)
-	}
-	config.Log = log
-
-	// TODO: add default agent socket path
-	log.Infof("Connecting to agent at %q\n", config.AgentAddress)
-	if config.Cmd == "" {
-		log.Warnf("No cmd defined to execute.")
-	}
-
-	if err = runDaemon(config); err != nil {
+	if err := startSidecar(*configFile, log); err != nil {
 		log.Errorf("Exiting due to error: %w", err)
 		os.Exit(1)
 	}
@@ -46,10 +31,14 @@ func main() {
 	log.Infof("Exiting")
 }
 
-func runDaemon(config *sidecar.Config) error {
+func startSidecar(configPath string, log logger.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	spiffeSidecar := sidecar.NewSidecar(config)
+	spiffeSidecar, err := sidecar.New(configPath, log)
+	if err != nil {
+		return fmt.Errorf("Failed to create sidecar: %w", err)
+	}
+
 	return spiffeSidecar.RunDaemon(ctx)
 }
