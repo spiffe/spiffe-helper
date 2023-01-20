@@ -5,3 +5,4 @@ vendor
 rpm/*.rpm
 /.build
 *.swp
+*.swo

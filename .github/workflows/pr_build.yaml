@@ -1,0 +1,125 @@
+name: PR Build
+on:
+  pull_request: {}
+  workflow_dispatch: {}
+env:
+  GO_VERSION: 1.19.5
+permissions:
+  contents: read
+
+jobs:
+  cache-deps:
+    name: cache-deps (linux)
+    runs-on: ubuntu-22.04
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Setup dep cache
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Pull go deps
+        run: go mod download
+
+  lint:
+    name: lint (linux)
+    runs-on: ubuntu-22.04
+    needs: cache-deps
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Load cached deps
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Setup build tool cache
+        uses: actions/cache@v3
+        with:
+          path: .build
+          key: ${{ runner.os }}-tools-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tools-
+      - name: Lint
+        run: make lint
+      - name: Tidy check
+        run: make tidy-check
+
+  unit-test:
+    strategy:
+      matrix:
+        OS: [ubuntu-22.04, macos-latest]
+    runs-on: ${{ matrix.OS }}
+    needs: cache-deps
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Load cached deps
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Run unit tests
+        run: make test
+      - name: Run clean check
+        run: make git-clean-check
+
+  build:
+    name: build (linux)
+    runs-on: ubuntu-22.04
+    needs: cache-deps
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Load cached deps
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Setup build tool cache
+        uses: actions/cache@v3
+        with:
+          path: .build
+          key: ${{ runner.os }}-tools-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tools-
+      - name: Build images
+        run: make build
+      - name: Archive image
+        uses: actions/upload-artifact@v3
+        with:
+          name: spiffe-helper
+          path: spiffe-helper
