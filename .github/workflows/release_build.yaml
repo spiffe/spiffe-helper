@@ -1,0 +1,51 @@
+name: Release Build
+on:
+  push:
+    tags:
+      - 'v[0-9].[0-9]+.[0-9]+'
+
+env:
+  GO_VERSION: 1.19.5
+
+jobs:
+  build:
+    name: build (linux)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build image
+        run: make build
+      - name: Compress image
+        run: tar -czvf spiffe-helper-${{ github.ref_name }}.tar.gz spiffe-helper
+      - name: Archive image
+        uses: actions/upload-artifact@v3
+        with:
+          name: spiffe-helper
+          path: spiffe-helper-${{ github.ref_name }}.tar.gz
+
+  release:
+    runs-on: ubuntu-22.04
+    needs: build
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download archived artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: spiffe-helper
+          path: ./artifacts/
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Create the release using the version number as the title
+        run: gh release create "${GITHUB_REF#refs/tags/}" ./artifacts/spiffe-helper-${{ github.ref_name }}.tar.gz --title "${GITHUB_REF#refs/tags/}"
