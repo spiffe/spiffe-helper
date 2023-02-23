@@ -1,6 +1,6 @@
-> # MAINTENANCE STATUS: SEEKING NEW MAINTAINERS
+> # Help improve SPIFFE Helper
 >
-> **HELP WANTED**: This simple but invaluable tool is used in production by dozens of companies but can use some love! If you're interested in helping to  > maintain this project, please reach out to spire-maintainers@spiffe.io.
+> Fill out this [questionnaire](https://docs.google.com/forms/d/1MwHyAiLXnGuUpymwBCfBJei25lur2jaD-056L5Hp1Js) so we can learn more about your use case.
 
 # SPIFFE Helper
 
