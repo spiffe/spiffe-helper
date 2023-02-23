@@ -5,7 +5,3 @@
 ### Added
 
 - File names and agent address are now validated in config (#39)
-
-### Changed
-
-- Move to go-spiffe/v2 (#25)
