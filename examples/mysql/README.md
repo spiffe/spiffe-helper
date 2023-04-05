@@ -108,7 +108,7 @@ Note that `ttl` is lowered to 60 seconds in both cases just for demo purposes.
 
 
 ### 8. Start spiffe-helper
-Start spiffe-helper using this example [configuration file](examples/mysql/helper.conf) with the `root` user:
+Start spiffe-helper using this example [configuration file](helper.conf) with the `root` user:
 
 ```
 sudo ./spiffe-helper -config examples/mysql/helper.conf
