@@ -32,8 +32,10 @@ func (s *Sidecar) SignalProcess() error {
 		return fmt.Errorf("error getting signal: %v", s.config.RenewSignal)
 	}
 
-	err = s.process.Signal(sig)
+	err := s.process.Signal(sig)
 	if err != nil {
 		return fmt.Errorf("error signaling process with signal: %v\n%w", sig, err)
 	}
+
+	return nil
 }
