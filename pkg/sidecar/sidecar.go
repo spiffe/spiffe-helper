@@ -1,11 +1,9 @@
 package sidecar
 
 import (
-	"context"
 	"crypto/x509"
 	"encoding/csv"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,7 +13,6 @@ import (
 
 	"github.com/spiffe/go-spiffe/v2/logger"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -60,19 +57,6 @@ func New(configPath string, log logger.Logger) (*Sidecar, error) {
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
 	}, nil
-}
-
-// RunDaemon starts the main loop
-// Starts the workload API client to listen for new SVID updates
-// When a new SVID is received on the updateChan, the SVID certificates
-// are stored in disk and a restart signal is sent to the proxy's process
-func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
-	if err != nil && !errors.Is(err, context.Canceled) {
-		return err
-	}
-
-	return nil
 }
 
 // CertReadyChan returns a channel to know when the certificates are ready
@@ -122,15 +106,8 @@ func (s *Sidecar) signalProcess() (err error) {
 			s.process = cmd.Process
 			go s.checkProcessExit()
 		} else {
-			// Signal to reload certs
-			sig := unix.SignalNum(s.config.RenewSignal)
-			if sig == 0 {
-				return fmt.Errorf("error getting signal: %v", s.config.RenewSignal)
-			}
-
-			err = s.process.Signal(sig)
-			if err != nil {
-				return fmt.Errorf("error signaling process with signal: %v\n%w", sig, err)
+			if err := s.SignalProcess(); err != nil {
+				return err
 			}
 		}
 

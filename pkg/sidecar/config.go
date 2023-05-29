@@ -47,6 +47,10 @@ func ParseConfig(file string) (*Config, error) {
 }
 
 func ValidateConfig(c *Config) error {
+	if err := validateOSConfig(c); err != nil {
+		return err
+	}
+
 	switch {
 	case c.AgentAddress == "":
 		return errors.New("agentAddress is required")

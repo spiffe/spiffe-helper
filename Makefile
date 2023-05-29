@@ -53,6 +53,9 @@ os2=osx
 else ifeq ($(os1),Linux)
 os1=linux
 os2=linux
+else ifeq (,$(findstring MYSYS_NT-10-0-, $(os1)))
+os1=windows
+os2=windows
 else
 $(error unsupported OS: $(os1))
 endif
@@ -76,11 +79,18 @@ build_dir := $(DIR)/.build/$(os1)-$(arch1)
 
 go_version := $(shell cat .go-version)
 go_dir := $(build_dir)/go/$(go_version)
-go_bin_dir := $(go_dir)/bin
-go_url = https://storage.googleapis.com/golang/go$(go_version).$(os1)-$(arch2).tar.gz
-go := PATH="$(go_bin_dir):$(PATH)" go
+ifeq ($(os1),windows)
+	go_bin_dir = $(go_dir)/go/bin
+	go_url = https://storage.googleapis.com/golang/go$(go_version).$(os1)-$(arch2).zip
+	exe=".exe"
+else
+	go_bin_dir = $(go_dir)/bin
+	go_url = https://storage.googleapis.com/golang/go$(go_version).$(os1)-$(arch2).tar.gz
+	exe=
+endif
+go_path := PATH="$(go_bin_dir):$(PATH)"
 
-golangci_lint_version = v1.50.1
+golangci_lint_version = v1.51.1
 golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
 golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
 golangci_lint_cache = $(golangci_lint_dir)/cache
@@ -90,7 +100,14 @@ golangci_lint_cache = $(golangci_lint_dir)/cache
 ############################################################################
 
 go-check:
-ifneq (go$(go_version), $(shell $(go) version 2>/dev/null | cut -f3 -d' '))
+ifeq (go$(go_version), $(shell $(go_path) go version 2>/dev/null | cut -f3 -d' '))
+else ifeq ($(os1),windows)
+	@echo "Installing go$(go_version)..."
+	$(E)rm -rf $(dir $(go_dir))
+	$(E)mkdir -p $(go_dir)
+	$(E)curl -o $(go_dir)\go.zip -sSfL $(go_url)
+	$(E)unzip -qq $(go_dir)\go.zip -d $(go_dir)
+else
 	@echo "Installing go$(go_version)..."
 	$(E)rm -rf $(dir $(go_dir))
 	$(E)mkdir -p $(go_dir)
@@ -130,7 +147,7 @@ endif
 
 .PHONY: tidy tidy-check lint lint-code
 tidy: | go-check
-	$(E)$(go) mod tidy
+	$(E)$(go_path) mod tidy
 
 tidy-check:
 ifneq ($(git_dirty),)
@@ -153,7 +170,7 @@ lint-code: $(golangci_lint_bin) | go-check
 .PHONY: build test clean distclean artifact tarball rpm
 
 build: | go-check
-	go build -o spiffe-helper ./cmd/spiffe-helper
+	go build -o spiffe-helper${exe} ./cmd/spiffe-helper
 
 artifact: tarball rpm
 
