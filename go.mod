@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/hashicorp/hcl v1.0.0
-	github.com/spiffe/go-spiffe/v2 v2.1.5
+	github.com/spiffe/go-spiffe/v2 v2.1.6
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/sys v0.8.0
 	google.golang.org/grpc v1.55.0
