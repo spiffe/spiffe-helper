@@ -1,0 +1,10 @@
+CREATE USER client@'%' REQUIRE X509;
+
+CREATE DATABASE test_db;
+USE test_db;
+
+CREATE TABLE mail (id BIGINT AUTO_INCREMENT PRIMARY KEY, mail VARCHAR(256));
+INSERT INTO mail(mail) VALUES ('test@user.com');
+
+GRANT ALL PRIVILEGES ON test_db.* TO client@'%';
+FLUSH PRIVILEGES;
