@@ -45,6 +45,8 @@ docker compose exec spire-server ./bin/spire-server entry create \
     
 docker compose up spire-agent -d
 
+docker compose build spiffe-helper
+
 docker compose up postgres-db -d
 wait postgres-db /run/postgresql/certs/svid.crt
 docker compose exec postgres-db su postgres -c "pg_ctl start -D /var/lib/postgresql/data"

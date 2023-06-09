@@ -17,10 +17,14 @@ services:
     command: ["-config", "/opt/spire/conf/agent/agent.conf"]
     pid: "host"
   
+  spiffe-helper:
+    build: spiffe-helper
+
   postgres-db:
     build: postgres
     depends_on:
       - spire-agent
+    tty: true
     volumes:
       - ./var/run/api.sock:/var/run/api.sock
       - ./postgres/helper.conf:/opt/spire/conf/postgres/helper.conf    

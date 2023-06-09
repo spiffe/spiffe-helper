@@ -1,9 +1,3 @@
-FROM golang:1.17-alpine AS helper-builder
-RUN apk add build-base git
-WORKDIR /service
-RUN git clone -b upgrade-helper https://github.com/marcosdy/spiffe-helper.git .
-RUN go build -o /service/spiffe-helper ./cmd/spiffe-helper
-
 FROM alpine:3.17 AS postgres
 RUN addgroup -g 70 postgres
 RUN adduser -G postgres -u 70 -D postgres
@@ -27,4 +21,4 @@ RUN chmod 700 /var/lib/postgresql/data
 RUN initdb -D /var/lib/postgresql/data
 
 USER root
-COPY --from=helper-builder /service/spiffe-helper /opt/helper/spiffe-helper
+COPY --from=db-spiffe-helper /service/spiffe-helper /opt/helper/spiffe-helper
