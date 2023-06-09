@@ -6,3 +6,4 @@ rpm/*.rpm
 /.build
 *.swp
 *.swo
+bootstrap.crt
