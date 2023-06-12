@@ -95,8 +95,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build containers
-        run: ./it/db/test.sh
+        run: ./test.sh
         shell: bash
+        working-directory: ./it/db
 
   build:
     name: build (linux)
