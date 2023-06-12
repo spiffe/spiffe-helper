@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 fingerprint () {
 	# calculate the SHA1 digest of the DER bytes of the certificate using the
 	# "coreutils" output format (`-r`) to provide uniform output from
@@ -59,5 +58,5 @@ docker compose exec mysql-db su root -c "mysql < /var/lib/mysql/data/init.sql"
 docker compose up client -d
 wait client /run/client/certs/svid.crt
 
-echo $(docker compose exec client su client -c /run/client/postgres-connect.sh)
-echo $(docker compose exec client su client -c /run/client/mysql-connect.sh)
+# echo $(docker compose exec client su client -c /run/client/postgres-connect.sh)
+# echo $(docker compose exec client su client -c /run/client/mysql-connect.sh)
