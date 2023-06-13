@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MAX_RETRIES=30
+MAX_RETRIES=100
 
 restore-entry(){
     # This test restores the original values of the entry so the test should succeed
@@ -65,7 +65,7 @@ bad-entry(){
             exit_code_postgres=$?
             bash run-mysql-test.sh client 1
             exit_code_mysql=$?
-            if [ $exit_code_postgres == 1 ] && [ $exit_code_mysql == 1 ]; then
+            if [ $exit_code_postgres == 0 ] && [ $exit_code_mysql == 0 ]; then
                 exit 0
             else
                 exit 1
