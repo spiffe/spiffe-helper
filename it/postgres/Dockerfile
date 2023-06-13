@@ -21,4 +21,4 @@ RUN chmod 700 /var/lib/postgresql/data
 RUN initdb -D /var/lib/postgresql/data
 
 USER root
-COPY --from=db-spiffe-helper /service/spiffe-helper /opt/helper/spiffe-helper
+COPY --from=it-spiffe-helper /service/spiffe-helper /opt/helper/spiffe-helper

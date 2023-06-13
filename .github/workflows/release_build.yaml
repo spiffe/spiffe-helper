@@ -8,6 +8,20 @@ env:
   GO_VERSION: 1.19.5
 
 jobs:
+  integration-tests:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build containers
+        run: ./build.sh
+        shell: bash
+        working-directory: ./it
+      - name: Run integration tests
+        run: ./integration_test.sh
+        shell: bash
+        working-directory: ./it
+
   build:
     name: build (linux)
     runs-on: ubuntu-22.04

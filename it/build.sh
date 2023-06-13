@@ -57,31 +57,3 @@ docker compose exec mysql-db su root -c "mysql < /var/lib/mysql/data/init.sql"
 
 docker compose up client -d
 wait client /run/client/certs/svid.crt
-
-bash run-postgres-test.sh
-ec_postgres_test=$?
-
-bash run-postgres-test.sh fail
-ec_postgres_test_fail=$?
-
-bash run-mysql-test.sh
-ec_mysql_test=$?
-
-bash run-mysql-test.sh fail
-ec_mysql_test_fail=$?
-
-bash change-entry-client-test.sh 1
-ec_change_entry_postgres=$?
-bash change-entry-client-test.sh
-ec_restore_entry_postgres=$?
-
-
-#All of these values should be 0
-echo "Exit value of Postgres test script: $ec_postgres_test"
-echo "Exit value of Postgres test fail script: $ec_postgres_test_fail"
-
-echo "Exit value of MySQL test script: $ec_mysql_test"
-echo "Exit value of MySQL test fail script: $ec_mysql_test_fail"
-
-echo "Exit value change entry Postgres: $ec_change_entry_postgres"
-echo "Exit value restore entry Postgres: $ec_restore_entry_postgres"
