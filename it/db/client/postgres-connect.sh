@@ -5,7 +5,7 @@ query () {
     SVIDS_DIR=/run/client/certs
 
     # Connect to postgres using the certificates fetched
-    psql "port=5432 host=postgres-db user=client dbname=test_db sslcert=$SVIDS_DIR/svid.crt sslkey=$SVIDS_DIR/svid.key sslrootcert=$SVIDS_DIR/root.crt sslmode=verify-ca" -c "SELECT * FROM mail;"
+    psql "port=5432 host=postgres-db user=$1 dbname=test_db sslcert=$SVIDS_DIR/svid.crt sslkey=$SVIDS_DIR/svid.key sslrootcert=$SVIDS_DIR/root.crt sslmode=verify-ca" -c "SELECT * FROM mail;" 2>/dev/null
 }
 
-exit $(query | grep -q "test@user.com" && echo 0 || echo 1)
+query $1
