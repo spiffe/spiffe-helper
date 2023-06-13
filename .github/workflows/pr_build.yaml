@@ -89,6 +89,16 @@ jobs:
       - name: Run clean check
         run: make git-clean-check
 
+  integration-tests:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build containers
+        run: ./test.sh
+        shell: bash
+        working-directory: ./it/db
+
   build:
     name: build (linux)
     runs-on: ubuntu-22.04

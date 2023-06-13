@@ -1,10 +1,4 @@
-FROM golang:1.17-alpine AS helper-builder
-RUN apk add build-base git
-WORKDIR /service
-RUN git clone -b upgrade-helper https://github.com/marcosdy/spiffe-helper.git .
-RUN go build -tags netgo -a -v -o /service/spiffe-helper ./cmd/spiffe-helper
-
-FROM ubuntu:22.04 AS client
+FROM ubuntu:22.04 AS mysql
 RUN addgroup -gid 72 client
 RUN useradd -u 72 -g client client
 
@@ -28,4 +22,4 @@ RUN chown client:client \
     /run/client/certs/root.crt
 
 USER root
-COPY --from=helper-builder /service/spiffe-helper /opt/helper/spiffe-helper
+COPY --from=db-spiffe-helper /service/spiffe-helper /opt/helper/spiffe-helper

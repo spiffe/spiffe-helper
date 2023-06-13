@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 fingerprint () {
 	# calculate the SHA1 digest of the DER bytes of the certificate using the
 	# "coreutils" output format (`-r`) to provide uniform output from
@@ -44,6 +43,8 @@ docker compose exec spire-server ./bin/spire-server entry create \
 	-ttl 60
     
 docker compose up spire-agent -d
+
+docker compose build spiffe-helper
 
 docker compose up postgres-db -d
 wait postgres-db /run/postgresql/certs/svid.crt
