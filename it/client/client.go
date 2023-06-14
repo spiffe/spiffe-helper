@@ -39,11 +39,14 @@ func main() {
 	if os.Args[1] == "0" {
 		r, err = client.Get("https://go-server:8080/getMail")
 	} else {
-		r, err = http.Get("https://go-server:8080/hello")
+		r, err = http.Get("https://go-server:8080/getMail")
 	}
 
 	if err != nil {
 		log.Println(err)
+		if r != nil {
+			r.Body.Close()
+		}
 		os.Exit(1)
 	}
 	defer r.Body.Close()
