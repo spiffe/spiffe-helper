@@ -44,14 +44,17 @@ func main() {
 
 	if err != nil {
 		log.Println(err)
-		if r != nil {
+		defer func() {
 			r.Body.Close()
-		}
+			r.Body = nil
+		}()
 		os.Exit(1)
 	}
 
 	body, err = io.ReadAll(r.Body)
 	r.Body.Close()
+	r.Body=nil
+	
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
