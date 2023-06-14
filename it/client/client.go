@@ -37,24 +37,24 @@ func main() {
 	var r *http.Response
 	var body []byte
 	if os.Args[1] == "0" {
+		//lint:ignore bodyclose
 		r, err = client.Get("https://go-server:8080/getMail")
 	} else {
+		//lint:ignore bodyclose
 		r, err = http.Get("https://go-server:8080/getMail")
 	}
 
 	if err != nil {
 		log.Println(err)
-		defer func() {
-			r.Body.Close()
-			r.Body = nil
-		}()
+		r.Body.Close()
+		r.Body=nil
 		os.Exit(1)
 	}
 
 	body, err = io.ReadAll(r.Body)
 	r.Body.Close()
 	r.Body=nil
-	
+
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
