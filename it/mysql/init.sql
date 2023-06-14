@@ -1,4 +1,4 @@
-CREATE USER client@'%' REQUIRE X509;
+CREATE USER client@'%' REQUIRE SUBJECT '/C=US/O=SPIRE/CN=client/x500UniqueIdentifier=1fab30ffbcbbcae9ec2ddfe24442f9d2';
 
 CREATE DATABASE test_db;
 USE test_db;
