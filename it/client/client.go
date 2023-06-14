@@ -15,7 +15,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ca, err := ioutil.ReadFile("/run/client/certs/root.crt")
+	ca, err := os.ReadFile("/run/client/certs/root.crt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,6 +25,7 @@ func main() {
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
+				MinVersion:   tls.VersionTLS12,
 				RootCAs:      caPool,
 				Certificates: []tls.Certificate{cert},
 			},
@@ -32,20 +33,19 @@ func main() {
 	}
 
 	var r *http.Response
+	var body []byte
 	if os.Args[1] == "0" {
 		r, err = client.Get("https://go-server:8080/getMail")
-		if err != nil {
-			os.Exit(1)
-		}
 	} else {
 		r, err = http.Get("https://go-server:8080/hello")
-		if err != nil {
-			os.Exit(1)
-		}
 	}
 
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
+
+	body, err = ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Fatal(err)
 	}

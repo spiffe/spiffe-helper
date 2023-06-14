@@ -4,17 +4,21 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"time"
 )
 
 func getMail(writer http.ResponseWriter, request *http.Request) {
-	io.WriteString(writer, "test@user.com")
+	_, err := io.WriteString(writer, "test@user.com")
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func main() {
-	ca, err := ioutil.ReadFile("/run/go-server/certs/root.crt")
+	ca, err := os.ReadFile("/run/go-server/certs/root.crt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -22,16 +26,17 @@ func main() {
 	caPool.AppendCertsFromPEM(ca)
 
 	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
 		ClientCAs:  caPool,
 		ClientAuth: tls.RequireAndVerifyClientCert,
 	}
-	tlsConfig.BuildNameToCertificate()
 
 	http.HandleFunc("/getMail", getMail)
 
 	server := &http.Server{
-		Addr:      ":8080",
-		TLSConfig: tlsConfig,
+		Addr:              ":8080",
+		TLSConfig:         tlsConfig,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	log.Fatal(server.ListenAndServeTLS("/run/go-server/certs/svid.crt", "/run/go-server/certs/svid.key"))
