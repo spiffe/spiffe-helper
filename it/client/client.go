@@ -44,6 +44,9 @@ func main() {
 
 	if err != nil {
 		log.Println(err)
+		if r != nil {
+			r.Body.Close()
+		}
 		os.Exit(1)
 	}
 
