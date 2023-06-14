@@ -5,7 +5,7 @@ query () {
     SVIDS_DIR=/run/client/certs
 
     # Connect to mysql using the certificates fetched
-    mysql -h mysql-db -u $1 --protocol tcp --ssl-key $SVIDS_DIR/svid.key --ssl-cert $SVIDS_DIR/svid.crt --ssl-ca $SVIDS_DIR/root.crt -e "SELECT * FROM test_db.mail;" 2>/dev/null
+    mysql -h mysql-db -u $1 --ssl-key $SVIDS_DIR/svid.key --ssl-cert $SVIDS_DIR/svid.crt --ssl-ca $SVIDS_DIR/root.crt -e "SELECT * FROM test_db.mail;" 2>/dev/null
 }
 
 query $1

@@ -1,3 +1,8 @@
+FROM golang:1.17-alpine AS builder
+COPY ./client.go /service/client.go
+WORKDIR /service
+RUN go build -tags netgo -a -v -o /service/client ./client.go
+
 FROM ubuntu:22.04 AS mysql
 RUN addgroup -gid 72 client
 RUN useradd -u 72 -g client client
@@ -23,3 +28,4 @@ RUN chown client:client \
 
 USER root
 COPY --from=it-spiffe-helper /service/spiffe-helper /opt/helper/spiffe-helper
+COPY --from=builder /service/client /opt/go-client/client

@@ -45,6 +45,16 @@ services:
       - ./mysql/init.sql:/var/lib/mysql/data/init.sql
     command: /opt/helper/spiffe-helper -config /opt/spire/conf/mysql/helper.conf
 
+  go-server:
+    build: go-server
+    depends_on:
+      - spire-agent
+    tty: true
+    volumes:
+      - ./var/run/api.sock:/var/run/api.sock
+      - ./go-server/helper.conf:/opt/spire/conf/go-server/helper.conf
+    command: ["su", "go-server", "-c", "/opt/helper/spiffe-helper -config /opt/spire/conf/go-server/helper.conf"]
+
   client:
     build: client
     depends_on:
@@ -55,4 +65,3 @@ services:
       - ./var/run/api.sock:/var/run/api.sock
       - ./client/helper.conf:/opt/spire/conf/client/helper.conf
     command: ["su", "client", "-c", "/opt/helper/spiffe-helper -config /opt/spire/conf/client/helper.conf"]
-    

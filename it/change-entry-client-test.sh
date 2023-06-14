@@ -27,7 +27,7 @@ restore-entry(){
             exit_code_postgres=$?
             bash run-mysql-test.sh client 0
             exit_code_mysql=$?
-            if [ $exit_code_postgres == 0 ] && [ $exit_code_mysql == 0 ]; then
+            if [ $exit_code_postgres == 0 ] && [ $exit_code_mysql == 0 ] ; then
                 exit 0
             else
                 exit 1
@@ -65,7 +65,7 @@ bad-entry(){
             exit_code_postgres=$?
             bash run-mysql-test.sh client 1
             exit_code_mysql=$?
-            if [ $exit_code_postgres == 0 ] && [ $exit_code_mysql == 0 ]; then
+            if [ $exit_code_postgres == 0 ] && [ $exit_code_mysql == 0 ] ; then
                 exit 0
             else
                 exit 1

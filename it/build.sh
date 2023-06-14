@@ -8,7 +8,7 @@ fingerprint () {
 }
 
 wait () {
-	max_attempts=30
+	max_attempts=100
 
 	for ((attempt = 1; attempt <= max_attempts; attempt++)); do
 		if docker compose exec "$1" test -s "$2"; then
@@ -41,6 +41,13 @@ docker compose exec spire-server ./bin/spire-server entry create \
     -selector unix:uid:72 \
 	-dns client \
 	-ttl 60
+
+docker compose exec spire-server ./bin/spire-server entry create \
+    -parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \
+    -spiffeID spiffe://example.org/go-server \
+    -selector unix:uid:73 \
+	-dns go-server \
+	-ttl 3600
     
 docker compose up spire-agent -d
 
@@ -54,6 +61,10 @@ docker compose exec postgres-db su postgres -c "psql -U postgres -f /var/lib/pos
 docker compose up mysql-db -d
 docker compose exec mysql-db /etc/init.d/mysql start
 docker compose exec mysql-db su root -c "mysql < /var/lib/mysql/data/init.sql"
+
+docker compose up go-server -d
+wait go-server /run/go-server/certs/svid.crt
+docker compose exec go-server su go-server -c "/opt/go-server/server &"
 
 docker compose up client -d
 wait client /run/client/certs/svid.crt
