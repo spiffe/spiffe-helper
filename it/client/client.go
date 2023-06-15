@@ -36,29 +36,42 @@ func main() {
 
 	var r *http.Response
 	var body []byte
+
 	if os.Args[1] == "0" {
 		r, err = client.Get("https://go-server:8080/getMail")
+		if err != nil {
+			log.Println(err)
+			if r != nil {
+				r.Body.Close()
+			}
+			os.Exit(1)
+		}
+		body, err = io.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
 	} else {
 		r, err = http.Get("https://go-server:8080/getMail")
+		if err != nil {
+			log.Println(err)
+			if r != nil {
+				r.Body.Close()
+			}
+			os.Exit(1)
+		}
+		body, err = io.ReadAll(r.Body)
+		r.Body.Close()
+		if err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
 	}
-
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
-
-	body, err = io.ReadAll(r.Body)
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
-
-	err = r.Body.Close()
 
 	if string(body) == "test@user.com" {
 		os.Exit(0)
 	} else {
 		os.Exit(1)
 	}
-
 }
