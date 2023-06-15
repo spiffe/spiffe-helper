@@ -17,6 +17,7 @@ wait () {
 	done
 }
 
+# set ups spire server and create postgres, mysql and go entries 
 docker compose up spire-server -d
 
 docker compose exec -it spire-server ./bin/spire-server bundle show > ./spire/agent/bootstrap.crt
@@ -40,7 +41,7 @@ docker compose exec spire-server ./bin/spire-server entry create \
     -spiffeID spiffe://example.org/client \
     -selector unix:uid:72 \
 	-dns client \
-	-ttl 60
+	-ttl 150
 
 docker compose exec spire-server ./bin/spire-server entry create \
     -parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \
@@ -48,23 +49,28 @@ docker compose exec spire-server ./bin/spire-server entry create \
     -selector unix:uid:73 \
 	-dns go-server \
 	-ttl 3600
-    
+
+# set ups spire agent
 docker compose up spire-agent -d
 
 docker compose build spiffe-helper
 
+# set ups and postgres-db
 docker compose up postgres-db -d
 wait postgres-db /run/postgresql/certs/svid.crt
 docker compose exec postgres-db su postgres -c "pg_ctl start -D /var/lib/postgresql/data"
 docker compose exec postgres-db su postgres -c "psql -U postgres -f /var/lib/postgresql/data/init.sql"
 
+# set ups and mysql-db
 docker compose up mysql-db -d
 docker compose exec mysql-db /etc/init.d/mysql start
 docker compose exec mysql-db su root -c "mysql < /var/lib/mysql/data/init.sql"
 
+# set ups go-server
 docker compose up go-server -d
 wait go-server /run/go-server/certs/svid.crt
 docker compose exec go-server su go-server -c "/opt/go-server/server &"
 
+#set ups client
 docker compose up client -d
 wait client /run/client/certs/svid.crt
