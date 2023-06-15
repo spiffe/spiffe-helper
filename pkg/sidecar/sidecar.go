@@ -73,9 +73,12 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		s.config.Log.Errorf("Unable to dump bundle: %v", err)
 		return
 	}
-	err = s.signalProcess()
-	if err != nil {
-		s.config.Log.Errorf("Unable to signal process: %v", err)
+
+	if s.config.Cmd != "" {
+		err = s.signalProcess()
+		if err != nil {
+			s.config.Log.Errorf("Unable to signal process: %v", err)
+		}
 	}
 
 	select {
