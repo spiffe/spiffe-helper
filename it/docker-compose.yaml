@@ -18,7 +18,9 @@ services:
     pid: "host"
   
   spiffe-helper:
-    build: spiffe-helper
+    build: 
+      context: ../
+      dockerfile: ./it/spiffe-helper/Dockerfile
 
   postgres-db:
     build: postgres
