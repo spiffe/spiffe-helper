@@ -3,7 +3,7 @@
 MAX_RETRIES=100
 
 restore-entry(){
-    # This test restores the original values of the entry so the test should succeed
+    # This test restores the original values of the entry both connection tests should succeed
     docker compose exec spire-server ./bin/spire-server entry show -spiffeID spiffe://example.org/client > /tmp/entryFound
     ENTRYID=$( grep 'Entry ID         :' /tmp/entryFound | awk '{print $4}')
     PARENTID=$( grep 'Parent ID        :' /tmp/entryFound | awk '{print $4}')
@@ -40,7 +40,7 @@ restore-entry(){
 }
 
 bad-entry(){
-    #This test changes the values of the entry so the 2 connection tests should fail
+    #This test changes the values of the entry so both connection tests should fail
     docker compose exec spire-server ./bin/spire-server entry show -spiffeID spiffe://example.org/client > /tmp/entryFound
     ENTRYID=$( grep 'Entry ID         :' /tmp/entryFound | awk '{print $4}')
     PARENTID=$( grep 'Parent ID        :' /tmp/entryFound | awk '{print $4}')
@@ -76,6 +76,9 @@ bad-entry(){
     done
     exit 1
 }
+
+# with parameter 1 will change the entry to one that should make it fail
+# otherwise will restore a valid entry
 
 if [ "$1" == "1" ]; then
     bad-entry

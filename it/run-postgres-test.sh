@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Without parameters, two tests are performed:
-# The first one attempts to connect with the user 'testuser' and it will succeed if a connection can be established.
-# The second test attempts to connect with the user 'testuser1' and should fail, because connection can't be established.
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 RESET='\033[0m'
@@ -36,6 +32,9 @@ testWithParameter(){
         fi
     fi
 }
+
+# The first parameter is related to the user that will establish the connection
+# while the second parameter is the expected exit value 
 
 testWithParameter "$1" "$2"
 

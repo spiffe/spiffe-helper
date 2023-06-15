@@ -37,6 +37,9 @@ testWithParameter(){
     fi
 }
 
+# The first parameter is related to the user that will establish the connection
+# while the second parameter is the expected exit value
+
 testWithParameter "$1" "$2"
 
 exit $bad
