@@ -44,23 +44,21 @@ func main() {
 
 	if err != nil {
 		log.Println(err)
-		if r != nil {
-			r.Body.Close()
-		}
 		os.Exit(1)
 	}
 
 	body, err = io.ReadAll(r.Body)
-	r.Body.Close()
-
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
 	}
+
+	err = r.Body.Close()
 
 	if string(body) == "test@user.com" {
 		os.Exit(0)
 	} else {
 		os.Exit(1)
 	}
+
 }
