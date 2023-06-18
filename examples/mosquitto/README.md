@@ -1,4 +1,4 @@
-# User authentication in Postgresql using SVIDs with DNS names
+# User authentication in Mosquitto using SVIDs with DNS names
 
 This is an example of how **spiffe-helper** can be used to authenticate users to
 a **Mosquitto** broker using x509 SVIDs.
