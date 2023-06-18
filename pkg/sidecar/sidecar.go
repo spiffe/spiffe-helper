@@ -75,8 +75,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 
 	if s.config.Cmd != "" {
-		err = s.signalProcess()
-		if err != nil {
+		if err = s.signalProcess(); err != nil {
 			s.config.Log.Errorf("Unable to signal process: %v", err)
 		}
 	}
