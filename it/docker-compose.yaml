@@ -1,14 +1,14 @@
 version: '3'
 services:
   spire-server:
-    image: ghcr.io/spiffe/spire-server:1.6.3
+    image: ghcr.io/spiffe/spire-server:1.7.0
     hostname: spire-server
     volumes:
         - ./spire/server:/opt/spire/conf/server
     command: ["-config", "/opt/spire/conf/server/server.conf"]
   
   spire-agent:
-    image: ghcr.io/spiffe/spire-agent:1.6.3
+    image: ghcr.io/spiffe/spire-agent:1.7.0
     depends_on: ["spire-server"]
     hostname: spire-agent
     volumes:
