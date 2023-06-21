@@ -38,6 +38,7 @@ func TestValidateConfig(t *testing.T) {
 		name        string
 		config      *Config
 		expectError string
+		expectLogs	[]string
 	}{
 		{
 			name: "no error",
@@ -84,9 +85,176 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectError: "svidBundleFileName is required",
 		},
+
+		// Duplicated field error:
+
+		{
+			name: "Both agent_address & agentAddress in use",
+			config: &Config{
+				AgentAddress:    		"path",
+				AgentAddressDeprecated:	"path",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectError: "duplicated AgentAddress",
+		},
+		{
+			name: "Both cmd_args & cmdArgs in use",
+			config: &Config{
+				AgentAddress:    		"path",
+				CmdArgs: 				"start_envoy.sh",
+				CmdArgsDeprecated: 		"start_envoy.sh",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectError: "duplicated cmdArgs",
+		},
+		{
+			name: "Both cert_dir & certDir in use",
+			config: &Config{
+				AgentAddress:    		"path",
+				CertDir:				"certs",
+				CertDirDeprecated:  	"certs",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectError: "duplicated certDir",
+		},
+		{
+			name: "Both svid_file_name & svidFileName in use",
+			config: &Config{
+				AgentAddress:    		"path",
+				SvidFileName:    		"cert.pem",
+				SvidFileNameDeprecated: "cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectError: "duplicated SvidFileName",
+		},
+		{
+			name: "Both svid_key_file_name & svidKeyFileName in use",
+			config: &Config{
+				AgentAddress:    		"path",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidKeyFileNameDeprecated: "key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectError: "duplicated SvidKeyFileName",
+		},
+		{
+			name: "Both svid_bundle_file_name & svidBundleFileName in use",
+			config: &Config{
+				AgentAddress:    		"path",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+				SvidBundleFileNameDeprecated: 	"bundle.pem",
+			},
+			expectError: "duplicated SvidBundleFileName",
+		},
+		{
+			name: "Both renew_signal & renewSignal in use",
+			config: &Config{
+				AgentAddress:    		"path",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+				RenewSignal:			"SIGHUP",
+				RenewSignalDeprecated:	"SIGHUP",
+			},
+			expectError: "duplicated RenewSignal",
+		},
+
+		// Deprecated field warning:
+		{
+			name: "Using AgentAddressDeprecated",
+			config: &Config{
+				AgentAddressDeprecated: "path",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectLogs: []string{GetWarning("agentAddress", "agent_address")},
+		},
+		{
+			name: "Using CmdArgsDeprecated",
+			config: &Config{
+				AgentAddress: 			"path",
+				CmdArgsDeprecated: 		"start_envoy.sh",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectLogs: []string{GetWarning("cmdArgs", "cmd_args")},
+		},
+		{
+			name: "Using CertDirDeprecated",
+			config: &Config{
+				AgentAddress: 			"path",
+				CertDirDeprecated:  	"certs",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectLogs: []string{GetWarning("certDir", "cert_dir")},
+		},
+		{
+			name: "Using SvidFileNameDeprecated",
+			config: &Config{
+				AgentAddress: 			"path",
+				SvidFileNameDeprecated: "cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectLogs: []string{GetWarning("svidFileName", "svid_file_name")},
+		},
+		{
+			name: "Using SvidKeyFileNameDeprecated",
+			config: &Config{
+				AgentAddress:    		"path",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileNameDeprecated: "key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+			},
+			expectLogs: []string{GetWarning("svidKeyFileName", "svid_key_file_name")},
+		},
+		{
+			name: "Using SvidBundleFileNameDeprecated",
+			config: &Config{
+				AgentAddress:    		"path",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileNameDeprecated: 	"bundle.pem",
+			},
+			expectLogs: []string{GetWarning("svidBundleFileName", "svid_bundle_file_name")},
+		},
+		{
+			name: "Using RenewSignalDeprecated",
+			config: &Config{
+				AgentAddress:    		"path",
+				SvidFileName:    		"cert.pem",
+				SvidKeyFileName: 		"key.pem",
+				SvidBundleFileName: 	"bundle.pem",
+				RenewSignalDeprecated:	"SIGHUP",
+			},
+			expectLogs: []string{GetWarning("renewSignal", "renew_signal")},
+		},
+
+
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			log := &fakeLogger{}
+			tt.config.Log = log
+
 			err := ValidateConfig(tt.config)
+
+			
+			require.Equal(t, tt.expectLogs, log.Warnings)
+
 			if tt.expectError != "" {
 				require.Error(t, err, tt.expectError)
 				return
