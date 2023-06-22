@@ -36,20 +36,6 @@ type Config struct {
 	Log logger.Logger
 }
 
-type fakeLogger struct {
-	logger.Logger
-
-	Warnings []string
-} // private
-
-func (f *fakeLogger) Warnf(format string, args ...interface{}) {
-	f.Warnings = append(f.Warnings, format)
-}
-
-func GetWarning(s1 string, s2 string) string {
-	return s1 + " will be deprecated, should be used as " + s2
-}
-
 // ParseConfig parses the given HCL file into a SidecarConfig struct
 func ParseConfig(file string) (*Config, error) {
 	sidecarConfig := new(Config)
@@ -72,65 +58,60 @@ func ValidateConfig(c *Config) error {
 	if err := validateOSConfig(c); err != nil {
 		return err
 	}
-
-	if c.Log == nil {
-		c.Log = &fakeLogger{}
-	}
-
 	if c.AgentAddressDeprecated != "" {
 		if c.AgentAddress != "" {
-			return errors.New("duplicated agentAddress")
+			return errors.New("use of agent_address and agentAdress found, use only agent_address")
 		}
-		c.Log.Warnf(GetWarning("agentAddress", "agent_address"))
+		c.Log.Warnf(getWarning("agentAddress", "agent_address"))
 		c.AgentAddress = c.AgentAddressDeprecated
 	}
 
 	if c.CmdArgsDeprecated != "" {
 		if c.CmdArgs != "" {
-			return errors.New("duplicated CmdArgs")
+			return errors.New("use of cmd_args and cmdArgs found, use only cmd_args")
 		}
-		c.Log.Warnf(GetWarning("cmdArgs", "cmd_args"))
+		c.Log.Warnf(getWarning("cmdArgs", "cmd_args"))
 		c.CmdArgs = c.CmdArgsDeprecated
 	}
 
 	if c.CertDirDeprecated != "" {
 		if c.CertDir != "" {
-			return errors.New("duplicated CertDir")
+			return errors.New("use of cert_dir and certDir found, use only cert_dir")
 		}
-		c.Log.Warnf(GetWarning("certDir", "cert_dir"))
+		c.Log.Warnf(getWarning("certDir", "cert_dir"))
 		c.CertDir = c.CertDirDeprecated
 	}
 
 	if c.SvidFileNameDeprecated != "" {
 		if c.SvidFileName != "" {
-			return errors.New("duplicated SvidFileName")
+			return errors.New("use of svid_file_name and svidFileName found, use only svid_file_name")
 		}
-		c.Log.Warnf(GetWarning("svidFileName", "svid_file_name"))
+		c.Log.Warnf(getWarning("svidFileName", "svid_file_name"))
 		c.SvidFileName = c.SvidFileNameDeprecated
 	}
 
 	if c.SvidKeyFileNameDeprecated != "" {
 		if c.SvidKeyFileName != "" {
-			return errors.New("duplicated SvidKeyFileName")
+			return errors.New("use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name")
 		}
-		c.Log.Warnf(GetWarning("svidKeyFileName", "svid_key_file_name"))
+		c.Log.Warnf(getWarning("svidKeyFileName", "svid_key_file_name"))
 		c.SvidKeyFileName = c.SvidKeyFileNameDeprecated
 	}
 
 	if c.SvidBundleFileNameDeprecated != "" {
 		if c.SvidBundleFileName != "" {
-			return errors.New("duplicated SvidBundleFileName")
+			return errors.New("use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name")
 		}
-		c.Log.Warnf(GetWarning("svidBundleFileName", "svid_bundle_file_name"))
+		c.Log.Warnf(getWarning("svidBundleFileName", "svid_bundle_file_name"))
 		c.SvidBundleFileName = c.SvidBundleFileNameDeprecated
 
 	}
 
 	if c.RenewSignalDeprecated != "" {
 		if c.RenewSignal != "" {
-			return errors.New("duplicated RenewSignal")
+			return errors.New("use of renew_signal and renewSignal found, use only renew_signal")
 		}
-		c.Log.Warnf(GetWarning("renewSignal", "renew_signal"))
+		c.Log.Warnf(getWarning("renewSignal", "renew_signal"))
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
@@ -146,4 +127,8 @@ func ValidateConfig(c *Config) error {
 	default:
 		return nil
 	}
+}
+
+func getWarning(s1 string, s2 string) string {
+	return s1 + " will be deprecated, should be used as " + s2
 }

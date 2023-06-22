@@ -3,6 +3,7 @@ package sidecar
 import (
 	"testing"
 
+	"github.com/spiffe/go-spiffe/v2/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,7 +87,6 @@ func TestValidateConfig(t *testing.T) {
 		},
 
 		// Duplicated field error:
-
 		{
 			name: "Both agent_address & agentAddress in use",
 			config: &Config{
@@ -96,7 +96,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectError: "duplicated AgentAddress",
+			expectError: "use of agent_address and AgentAdress found, use only agent_address",
 		},
 		{
 			name: "Both cmd_args & cmdArgs in use",
@@ -108,7 +108,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectError: "duplicated cmdArgs",
+			expectError: "use of cmd_args and cmdArgs found, use only cmd_args",
 		},
 		{
 			name: "Both cert_dir & certDir in use",
@@ -120,7 +120,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectError: "duplicated certDir",
+			expectError: "use of cert_dir and certDir found, use only cert_dir",
 		},
 		{
 			name: "Both svid_file_name & svidFileName in use",
@@ -131,7 +131,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectError: "duplicated SvidFileName",
+			expectError: "use of svid_file_name and svidFileName found, use only svid_file_name",
 		},
 		{
 			name: "Both svid_key_file_name & svidKeyFileName in use",
@@ -142,7 +142,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileNameDeprecated: "key.pem",
 				SvidBundleFileName:        "bundle.pem",
 			},
-			expectError: "duplicated SvidKeyFileName",
+			expectError: "use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name",
 		},
 		{
 			name: "Both svid_bundle_file_name & svidBundleFileName in use",
@@ -153,7 +153,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName:           "bundle.pem",
 				SvidBundleFileNameDeprecated: "bundle.pem",
 			},
-			expectError: "duplicated SvidBundleFileName",
+			expectError: "use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name",
 		},
 		{
 			name: "Both renew_signal & renewSignal in use",
@@ -165,7 +165,7 @@ func TestValidateConfig(t *testing.T) {
 				RenewSignal:           "SIGHUP",
 				RenewSignalDeprecated: "SIGHUP",
 			},
-			expectError: "duplicated RenewSignal",
+			expectError: "use of renew_signal and renewSignal found, use only renew_signal",
 		},
 
 		// Deprecated field warning:
@@ -177,7 +177,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectLogs: []string{GetWarning("agentAddress", "agent_address")},
+			expectLogs: []string{"agentAddress will be deprecated, should be used as agent_address"},
 		},
 		{
 			name: "Using CmdArgsDeprecated",
@@ -188,7 +188,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectLogs: []string{GetWarning("cmdArgs", "cmd_args")},
+			expectLogs: []string{"cmdArgs will be deprecated, should be used as cmd_args"},
 		},
 		{
 			name: "Using CertDirDeprecated",
@@ -199,7 +199,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectLogs: []string{GetWarning("certDir", "cert_dir")},
+			expectLogs: []string{"certDir will be deprecated, should be used as cert_dir"},
 		},
 		{
 			name: "Using SvidFileNameDeprecated",
@@ -209,7 +209,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectLogs: []string{GetWarning("svidFileName", "svid_file_name")},
+			expectLogs: []string{"svidFileName will be deprecated, should be used as svid_file_name"},
 		},
 		{
 			name: "Using SvidKeyFileNameDeprecated",
@@ -219,7 +219,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileNameDeprecated: "key.pem",
 				SvidBundleFileName:        "bundle.pem",
 			},
-			expectLogs: []string{GetWarning("svidKeyFileName", "svid_key_file_name")},
+			expectLogs: []string{"svidKeyFileName will be deprecated, should be used as svid_key_file_name"},
 		},
 		{
 			name: "Using SvidBundleFileNameDeprecated",
@@ -229,7 +229,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:              "key.pem",
 				SvidBundleFileNameDeprecated: "bundle.pem",
 			},
-			expectLogs: []string{GetWarning("svidBundleFileName", "svid_bundle_file_name")},
+			expectLogs: []string{"svidBundleFileName will be deprecated, should be used as svid_bundle_file_name"},
 		},
 		{
 			name: "Using RenewSignalDeprecated",
@@ -240,7 +240,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName:    "bundle.pem",
 				RenewSignalDeprecated: "SIGHUP",
 			},
-			expectLogs: []string{GetWarning("renewSignal", "renew_signal")},
+			expectLogs: []string{"renewSignal will be deprecated, should be used as renew_signal"},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -259,4 +259,14 @@ func TestValidateConfig(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+type fakeLogger struct {
+	logger.Logger
+
+	Warnings []string
+}
+
+func (f *fakeLogger) Warnf(format string, args ...interface{}) {
+	f.Warnings = append(f.Warnings, format)
 }
