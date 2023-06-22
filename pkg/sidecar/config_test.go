@@ -96,7 +96,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectError: "use of agent_address and AgentAdress found, use only agent_address",
+			expectError: "use of agent_address and AgentAddress found, use only agent_address",
 		},
 		{
 			name: "Both cmd_args & cmdArgs in use",

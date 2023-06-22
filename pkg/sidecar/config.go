@@ -60,7 +60,7 @@ func ValidateConfig(c *Config) error {
 	}
 	if c.AgentAddressDeprecated != "" {
 		if c.AgentAddress != "" {
-			return errors.New("use of agent_address and agentAdress found, use only agent_address")
+			return errors.New("use of agent_address and agentAddress found, use only agent_address")
 		}
 		c.Log.Warnf(getWarning("agentAddress", "agent_address"))
 		c.AgentAddress = c.AgentAddressDeprecated
