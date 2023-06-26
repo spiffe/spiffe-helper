@@ -68,14 +68,15 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Infof("Updating certificates")
 
-	err := s.dumpBundles(svidResponse)
-	if err != nil {
+	if err := s.dumpBundles(svidResponse); err != nil {
 		s.config.Log.Errorf("Unable to dump bundle: %v", err)
 		return
 	}
-	err = s.signalProcess()
-	if err != nil {
-		s.config.Log.Errorf("Unable to signal process: %v", err)
+
+	if s.config.Cmd != "" {
+		if err := s.signalProcess(); err != nil {
+			s.config.Log.Errorf("Unable to signal process: %v", err)
+		}
 	}
 
 	select {
@@ -112,8 +113,7 @@ func (s *Sidecar) signalProcess() (err error) {
 		}
 
 	default:
-		err = s.config.ReloadExternalProcess()
-		if err != nil {
+		if err = s.config.ReloadExternalProcess(); err != nil {
 			return fmt.Errorf("error reloading external process: %w", err)
 		}
 	}
