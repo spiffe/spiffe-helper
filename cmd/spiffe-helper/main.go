@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/spiffe/go-spiffe/v2/logger"
+	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
@@ -20,18 +20,18 @@ func main() {
 	flag.Parse()
 
 	// TODO: logger will be replaced in a near future
-	log := logger.Std
+	log := logrus.New()
 	log.Infof("Using configuration file: %q\n", *configFile)
 
 	if err := startSidecar(*configFile, log); err != nil {
-		log.Errorf("Exiting due to error: %w", err)
+		log.WithError(err).Error("Exiting due this error")
 		os.Exit(1)
 	}
 
 	log.Infof("Exiting")
 }
 
-func startSidecar(configPath string, log logger.Logger) error {
+func startSidecar(configPath string, log logrus.FieldLogger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 

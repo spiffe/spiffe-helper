@@ -3,7 +3,7 @@ package sidecar
 import (
 	"testing"
 
-	"github.com/spiffe/go-spiffe/v2/logger"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -11,7 +11,6 @@ import (
 func TestParseConfig(t *testing.T) {
 	c, err := ParseConfig("../../test/fixture/config/helper.conf")
 
-	
 	assert.NoError(t, err)
 
 	expectedAgentAddress := "/tmp/agent.sock"
@@ -263,7 +262,7 @@ func TestValidateConfig(t *testing.T) {
 }
 
 type fakeLogger struct {
-	logger.Logger
+	logrus.FieldLogger
 
 	Warnings []string
 }

@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/hcl"
-	"github.com/spiffe/go-spiffe/v2/logger"
+	"github.com/sirupsen/logrus"
 )
 
 // Config contains config variables when creating a SPIFFE Sidecar.
@@ -33,7 +33,7 @@ type Config struct {
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error
 	// TODO: is there a reason for this to be exposed? and inside of config?
-	Log logger.Logger
+	Log logrus.FieldLogger
 }
 
 // ParseConfig parses the given HCL file into a SidecarConfig struct
