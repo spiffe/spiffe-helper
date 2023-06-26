@@ -104,7 +104,6 @@ func ValidateConfig(c *Config) error {
 		}
 		c.Log.Warnf(getWarning("svidBundleFileName", "svid_bundle_file_name"))
 		c.SvidBundleFileName = c.SvidBundleFileNameDeprecated
-
 	}
 
 	if c.RenewSignalDeprecated != "" {
