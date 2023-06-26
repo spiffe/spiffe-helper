@@ -13,7 +13,7 @@ use_identity_as_username true
 
 ## Guide
 
-### Preqrequisites
+### Prerequisites
 
 We will do this test using three virtual machines (VMs) running Ubuntu 22.04 on
 the same virtual network. The setup will be as follows:
@@ -30,7 +30,8 @@ Download or build the latest version of SPIRE and extract it to `/opt/spire` on
 `10.211.55.2` and the `trust_domain` to `example.org`. The rest of the
 configuration can be left as is.
 
-After editing the configuration file should look like this:
+After editing the configuration file the `server` config should look similar to
+this:
 ```
 server {
     bind_address = "10.211.55.2"
@@ -39,31 +40,6 @@ server {
     trust_domain = "example.org"
     data_dir = "./.data"
     log_level = "DEBUG"
-}
-
-plugins {
-    DataStore "sql" {
-        plugin_data {
-            database_type = "sqlite3"
-            connection_string = "./.data/datastore.sqlite3"
-        }
-    }
-
-    NodeAttestor "join_token" {
-        plugin_data {
-        }
-    }
-
-    KeyManager "memory" {
-        plugin_data = {}
-    }
-
-    UpstreamAuthority "disk" {
-        plugin_data {
-            key_file_path = "./conf/server/dummy_upstream_ca.key"
-            cert_file_path = "./conf/server/dummy_upstream_ca.crt"
-        }
-    }
 }
 ```
 
@@ -119,8 +95,8 @@ running:
 sudo apt install mosquitto
 ```
 
-Once installed, make sure to stop it as we will be running it with the spiffe
-helper instead:
+Once installed, make sure to stop it as we will be running it with the
+spiffe-helper instead:
 ```bash
 sudo systemctl stop mosquitto
 ```
@@ -204,7 +180,7 @@ sudo chown mosquitto-client:mosquitto-client /tmp/mosquitto/svids
 
 Copy over the script [./connect.sh] to `node2` and run it with:
 ```bash
-sudo -u mosquitto-client ./connect.sh
+sudo -u mosquitto-client ./examples/mosquitto/connect.sh
 ```
 
 The script will connect to the broker and subscribe to the topic `test`. To send
