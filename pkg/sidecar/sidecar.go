@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,7 +21,10 @@ import (
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	pb "github.com/spiffe/spiffe-helper/pkg/plugin"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -148,6 +152,9 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		os.Exit(0)
 	}
 
+	s.config.Log.Infof("Updating plugins")
+	s.updatePlugins()
+
 	select {
 	case s.certReadyChan <- struct{}{}:
 	default:
@@ -188,6 +195,42 @@ func (s *Sidecar) signalProcess() (err error) {
 	}
 
 	return nil
+}
+
+func (s *Sidecar) updatePlugins() {
+	for pluginName, pluginConfig := range s.config.Plugins {
+		// create request
+		request := &pb.ConfigsRequest{}
+		request.Configs = pluginConfig
+		request.Configs["certDir"] = s.config.CertDir
+		request.Configs["addIntermediatesToBundle"] = strconv.FormatBool(s.config.AddIntermediatesToBundle)
+		request.Configs["svidFileName"] = s.config.SvidFileName
+		request.Configs["svidKeyFileName"] = s.config.SvidKeyFileName
+		request.Configs["svidBundleFileName"] = s.config.SvidBundleFileName
+
+		// try to post request
+		hostname := pluginConfig["hostname"]
+		port := pluginConfig["port"]
+		if hostname == "" || port == "" {
+			fmt.Printf("Please provide hostname and port for plugin %s", pluginName)
+			continue
+		}
+
+		conn, err := grpc.Dial(hostname+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			s.config.Log.Errorf("Failed to connect with plugin %s", pluginName)
+			continue
+		}
+
+		client := pb.NewSpiffeHelperClient(conn)
+		response, err := client.PostConfigs(context.Background(), request)
+		if err != nil {
+			s.config.Log.Errorf("Failed to post configs for plugin %s", pluginName)
+			continue
+		}
+
+		s.config.Log.Infof("Plugin %s updated: %s", pluginName, response)
+	}
 }
 
 func (s *Sidecar) checkProcessExit() {

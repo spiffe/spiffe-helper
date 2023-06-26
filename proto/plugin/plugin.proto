@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package plugin;
+option go_package = "../../pkg/plugin";
+
+message Empty {}
+
+message ConfigsRequest {
+    map<string,string> configs = 1;
+}
+
+service SpiffeHelper {
+    rpc PostConfigs(ConfigsRequest) returns (Empty) {};
+}
