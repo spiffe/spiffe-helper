@@ -212,7 +212,7 @@ func (s *Sidecar) updatePlugins() {
 		hostname := pluginConfig["hostname"]
 		port := pluginConfig["port"]
 		if hostname == "" || port == "" {
-			fmt.Printf("Please provide hostname and port for plugin %s", pluginName)
+			s.config.Log.Warnf("Please provide hostname and port for plugin %s", pluginName)
 			continue
 		}
 
@@ -229,7 +229,7 @@ func (s *Sidecar) updatePlugins() {
 			continue
 		}
 
-		s.config.Log.Infof("Plugin %s updated: %s", pluginName, response)
+		s.config.Log.Infof("Plugin %s updated %s", pluginName, response)
 	}
 }
 

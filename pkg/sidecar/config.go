@@ -44,9 +44,9 @@ type Config struct {
 	Log logrus.FieldLogger
 }
 
-func ParseConfig(fileName string) (*Config, error) {
+func ParseConfig(file string) (*Config, error) {
 	// Read HCL file
-	dat, err := os.ReadFile(fileName)
+	dat, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
