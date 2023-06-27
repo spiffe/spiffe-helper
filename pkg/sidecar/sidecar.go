@@ -38,14 +38,14 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
 	}
 
-	if err := ValidateConfig(config); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
-	}
-
 	if log == nil {
 		log = logrus.New()
 	}
 	config.Log = log
+
+	if err := ValidateConfig(config); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
 
 	// TODO: add default agent socket path
 	config.Log.WithField("connecting to", config.AgentAddress).Info("Connecting to agent at")
