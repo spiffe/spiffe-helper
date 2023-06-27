@@ -44,6 +44,7 @@ type Config struct {
 	Log logrus.FieldLogger
 }
 
+// ParseConfig parses the given HCL file into a SidecarConfig struct
 func ParseConfig(file string) (*Config, error) {
 	// Read HCL file
 	dat, err := os.ReadFile(file)
