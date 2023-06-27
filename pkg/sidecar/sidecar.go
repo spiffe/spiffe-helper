@@ -79,9 +79,11 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	if s.config.RenewSignal == "" {
 		s.config.Log.Warn("RenewSignal not loaded")
 	}
-	err = s.signalProcess()
-	if s.config.RenewSignal != "" && err != nil {
-		s.config.Log.WithError(err).Error("Unable to signal process")
+
+	if s.config.Cmd != "" && s.config.RenewSignal != "" {
+		if err := s.signalProcess(); err != nil {
+			s.config.Log.WithError(err).Error("Unable to signal process")
+		}
 	}
 
 	select {
