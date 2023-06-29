@@ -19,8 +19,7 @@ func main() {
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
 	flag.Parse()
 
-	// TODO: logger will be replaced in a near future
-	log := logrus.New()
+	log := logrus.WithField("system", "spiffe-helper")
 	log.Infof("Using configuration file: %q\n", *configFile)
 
 	if err := startSidecar(*configFile, log); err != nil {

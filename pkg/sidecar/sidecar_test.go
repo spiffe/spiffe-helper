@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spiffe/go-spiffe/v2/bundle/x509bundle"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
@@ -63,13 +63,15 @@ func TestSidecar_RunDaemon(t *testing.T) {
 
 	tmpdir := t.TempDir()
 
+	log, _ := test.NewNullLogger()
+
 	config := &Config{
 		Cmd:                "echo",
 		CertDir:            tmpdir,
 		SvidFileName:       "svid.pem",
 		SvidKeyFileName:    "svid_key.pem",
 		SvidBundleFileName: "svid_bundle.pem",
-		Log:                logrus.New().WithField("system", "spiffe-helper"),
+		Log:                log,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

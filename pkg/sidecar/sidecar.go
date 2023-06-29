@@ -48,11 +48,9 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	}
 
 	// TODO: add default agent socket path
-	config.Log.WithField("connecting to", config.AgentAddress).Info("Connecting to agent at")
-	// log.Infof("Connecting to agent at %q\n", config.AgentAddress)
+	config.Log.WithField("agent_address", config.AgentAddress).Info("Connecting to agent")
 	if config.Cmd == "" {
 		config.Log.Warn("No cmd defined to execute.")
-		log.Warnf("No cmd defined to execute.")
 	}
 
 	return &Sidecar{
@@ -76,11 +74,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		return
 	}
 
-	if s.config.RenewSignal == "" {
-		s.config.Log.Warn("RenewSignal not loaded")
-	}
-
-	if s.config.Cmd != "" && s.config.RenewSignal != "" {
+	if s.config.Cmd != "" {
 		if err := s.signalProcess(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal process")
 		}
