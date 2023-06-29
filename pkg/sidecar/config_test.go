@@ -202,12 +202,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			// expectLogs: []logrus.Entry{
-			// 	{
-			// 		Level:   logrus.WarnLevel,
-			// 		Message: "cmdArgs will be deprecated, should be used as cmd_args",
-			// 	},
-			// },
 			expectLogs: []shortEntry{
 				{
 					Level:   logrus.WarnLevel,
@@ -224,12 +218,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			// expectLogs: []logrus.Entry{
-			// 	{
-			// 		Level:   logrus.WarnLevel,
-			// 		Message: "certDir will be deprecated, should be used as cert_dir",
-			// 	},
-			// },
 			expectLogs: []shortEntry{
 				{
 					Level:   logrus.WarnLevel,
@@ -245,12 +233,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			// expectLogs: []logrus.Entry{
-			// 	{
-			// 		Level:   logrus.WarnLevel,
-			// 		Message: "svidFileName will be deprecated, should be used as svid_file_name",
-			// 	},
-			// },
 			expectLogs: []shortEntry{
 				{
 					Level:   logrus.WarnLevel,
@@ -266,12 +248,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileNameDeprecated: "key.pem",
 				SvidBundleFileName:        "bundle.pem",
 			},
-			// expectLogs: []logrus.Entry{
-			// 	{
-			// 		Level:   logrus.WarnLevel,
-			// 		Message: "svidKeyFileName will be deprecated, should be used as svid_key_file_name",
-			// 	},
-			// },
 			expectLogs: []shortEntry{
 				{
 					Level:   logrus.WarnLevel,
@@ -293,12 +269,6 @@ func TestValidateConfig(t *testing.T) {
 					Message: "svidBundleFileName will be deprecated, should be used as svid_bundle_file_name",
 				},
 			},
-			//  []logrus.Entry{
-			// 	{
-			// 		Level:   logrus.WarnLevel,
-			// 		Message: "svidBundleFileName will be deprecated, should be used as svid_bundle_file_name",
-			// 	},
-			// },
 		},
 		{
 			name: "Using RenewSignalDeprecated",
@@ -346,14 +316,6 @@ func getShortEntries(entries []*logrus.Entry) []shortEntry {
 			Level:   entry.Level,
 			Message: entry.Message,
 		})
-	}
-	return result
-}
-
-func convertToSlice(entries []logrus.Entry) []*logrus.Entry {
-	result := make([]*logrus.Entry, len(entries))
-	for i, entry := range entries {
-		result[i] = &entry
 	}
 	return result
 }
