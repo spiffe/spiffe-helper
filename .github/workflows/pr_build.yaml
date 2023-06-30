@@ -116,6 +116,9 @@ jobs:
     needs: [build-matrix]
     permissions:
       contents: read
+    strategy:
+      matrix:
+       tests: ${{ fromJson(needs.build-matrix.outputs.tests) }}
     steps:
       - uses: actions/checkout@v3
       - name: Build containers
@@ -124,15 +127,7 @@ jobs:
         working-directory: ./it
       - name: Run tests
         run: |
-          tests_array="$(echo '${{ needs.build-matrix.outputs.tests }}' | jq -r '.[]')"
-          echo "Tests array: $tests_array" 
-          # Convert the JSON string to an array using jq
-
-          for test in $tests_array; do
-            echo "Running test: $test"
-            bash "${test}"
-            # Execute your test command or script for each test
-          done
+          bash ${{ matrix.tests }}
         working-directory: ./.github/tests
 
   build:
