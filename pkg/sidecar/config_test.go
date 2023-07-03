@@ -57,7 +57,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectError: "agentAddress is required",
+			expectError: "agent_address is required",
 		},
 		{
 			name: "no SVID file",
@@ -66,7 +66,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectError: "svidFileName is required",
+			expectError: "svid_file_name is required",
 		},
 		{
 			name: "no key file",
@@ -75,7 +75,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidFileName:       "cert.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectError: "svidKeyFileName is required",
+			expectError: "svid_key_file_name is required",
 		},
 		{
 			name: "no bundle file",
@@ -84,8 +84,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidFileName:    "cert.pem",
 				SvidKeyFileName: "key.pem",
 			},
-			expectError: "svidBundleFileName is required",
-			expectLogs:  nil,
+			expectError: "svid_bundle_file_name is required",
 		},
 
 		// Duplicated field error:
@@ -99,7 +98,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName:     "bundle.pem",
 			},
 			expectError: "use of agent_address and AgentAddress found, use only agent_address",
-			expectLogs:  nil,
 		},
 		{
 			name: "Both cmd_args & cmdArgs in use",
@@ -112,7 +110,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName: "bundle.pem",
 			},
 			expectError: "use of cmd_args and cmdArgs found, use only cmd_args",
-			expectLogs:  nil,
 		},
 		{
 			name: "Both cert_dir & certDir in use",
@@ -125,7 +122,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName: "bundle.pem",
 			},
 			expectError: "use of cert_dir and certDir found, use only cert_dir",
-			expectLogs:  nil,
 		},
 		{
 			name: "Both svid_file_name & svidFileName in use",
@@ -137,7 +133,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName:     "bundle.pem",
 			},
 			expectError: "use of svid_file_name and svidFileName found, use only svid_file_name",
-			expectLogs:  nil,
 		},
 		{
 			name: "Both svid_key_file_name & svidKeyFileName in use",
@@ -149,7 +144,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName:        "bundle.pem",
 			},
 			expectError: "use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name",
-			expectLogs:  nil,
 		},
 		{
 			name: "Both svid_bundle_file_name & svidBundleFileName in use",
@@ -161,7 +155,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileNameDeprecated: "bundle.pem",
 			},
 			expectError: "use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name",
-			expectLogs:  nil,
 		},
 		{
 			name: "Both renew_signal & renewSignal in use",
@@ -174,7 +167,6 @@ func TestValidateConfig(t *testing.T) {
 				RenewSignalDeprecated: "SIGHUP",
 			},
 			expectError: "use of renew_signal and renewSignal found, use only renew_signal",
-			expectLogs:  nil,
 		},
 
 		// Deprecated field warning:
@@ -290,9 +282,7 @@ func TestValidateConfig(t *testing.T) {
 			tt.config.Log = log
 			err := ValidateConfig(tt.config)
 
-			if tt.expectLogs != nil {
-				require.Equal(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
-			}
+			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
 			if tt.expectError != "" {
 				require.Error(t, err, tt.expectError)

@@ -82,12 +82,12 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	defer close(sidecar.certReadyChan)
 
 	testCases := []struct {
-		name     string
-		response *workloadapi.X509Context
-		certs    []*x509.Certificate
-		key      crypto.Signer
-		bundle   []*x509.Certificate
-
+		name                 string
+		response             *workloadapi.X509Context
+		certs                []*x509.Certificate
+		key                  crypto.Signer
+		bundle               []*x509.Certificate
+		renewSignal          string
 		intermediateInBundle bool
 	}{
 		{
@@ -135,6 +135,17 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			key:    svidKey,
 			bundle: domain1Bundle,
 		},
+		{
+			name: "single svid with RenewSignal",
+			response: &workloadapi.X509Context{
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), domain1CA.Roots())),
+				SVIDs:   svid,
+			},
+			certs:       svidChain,
+			key:         svidKey,
+			bundle:      domain1Bundle,
+			renewSignal: "SIGHUP",
+		},
 	}
 
 	svidFile := path.Join(tmpdir, config.SvidFileName)
@@ -147,7 +158,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			sidecar.config.AddIntermediatesToBundle = testCase.intermediateInBundle
-
+			sidecar.config.RenewSignal = testCase.renewSignal
 			// Push response to start updating process
 			// updateMockChan <- testCase.response.ToProto(t)
 			w.OnX509ContextUpdate(testCase.response)

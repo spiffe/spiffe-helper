@@ -116,13 +116,13 @@ func ValidateConfig(c *Config) error {
 
 	switch {
 	case c.AgentAddress == "":
-		return errors.New("agentAddress is required")
+		return errors.New("agent_address is required")
 	case c.SvidFileName == "":
-		return errors.New("svidFileName is required")
+		return errors.New("svid_file_name is required")
 	case c.SvidKeyFileName == "":
-		return errors.New("svidKeyFileName is required")
+		return errors.New("svid_key_file_name is required")
 	case c.SvidBundleFileName == "":
-		return errors.New("svidBundleFileName is required")
+		return errors.New("svid_bundle_file_name is required")
 	default:
 		return nil
 	}
