@@ -126,8 +126,8 @@ jobs:
         shell: bash
         working-directory: ./it
       - name: Run tests
-        run: |
-          bash ${{ matrix.tests }}
+        run: bash ${{ matrix.tests }}
+        shell: bash
         working-directory: ./.github/tests
 
   build:
