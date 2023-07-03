@@ -13,4 +13,12 @@ fi
 cd "$target_dir" || exit
 
 bash run-mysql-test.sh client 0
+exit_code_mysql_client=$?
 bash run-mysql-test.sh fail 1
+exit_code_mysql_fail=$?
+
+if [ $exit_code_mysql_client == 0 ] && [ $exit_code_mysql_fail == 0 ] ; then
+    exit 0
+else
+    exit 1
+fi
