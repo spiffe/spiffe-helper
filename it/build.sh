@@ -8,7 +8,7 @@ fingerprint () {
 }
 
 wait () {
-	max_attempts=100
+	max_attempts=400
 
 	for ((attempt = 1; attempt <= max_attempts; attempt++)); do
 		if docker compose exec "$1" test -s "$2"; then
