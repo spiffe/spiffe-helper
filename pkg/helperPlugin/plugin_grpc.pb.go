@@ -4,7 +4,7 @@
 // - protoc             v3.12.4
 // source: plugin.proto
 
-package helper_plugin
+package helperPlugin
 
 import (
 	context "context"

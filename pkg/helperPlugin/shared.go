@@ -1,4 +1,4 @@
-package helper_plugin
+package helperPlugin
 
 import (
 	context "context"

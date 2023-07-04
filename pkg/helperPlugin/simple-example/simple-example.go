@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/go-plugin"
-	pb "github.com/spiffe/spiffe-helper/pkg/helper-plugin"
+	pb "github.com/spiffe/spiffe-helper/pkg/helperPlugin"
 )
 
 type SimplePlugin struct {

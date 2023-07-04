@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -23,7 +22,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	pb "github.com/spiffe/spiffe-helper/pkg/helper-plugin"
+	pb "github.com/spiffe/spiffe-helper/pkg/helperPlugin"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -225,13 +224,13 @@ func (s *Sidecar) updatePlugins() {
 
 		RPCClient, err := client.Client()
 		if err != nil {
-			log.Fatal(err)
+			s.config.Log.Warn(err)
 			continue
 		}
 
 		raw, err := RPCClient.Dispense("plugin")
 		if err != nil {
-			log.Fatal(err)
+			s.config.Log.Warn(err)
 			continue
 		}
 
