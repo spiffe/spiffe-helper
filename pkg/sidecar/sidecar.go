@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -17,14 +18,13 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	pb "github.com/spiffe/spiffe-helper/pkg/plugin"
-	"google.golang.org/grpc"
+	pb "github.com/spiffe/spiffe-helper/pkg/helper-plugin"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -209,23 +209,36 @@ func (s *Sidecar) updatePlugins() {
 		request.Configs["svidBundleFileName"] = s.config.SvidBundleFileName
 
 		// try to post request
-		hostname := pluginConfig["hostname"]
-		port := pluginConfig["port"]
-		if hostname == "" || port == "" {
-			s.config.Log.Warnf("Please provide hostname and port for plugin %s", pluginName)
+		pluginPath := pluginConfig["path"]
+		if pluginPath == "" {
+			s.config.Log.Warnf("Please provide a path for plugin %s", pluginName)
 			continue
 		}
 
-		conn, err := grpc.Dial(hostname+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		client := plugin.NewClient(&plugin.ClientConfig{
+			HandshakeConfig:  pb.GetHandshakeConfig(),
+			Plugins:          pb.GetPluginMap(),
+			Cmd:              exec.Command(pluginPath),
+			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+		})
+		defer client.Kill()
+
+		RPCClient, err := client.Client()
 		if err != nil {
-			s.config.Log.Errorf("Failed to connect with plugin %s", pluginName)
+			log.Fatal(err)
 			continue
 		}
 
-		client := pb.NewSpiffeHelperClient(conn)
-		response, err := client.PostConfigs(context.Background(), request)
+		raw, err := RPCClient.Dispense("plugin")
 		if err != nil {
-			s.config.Log.Errorf("Failed to post configs for plugin %s", pluginName)
+			log.Fatal(err)
+			continue
+		}
+
+		spiffeHelperPlugin := raw.(pb.SpiffeHelperPlugin)
+		response, err := spiffeHelperPlugin.PostConfigs(context.Background(), request)
+		if err != nil {
+			s.config.Log.Warnf("Failed to post configs to plugin %s", pluginName)
 			continue
 		}
 

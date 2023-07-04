@@ -4,7 +4,7 @@
 // - protoc             v3.12.4
 // source: plugin.proto
 
-package plugin
+package helper_plugin
 
 import (
 	context "context"
@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	SpiffeHelper_PostConfigs_FullMethodName = "/plugin.SpiffeHelper/PostConfigs"
+	SpiffeHelper_PostConfigs_FullMethodName = "/helperPlugin.SpiffeHelper/PostConfigs"
 )
 
 // SpiffeHelperClient is the client API for SpiffeHelper service.
@@ -96,7 +96,7 @@ func _SpiffeHelper_PostConfigs_Handler(srv interface{}, ctx context.Context, dec
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SpiffeHelper_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "plugin.SpiffeHelper",
+	ServiceName: "helperPlugin.SpiffeHelper",
 	HandlerType: (*SpiffeHelperServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

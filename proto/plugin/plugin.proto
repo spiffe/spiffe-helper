@@ -1,7 +1,7 @@
 syntax = "proto3";
 
-package plugin;
-option go_package = "../../pkg/plugin";
+package helperPlugin;
+option go_package = "../../pkg/helper-plugin";
 
 message Empty {}
 
