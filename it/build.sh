@@ -8,7 +8,7 @@ fingerprint () {
 }
 
 wait () {
-	max_attempts=20
+	max_attempts=40
 
 	for ((attempt = 1; attempt <= max_attempts; attempt++)); do
 		if docker compose exec "$1" test -s "$2"; then
@@ -43,7 +43,7 @@ docker compose exec spire-server ./bin/spire-server entry create \
     -spiffeID spiffe://example.org/client \
     -selector unix:uid:72 \
 	-dns client \
-	-ttl 150
+	-ttl 300
 
 docker compose exec spire-server ./bin/spire-server entry create \
     -parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \

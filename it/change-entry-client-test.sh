@@ -52,7 +52,7 @@ bad-entry(){
         -parentID $PARENTID \
         -spiffeID spiffe://example.org/client \
         -selector unix:uid:72 \
-        -ttl 150 \
+        -ttl 300 \
         -dns testuser1
     
     echo "Entry changed, now with dns=testuser1"
