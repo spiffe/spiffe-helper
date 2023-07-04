@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/hcl"
-	"github.com/spiffe/go-spiffe/v2/logger"
+	"github.com/sirupsen/logrus"
 )
 
 // Config contains config variables when creating a SPIFFE Sidecar.
@@ -33,7 +33,7 @@ type Config struct {
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error
 	// TODO: is there a reason for this to be exposed? and inside of config?
-	Log logger.Logger
+	Log logrus.FieldLogger
 }
 
 // ParseConfig parses the given HCL file into a SidecarConfig struct
@@ -62,7 +62,7 @@ func ValidateConfig(c *Config) error {
 		if c.AgentAddress != "" {
 			return errors.New("use of agent_address and agentAddress found, use only agent_address")
 		}
-		c.Log.Warnf(getWarning("agentAddress", "agent_address"))
+		c.Log.Warn(getWarning("agentAddress", "agent_address"))
 		c.AgentAddress = c.AgentAddressDeprecated
 	}
 
@@ -70,7 +70,7 @@ func ValidateConfig(c *Config) error {
 		if c.CmdArgs != "" {
 			return errors.New("use of cmd_args and cmdArgs found, use only cmd_args")
 		}
-		c.Log.Warnf(getWarning("cmdArgs", "cmd_args"))
+		c.Log.Warn(getWarning("cmdArgs", "cmd_args"))
 		c.CmdArgs = c.CmdArgsDeprecated
 	}
 
@@ -78,7 +78,7 @@ func ValidateConfig(c *Config) error {
 		if c.CertDir != "" {
 			return errors.New("use of cert_dir and certDir found, use only cert_dir")
 		}
-		c.Log.Warnf(getWarning("certDir", "cert_dir"))
+		c.Log.Warn(getWarning("certDir", "cert_dir"))
 		c.CertDir = c.CertDirDeprecated
 	}
 
@@ -86,7 +86,7 @@ func ValidateConfig(c *Config) error {
 		if c.SvidFileName != "" {
 			return errors.New("use of svid_file_name and svidFileName found, use only svid_file_name")
 		}
-		c.Log.Warnf(getWarning("svidFileName", "svid_file_name"))
+		c.Log.Warn(getWarning("svidFileName", "svid_file_name"))
 		c.SvidFileName = c.SvidFileNameDeprecated
 	}
 
@@ -94,7 +94,7 @@ func ValidateConfig(c *Config) error {
 		if c.SvidKeyFileName != "" {
 			return errors.New("use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name")
 		}
-		c.Log.Warnf(getWarning("svidKeyFileName", "svid_key_file_name"))
+		c.Log.Warn(getWarning("svidKeyFileName", "svid_key_file_name"))
 		c.SvidKeyFileName = c.SvidKeyFileNameDeprecated
 	}
 
@@ -102,7 +102,7 @@ func ValidateConfig(c *Config) error {
 		if c.SvidBundleFileName != "" {
 			return errors.New("use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name")
 		}
-		c.Log.Warnf(getWarning("svidBundleFileName", "svid_bundle_file_name"))
+		c.Log.Warn(getWarning("svidBundleFileName", "svid_bundle_file_name"))
 		c.SvidBundleFileName = c.SvidBundleFileNameDeprecated
 	}
 
@@ -110,19 +110,19 @@ func ValidateConfig(c *Config) error {
 		if c.RenewSignal != "" {
 			return errors.New("use of renew_signal and renewSignal found, use only renew_signal")
 		}
-		c.Log.Warnf(getWarning("renewSignal", "renew_signal"))
+		c.Log.Warn(getWarning("renewSignal", "renew_signal"))
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
 	switch {
 	case c.AgentAddress == "":
-		return errors.New("agentAddress is required")
+		return errors.New("agent_address is required")
 	case c.SvidFileName == "":
-		return errors.New("svidFileName is required")
+		return errors.New("svid_file_name is required")
 	case c.SvidKeyFileName == "":
-		return errors.New("svidKeyFileName is required")
+		return errors.New("svid_key_file_name is required")
 	case c.SvidBundleFileName == "":
-		return errors.New("svidBundleFileName is required")
+		return errors.New("svid_bundle_file_name is required")
 	default:
 		return nil
 	}

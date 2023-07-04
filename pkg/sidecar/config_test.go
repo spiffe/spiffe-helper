@@ -3,7 +3,8 @@ package sidecar
 import (
 	"testing"
 
-	"github.com/spiffe/go-spiffe/v2/logger"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +39,7 @@ func TestValidateConfig(t *testing.T) {
 		name        string
 		config      *Config
 		expectError string
-		expectLogs  []string
+		expectLogs  []shortEntry
 	}{
 		{
 			name: "no error",
@@ -56,7 +57,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectError: "agentAddress is required",
+			expectError: "agent_address is required",
 		},
 		{
 			name: "no SVID file",
@@ -65,7 +66,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectError: "svidFileName is required",
+			expectError: "svid_file_name is required",
 		},
 		{
 			name: "no key file",
@@ -74,7 +75,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidFileName:       "cert.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectError: "svidKeyFileName is required",
+			expectError: "svid_key_file_name is required",
 		},
 		{
 			name: "no bundle file",
@@ -83,7 +84,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidFileName:    "cert.pem",
 				SvidKeyFileName: "key.pem",
 			},
-			expectError: "svidBundleFileName is required",
+			expectError: "svid_bundle_file_name is required",
 		},
 
 		// Duplicated field error:
@@ -177,7 +178,12 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectLogs: []string{"agentAddress will be deprecated, should be used as agent_address"},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "agentAddress will be deprecated, should be used as agent_address",
+				},
+			},
 		},
 		{
 			name: "Using CmdArgsDeprecated",
@@ -188,7 +194,12 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectLogs: []string{"cmdArgs will be deprecated, should be used as cmd_args"},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "cmdArgs will be deprecated, should be used as cmd_args",
+				},
+			},
 		},
 		{
 			name: "Using CertDirDeprecated",
@@ -199,7 +210,12 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
-			expectLogs: []string{"certDir will be deprecated, should be used as cert_dir"},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "certDir will be deprecated, should be used as cert_dir",
+				},
+			},
 		},
 		{
 			name: "Using SvidFileNameDeprecated",
@@ -209,7 +225,12 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectLogs: []string{"svidFileName will be deprecated, should be used as svid_file_name"},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "svidFileName will be deprecated, should be used as svid_file_name",
+				},
+			},
 		},
 		{
 			name: "Using SvidKeyFileNameDeprecated",
@@ -219,7 +240,12 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileNameDeprecated: "key.pem",
 				SvidBundleFileName:        "bundle.pem",
 			},
-			expectLogs: []string{"svidKeyFileName will be deprecated, should be used as svid_key_file_name"},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "svidKeyFileName will be deprecated, should be used as svid_key_file_name",
+				},
+			},
 		},
 		{
 			name: "Using SvidBundleFileNameDeprecated",
@@ -229,7 +255,12 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:              "key.pem",
 				SvidBundleFileNameDeprecated: "bundle.pem",
 			},
-			expectLogs: []string{"svidBundleFileName will be deprecated, should be used as svid_bundle_file_name"},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "svidBundleFileName will be deprecated, should be used as svid_bundle_file_name",
+				},
+			},
 		},
 		{
 			name: "Using RenewSignalDeprecated",
@@ -240,16 +271,18 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName:    "bundle.pem",
 				RenewSignalDeprecated: "SIGHUP",
 			},
-			expectLogs: []string{"renewSignal will be deprecated, should be used as renew_signal"},
+			expectLogs: []shortEntry{{
+				Level:   logrus.WarnLevel,
+				Message: "renewSignal will be deprecated, should be used as renew_signal",
+			}},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			log := &fakeLogger{}
+			log, hook := test.NewNullLogger()
 			tt.config.Log = log
-
 			err := ValidateConfig(tt.config)
 
-			require.Equal(t, tt.expectLogs, log.Warnings)
+			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
 			if tt.expectError != "" {
 				require.Error(t, err, tt.expectError)
@@ -261,12 +294,18 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
-type fakeLogger struct {
-	logger.Logger
-
-	Warnings []string
+type shortEntry struct {
+	Level   logrus.Level
+	Message string
 }
 
-func (f *fakeLogger) Warnf(format string, args ...interface{}) {
-	f.Warnings = append(f.Warnings, format)
+func getShortEntries(entries []*logrus.Entry) []shortEntry {
+	result := make([]shortEntry, 0, len(entries))
+	for _, entry := range entries {
+		result = append(result, shortEntry{
+			Level:   entry.Level,
+			Message: entry.Message,
+		})
+	}
+	return result
 }
