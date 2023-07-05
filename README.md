@@ -41,9 +41,10 @@ svid_bundle_file_name = "svid_bundle.pem"
 ```
 
 ### Windows example
-
+```
 agent_address = "spire-agent\\public\\api"
 cert_dir = "certs"
 svid_file_name = "svid.pem"
 svid_key_file_name = "svid_key.pem"
 svid_bundle_file_name = "svid_bundle.pem"
+```
