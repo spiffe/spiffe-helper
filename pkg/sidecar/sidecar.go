@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	certsFileMode = os.FileMode(0644)
-	keyFileMode   = os.FileMode(0600)
+	certsFileMode       = os.FileMode(0644)
+	keyFileMode         = os.FileMode(0600)
+	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
 )
 
 // Sidecar is the component that consumes the Workload API and renews certs
@@ -47,7 +48,10 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	// TODO: add default agent socket path
+	if config.AgentAddress == "" {
+		config.AgentAddress = defaultAgentAddress
+	}
+
 	config.Log.WithField("agent_address", config.AgentAddress).Info("Connecting to agent")
 	if config.Cmd == "" {
 		config.Log.Warn("No cmd defined to execute.")
