@@ -49,7 +49,10 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	}
 
 	if config.AgentAddress == "" {
-		config.AgentAddress = defaultAgentAddress
+		config.AgentAddress = os.Getenv("SPIRE_AGENT_ADDRESS")
+		if config.AgentAddress == "" {
+			config.AgentAddress = defaultAgentAddress
+		}
 	}
 
 	config.Log.WithField("agent_address", config.AgentAddress).Info("Connecting to agent")
