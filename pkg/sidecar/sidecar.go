@@ -22,7 +22,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	pb "github.com/spiffe/spiffe-helper/pkg/helperPlugin"
+	pb "github.com/spiffe/spiffe-helper/pkg/notifier"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -41,6 +41,7 @@ type Sidecar struct {
 	processRunning int32
 	process        *os.Process
 	certReadyChan  chan struct{}
+	plugins        map[string]*pb.Notifier
 }
 
 // New creates a new SPIFFE sidecar
@@ -71,10 +72,14 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 		config.Log.Warn("No cmd defined to execute.")
 	}
 
-	return &Sidecar{
+	sidecar := &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
-	}, nil
+		plugins:       make(map[string]*pb.Notifier),
+	}
+	sidecar.loadPlugins()
+
+	return sidecar, nil
 }
 
 // RunDaemon starts the main loop
@@ -152,7 +157,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 
 	s.config.Log.Infof("Updating plugins")
-	s.updatePlugins()
+	s.notifyPlugins()
 
 	select {
 	case s.certReadyChan <- struct{}{}:
@@ -196,9 +201,8 @@ func (s *Sidecar) signalProcess() (err error) {
 	return nil
 }
 
-func (s *Sidecar) updatePlugins() {
+func (s *Sidecar) loadPlugins() {
 	for pluginName, pluginConfig := range s.config.Plugins {
-		// create request
 		request := &pb.ConfigsRequest{}
 		request.Configs = pluginConfig
 		request.Configs["certDir"] = s.config.CertDir
@@ -207,7 +211,6 @@ func (s *Sidecar) updatePlugins() {
 		request.Configs["svidKeyFileName"] = s.config.SvidKeyFileName
 		request.Configs["svidBundleFileName"] = s.config.SvidBundleFileName
 
-		// try to post request
 		pluginPath := pluginConfig["path"]
 		if pluginPath == "" {
 			s.config.Log.Warnf("Please provide a path for plugin %s", pluginName)
@@ -220,7 +223,6 @@ func (s *Sidecar) updatePlugins() {
 			Cmd:              exec.Command(pluginPath),
 			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		})
-		defer client.Kill()
 
 		RPCClient, err := client.Client()
 		if err != nil {
@@ -234,12 +236,14 @@ func (s *Sidecar) updatePlugins() {
 			continue
 		}
 
-		spiffeHelperPlugin := raw.(pb.SpiffeHelperPlugin)
-		response, err := spiffeHelperPlugin.PostConfigs(context.Background(), request)
+		notifier := raw.(pb.Notifier)
+		response, err := notifier.LoadConfigs(context.Background(), request)
 		if err != nil {
-			s.config.Log.Warnf("Failed to post configs to plugin %s", pluginName)
+			s.config.Log.Warnf("Failed to load configs into plugin %s", pluginName)
 			continue
 		}
+
+		s.plugins[pluginName] = &notifier
 
 		s.config.Log.Infof("Plugin %s updated %s", pluginName, response)
 	}
@@ -253,6 +257,17 @@ func (s *Sidecar) checkProcessExit() {
 	}
 
 	atomic.StoreInt32(&s.processRunning, 0)
+}
+
+func (s *Sidecar) notifyPlugins() {
+	for pluginName := range s.plugins {
+		plugin := *s.plugins[pluginName]
+		_, err := plugin.UpdateX509SVID(context.Background(), &pb.Empty{})
+		if err != nil {
+			s.config.Log.Warnf("Failed to update x509 svid to plugin %s", pluginName)
+			continue
+		}
+	}
 }
 
 // dumpBundles takes a X509SVIDResponse, representing a svid message from
@@ -295,6 +310,8 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	if err := writeCerts(svidBundleFile, bundles); err != nil {
 		return err
 	}
+
+	s.notifyPlugins()
 
 	return nil
 }

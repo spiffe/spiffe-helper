@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package notifier;
+option go_package = "./;notifier";
+
+message Empty {}
+
+message ConfigsRequest {
+    map<string,string> configs = 1;
+}
+
+service Notifier {
+    rpc LoadConfigs(ConfigsRequest) returns (Empty) {};
+    rpc UpdateX509SVID(Empty) returns (Empty) {};
+}
