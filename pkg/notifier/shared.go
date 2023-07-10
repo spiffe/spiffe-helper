@@ -2,6 +2,9 @@ package notifier
 
 import (
 	context "context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 
 	"github.com/hashicorp/go-plugin"
 	grpc "google.golang.org/grpc"
@@ -69,4 +72,18 @@ func GetHandshakeConfig() plugin.HandshakeConfig {
 
 func GetPluginMap() map[string]plugin.Plugin {
 	return map[string]plugin.Plugin{"plugin": &GRPCNotifier{}}
+}
+
+func GetSecureConfig(checksum string) (*plugin.SecureConfig, error) {
+	sum, err := hex.DecodeString(checksum)
+	if err != nil {
+		return nil, fmt.Errorf("checksum is not a valid hex string")
+	}
+
+	hash := sha256.New()
+	if len(sum) != hash.Size() {
+		return nil, fmt.Errorf("expected checksum of length %d; got %d", hash.Size()*2, len(sum)*2)
+	}
+
+	return &plugin.SecureConfig{Checksum: sum, Hash: sha256.New()}, nil
 }

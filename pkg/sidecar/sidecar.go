@@ -203,6 +203,24 @@ func (s *Sidecar) signalProcess() (err error) {
 
 func (s *Sidecar) loadPlugins() {
 	for pluginName, pluginConfig := range s.config.Plugins {
+		pluginPath := pluginConfig["path"]
+		if pluginPath == "" {
+			s.config.Log.Warnf("Please provide a path for plugin %s", pluginName)
+			continue
+		}
+
+		checksum := pluginConfig["checksum"]
+		if checksum == "" {
+			s.config.Log.Warnf("Please provide a checksum for plugin %s", pluginName)
+			continue
+		}
+
+		secureConfig, err := pb.GetSecureConfig(checksum)
+		if err != nil {
+			s.config.Log.Warnf("Error while trying to create secure config for plugin %s", pluginName)
+			continue
+		}
+
 		request := &pb.ConfigsRequest{}
 		request.Configs = pluginConfig
 		request.Configs["certDir"] = s.config.CertDir
@@ -211,17 +229,12 @@ func (s *Sidecar) loadPlugins() {
 		request.Configs["svidKeyFileName"] = s.config.SvidKeyFileName
 		request.Configs["svidBundleFileName"] = s.config.SvidBundleFileName
 
-		pluginPath := pluginConfig["path"]
-		if pluginPath == "" {
-			s.config.Log.Warnf("Please provide a path for plugin %s", pluginName)
-			continue
-		}
-
 		client := plugin.NewClient(&plugin.ClientConfig{
 			HandshakeConfig:  pb.GetHandshakeConfig(),
 			Plugins:          pb.GetPluginMap(),
 			Cmd:              exec.Command(pluginPath),
 			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+			SecureConfig:     secureConfig,
 		})
 
 		RPCClient, err := client.Client()
