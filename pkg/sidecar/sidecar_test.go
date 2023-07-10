@@ -207,7 +207,7 @@ func TestEnvAgentAddress(t *testing.T) {
 }
 
 func TestAgentAddress(t *testing.T) {
-	//This test is used to verify that we get the agent_address of the .conf file instead of the ENV value, if we have both
+	// This test is used to verify that we get the agent_address of the .conf file instead of the ENV value, if we have both
 	os.Setenv("SPIRE_AGENT_ADDRESS", "/tmp/agent.sock")
 	log, _ := test.NewNullLogger()
 	spiffeSidecar, err := New("../../test/sidecar/configWithAddress/helper.conf", log)
