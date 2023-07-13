@@ -124,7 +124,7 @@ jobs:
       - name: Build containers
         run: ./build.sh
         shell: bash
-        working-directory: ./.github/it
+        working-directory: ./.github/tests/it
       - name: Run tests
         run: bash ${{ matrix.tests }}
         shell: bash
