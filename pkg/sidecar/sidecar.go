@@ -1,8 +1,11 @@
 package sidecar
 
 import (
+	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/csv"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -10,8 +13,11 @@ import (
 	"path"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
+	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -183,6 +189,96 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	return nil
 }
 
+func (s *Sidecar) readJson() map[string]interface{} {
+	jsonPath := path.Join(s.config.CertDir, s.config.JsonFilename)
+	file, err := os.ReadFile(jsonPath)
+	if err != nil {
+		s.config.Log.Warnf("Unable to read json file: %v", err)
+	}
+
+	certs := make(map[string]interface{})
+	err = json.Unmarshal(file, &certs)
+	if err != nil {
+		s.config.Log.Warnf("Unable to parse json: %v", err)
+	}
+
+	return certs
+}
+
+func (s *Sidecar) writeJson(certs map[string]interface{}) {
+	file, err := json.Marshal(certs)
+	if err != nil {
+		s.config.Log.Warnf("Unable to parse certs: %v", err)
+	}
+
+	jsonPath := path.Join(s.config.CertDir, s.config.JsonFilename)
+	err = os.WriteFile(jsonPath, file, os.ModePerm)
+	if err != nil {
+		s.config.Log.Warnf("Unable to write json file: %v", err)
+	}
+}
+
+func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
+
+	bundles := make(map[string]string)
+	for _, bundle := range jwkSet.Bundles() {
+		bytes, err := bundle.Marshal()
+		if err != nil {
+			s.config.Log.Warnf("Unable to marshal JWT bundle: %v", err)
+			continue
+		}
+		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
+	}
+
+	certs := s.readJson()
+	certs["bundles"] = bundles
+	s.writeJson(certs)
+}
+
+func (s *Sidecar) fetchJWTSVID(agentAddress string) (*jwtsvid.SVID, error) {
+	clientOptions := workloadapi.WithClientOptions(workloadapi.WithAddr(agentAddress))
+
+	jwtSource, err := workloadapi.NewJWTSource(context.Background(), clientOptions)
+	if err != nil {
+		s.config.Log.Warnf("Unable to create JWTSource: %v", err)
+		return nil, err
+	}
+	defer jwtSource.Close()
+
+	jwtSVID, err := jwtSource.FetchJWTSVID(context.Background(), jwtsvid.Params{Audience: s.config.JwtAudience})
+	if err != nil {
+		s.config.Log.Warnf("Unable to fetch JWTSVID: %v", err)
+		return nil, err
+	}
+
+	_, err = jwtsvid.ParseAndValidate(jwtSVID.Marshal(), jwtSource, []string{s.config.JwtAudience})
+	if err != nil {
+		s.config.Log.Warnf("Unable to parse or validate token: %v", err)
+		return nil, err
+	}
+
+	return jwtSVID, nil
+}
+
+func (s *Sidecar) updateJWTSVID(agentAddress string) {
+
+	for {
+		s.config.Log.Infof("Updating jwt svid")
+		jwtSVID, err := s.fetchJWTSVID(agentAddress)
+		if err != nil {
+			continue
+		}
+
+		certs := s.readJson()
+		certs["svid"] = jwtSVID.Marshal()
+		s.writeJson(certs)
+
+		s.config.Log.Infof("JWT SVID updated")
+
+		time.Sleep(time.Minute)
+	}
+}
+
 // x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface
 type x509Watcher struct {
 	sidecar *Sidecar
@@ -245,4 +341,21 @@ func getCmdArgs(args string) ([]string, error) {
 	}
 
 	return cmdArgs, nil
+}
+
+// JWTBundleWatcher is a implementation of workload.JWTBundleWatcher interface
+type JWTBundlesWatcher struct {
+	sidecar *Sidecar
+}
+
+// OnJWTBundlesUpdate is ran every time a bundle is updated
+func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
+	w.sidecar.updateJWTBundle(jwkSet)
+}
+
+// OnJWTBundlesWatchError is ran when the client runs into an error
+func (w JWTBundlesWatcher) OnJWTBundlesWatchError(err error) {
+	if status.Code(err) != codes.Canceled {
+		w.sidecar.config.Log.Errorf("Error while watching jwt bundles: %v", err)
+	}
 }

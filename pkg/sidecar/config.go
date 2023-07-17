@@ -30,6 +30,11 @@ type Config struct {
 	SvidBundleFileNameDeprecated       string `hcl:"svidBundleFileName"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
+
+	// JWT configuration
+	JwtAudience  string `hcl:"audience"`
+	JsonFilename string `hcl:"json_filename"`
+
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error
 	// TODO: is there a reason for this to be exposed? and inside of config?

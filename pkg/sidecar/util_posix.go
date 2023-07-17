@@ -17,7 +17,28 @@ import (
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
+	done := make(chan error)
+
+	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
+		go func() {
+			err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
+			done <- err
+		}()
+	}
+
+	if s.config.JsonFilename != "" {
+		go func() {
+			err := workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
+			done <- err
+		}()
+	}
+	if s.config.JsonFilename != "" && s.config.JwtAudience != "" {
+		go func() {
+			s.updateJWTSVID("unix://" + s.config.AgentAddress)
+		}()
+	}
+
+	err := <-done
 	if err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
