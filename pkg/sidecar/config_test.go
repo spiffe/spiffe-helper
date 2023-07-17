@@ -51,15 +51,6 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "no address",
-			config: &Config{
-				SvidFileName:       "cert.pem",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
-			},
-			expectError: "agent_address is required",
-		},
-		{
 			name: "no SVID file",
 			config: &Config{
 				AgentAddress:       "path",

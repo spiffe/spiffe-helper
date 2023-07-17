@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -189,6 +190,29 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	}
 
 	cancel()
+}
+
+func TestDefaultAgentAddress(t *testing.T) {
+	log, _ := test.NewNullLogger()
+	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", log)
+	require.NoError(t, err)
+	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/spire-agent/public/api.sock")
+}
+func TestEnvAgentAddress(t *testing.T) {
+	os.Setenv("SPIRE_AGENT_ADDRESS", "/tmp/agent.sock")
+	log, _ := test.NewNullLogger()
+	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", log)
+	require.NoError(t, err)
+	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/agent.sock")
+}
+
+func TestAgentAddress(t *testing.T) {
+	// This test is used to verify that we get the agent_address of the .conf file instead of the ENV value, if we have both
+	os.Setenv("SPIRE_AGENT_ADDRESS", "/tmp/agent.sock")
+	log, _ := test.NewNullLogger()
+	spiffeSidecar, err := New("../../test/sidecar/configWithAddress/helper.conf", log)
+	require.NoError(t, err)
+	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/spire-agent/public/api.sock")
 }
 
 func TestGetCmdArgs(t *testing.T) {
