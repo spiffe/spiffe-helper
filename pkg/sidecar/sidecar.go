@@ -189,8 +189,8 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	return nil
 }
 
-func (s *Sidecar) readJson() map[string]interface{} {
-	jsonPath := path.Join(s.config.CertDir, s.config.JsonFilename)
+func (s *Sidecar) readJSON() map[string]interface{} {
+	jsonPath := path.Join(s.config.CertDir, s.config.JSONFilename)
 	file, err := os.ReadFile(jsonPath)
 	if err != nil {
 		s.config.Log.Warnf("Unable to read json file: %v", err)
@@ -205,13 +205,13 @@ func (s *Sidecar) readJson() map[string]interface{} {
 	return certs
 }
 
-func (s *Sidecar) writeJson(certs map[string]interface{}) {
+func (s *Sidecar) writeJSON(certs map[string]interface{}) {
 	file, err := json.Marshal(certs)
 	if err != nil {
 		s.config.Log.Warnf("Unable to parse certs: %v", err)
 	}
 
-	jsonPath := path.Join(s.config.CertDir, s.config.JsonFilename)
+	jsonPath := path.Join(s.config.CertDir, s.config.JSONFilename)
 	err = os.WriteFile(jsonPath, file, os.ModePerm)
 	if err != nil {
 		s.config.Log.Warnf("Unable to write json file: %v", err)
@@ -219,7 +219,6 @@ func (s *Sidecar) writeJson(certs map[string]interface{}) {
 }
 
 func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
-
 	bundles := make(map[string]string)
 	for _, bundle := range jwkSet.Bundles() {
 		bytes, err := bundle.Marshal()
@@ -230,9 +229,9 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
 	}
 
-	certs := s.readJson()
+	certs := s.readJSON()
 	certs["bundles"] = bundles
-	s.writeJson(certs)
+	s.writeJSON(certs)
 }
 
 func (s *Sidecar) fetchJWTSVID(agentAddress string) (*jwtsvid.SVID, error) {
@@ -261,7 +260,6 @@ func (s *Sidecar) fetchJWTSVID(agentAddress string) (*jwtsvid.SVID, error) {
 }
 
 func (s *Sidecar) updateJWTSVID(agentAddress string) {
-
 	for {
 		s.config.Log.Infof("Updating jwt svid")
 		jwtSVID, err := s.fetchJWTSVID(agentAddress)
@@ -269,9 +267,9 @@ func (s *Sidecar) updateJWTSVID(agentAddress string) {
 			continue
 		}
 
-		certs := s.readJson()
+		certs := s.readJSON()
 		certs["svid"] = jwtSVID.Marshal()
-		s.writeJson(certs)
+		s.writeJSON(certs)
 
 		s.config.Log.Infof("JWT SVID updated")
 

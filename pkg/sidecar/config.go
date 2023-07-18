@@ -33,7 +33,7 @@ type Config struct {
 
 	// JWT configuration
 	JwtAudience  string `hcl:"audience"`
-	JsonFilename string `hcl:"json_filename"`
+	JSONFilename string `hcl:"json_filename"`
 
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error

@@ -26,13 +26,13 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		}()
 	}
 
-	if s.config.JsonFilename != "" {
+	if s.config.JSONFilename != "" {
 		go func() {
 			err := workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
 			done <- err
 		}()
 	}
-	if s.config.JsonFilename != "" && s.config.JwtAudience != "" {
+	if s.config.JSONFilename != "" && s.config.JwtAudience != "" {
 		go func() {
 			s.updateJWTSVID("unix://" + s.config.AgentAddress)
 		}()
