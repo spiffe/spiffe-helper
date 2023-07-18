@@ -214,7 +214,7 @@ func (s *Sidecar) writeJSON(certs map[string]interface{}) {
 	jsonPath := path.Join(s.config.CertDir, s.config.JSONFilename)
 	err = os.WriteFile(jsonPath, file, os.ModePerm)
 	if err != nil {
-		s.config.Log.Warnf("Unable to write json file: %v", err)
+		s.config.Log.Warnf("Unable to write JSON file: %v", err)
 	}
 }
 
@@ -246,7 +246,7 @@ func (s *Sidecar) fetchJWTSVID(agentAddress string) (*jwtsvid.SVID, error) {
 
 	jwtSVID, err := jwtSource.FetchJWTSVID(context.Background(), jwtsvid.Params{Audience: s.config.JwtAudience})
 	if err != nil {
-		s.config.Log.Warnf("Unable to fetch JWTSVID: %v", err)
+		s.config.Log.Warnf("Unable to fetch JWT SVID: %v", err)
 		return nil, err
 	}
 
@@ -261,7 +261,7 @@ func (s *Sidecar) fetchJWTSVID(agentAddress string) (*jwtsvid.SVID, error) {
 
 func (s *Sidecar) updateJWTSVID(agentAddress string) {
 	for {
-		s.config.Log.Infof("Updating jwt svid")
+		s.config.Log.Infof("Updating JWT SVID")
 		jwtSVID, err := s.fetchJWTSVID(agentAddress)
 		if err != nil {
 			continue
@@ -354,6 +354,6 @@ func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 // OnJWTBundlesWatchError is ran when the client runs into an error
 func (w JWTBundlesWatcher) OnJWTBundlesWatchError(err error) {
 	if status.Code(err) != codes.Canceled {
-		w.sidecar.config.Log.Errorf("Error while watching jwt bundles: %v", err)
+		w.sidecar.config.Log.Errorf("Error while watching JWT bundles: %v", err)
 	}
 }
