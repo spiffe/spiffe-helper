@@ -79,7 +79,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
-	s.config.Log.Info("Updating certificates")
+	s.config.Log.Info("Updating x509 certificates")
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
@@ -219,6 +219,8 @@ func (s *Sidecar) writeJSON(certs map[string]interface{}) {
 }
 
 func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
+	s.config.Log.Info("Updating JWK bundles")
+
 	bundles := make(map[string]string)
 	for _, bundle := range jwkSet.Bundles() {
 		bytes, err := bundle.Marshal()
@@ -234,8 +236,8 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 	s.writeJSON(certs)
 }
 
-func (s *Sidecar) fetchJWTSVID(agentAddress string) (*jwtsvid.SVID, error) {
-	clientOptions := workloadapi.WithClientOptions(workloadapi.WithAddr(agentAddress))
+func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
+	clientOptions := workloadapi.WithClientOptions(options...)
 
 	jwtSource, err := workloadapi.NewJWTSource(context.Background(), clientOptions)
 	if err != nil {
@@ -259,21 +261,26 @@ func (s *Sidecar) fetchJWTSVID(agentAddress string) (*jwtsvid.SVID, error) {
 	return jwtSVID, nil
 }
 
-func (s *Sidecar) updateJWTSVID(agentAddress string) {
+func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.ClientOption) {
 	for {
-		s.config.Log.Infof("Updating JWT SVID")
-		jwtSVID, err := s.fetchJWTSVID(agentAddress)
-		if err != nil {
-			continue
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			s.config.Log.Infof("Updating JWT SVID")
+			jwtSVID, err := s.fetchJWTSVID(options...)
+			if err != nil {
+				continue
+			}
+
+			certs := s.readJSON()
+			certs["svid"] = jwtSVID.Marshal()
+			s.writeJSON(certs)
+
+			s.config.Log.Infof("JWT SVID updated")
+
+			time.Sleep(time.Minute)
 		}
-
-		certs := s.readJSON()
-		certs["svid"] = jwtSVID.Marshal()
-		s.writeJSON(certs)
-
-		s.config.Log.Infof("JWT SVID updated")
-
-		time.Sleep(time.Minute)
 	}
 }
 

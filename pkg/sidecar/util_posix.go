@@ -5,8 +5,8 @@ package sidecar
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"golang.org/x/sys/unix"
@@ -17,30 +17,56 @@ import (
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	done := make(chan error)
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(ctx)
+	defer func() {
+		cancel()
+		wg.Wait()
+	}()
 
+	tasks := 0
+	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
+		tasks++
+	}
+	if s.config.JSONFilename != "" {
+		tasks++
+	}
+	if s.config.JSONFilename != "" && s.config.JwtAudience != "" {
+		tasks++
+	}
+	wg.Add(tasks)
+
+	errch := make(chan error, tasks)
 	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
 		go func() {
-			err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
-			done <- err
+			defer wg.Done()
+			errch <- workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
 		}()
 	}
-
 	if s.config.JSONFilename != "" {
 		go func() {
-			err := workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
-			done <- err
+			defer wg.Done()
+			errch <- workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
 		}()
 	}
 	if s.config.JSONFilename != "" && s.config.JwtAudience != "" {
 		go func() {
-			s.updateJWTSVID("unix://" + s.config.AgentAddress)
+			defer wg.Done()
+			s.updateJWTSVID(ctx, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
+			errch <- nil
 		}()
 	}
 
-	err := <-done
-	if err != nil && !errors.Is(err, context.Canceled) {
-		return err
+	for complete := 0; complete < tasks; {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-errch:
+			if err != nil {
+				return err
+			}
+			complete++
+		}
 	}
 
 	return nil
