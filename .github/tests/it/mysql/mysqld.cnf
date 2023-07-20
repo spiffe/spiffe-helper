@@ -1,0 +1,19 @@
+[mysqld]
+ssl-cert=server-cert.pem
+ssl-key=server-key.pem
+ssl-ca=ca.pem
+require_secure_transport=ON
+
+user            = mysql
+datadir       = /var/lib/mysql
+
+bind-address            = 0.0.0.0
+mysqlx-bind-address     = 0.0.0.0
+
+key_buffer_size         = 16M
+
+myisam-recover-options  = BACKUP
+
+log_error = /var/log/mysql/error.log
+
+max_binlog_size   = 100M

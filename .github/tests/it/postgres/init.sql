@@ -1,0 +1,11 @@
+CREATE DATABASE test_db;
+
+CREATE USER client;
+GRANT ALL PRIVILEGES ON DATABASE test_db TO client;
+
+\c test_db
+
+CREATE TABLE mail (id BIGSERIAL PRIMARY KEY, mail VARCHAR(256));
+INSERT INTO mail(mail) VALUES ('test@user.com');
+
+GRANT ALL PRIVILEGES ON TABLE mail TO client;

@@ -1,0 +1,69 @@
+version: '3'
+services:
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.7.0
+    hostname: spire-server
+    volumes:
+        - ./spire/server:/opt/spire/conf/server
+    command: ["-config", "/opt/spire/conf/server/server.conf"]
+  
+  spire-agent:
+    image: ghcr.io/spiffe/spire-agent:1.7.0
+    depends_on: ["spire-server"]
+    hostname: spire-agent
+    volumes:
+        - ./spire/agent:/opt/spire/conf/agent
+        - ./var/run/:/var/run/
+    command: ["-config", "/opt/spire/conf/agent/agent.conf"]
+    pid: "host"
+  
+  spiffe-helper:
+    build: 
+      context: ../../../
+      dockerfile: ./.github/tests/it/spiffe-helper/Dockerfile
+
+  postgres-db:
+    build: postgres
+    depends_on:
+      - spire-agent
+    tty: true
+    volumes:
+      - ./var/run/api.sock:/var/run/api.sock
+      - ./postgres/helper.conf:/opt/spire/conf/postgres/helper.conf    
+      - ./postgres/postgresql.conf:/var/lib/postgresql/data/postgresql.conf
+      - ./postgres/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
+      - ./postgres/init.sql:/var/lib/postgresql/data/init.sql
+    command: ["su", "-", "postgres", "-c", "/opt/helper/spiffe-helper -config /opt/spire/conf/postgres/helper.conf"]
+  
+  mysql-db:
+    build: mysql
+    depends_on:
+      - spire-agent
+    tty: true
+    volumes:
+      - ./var/run/api.sock:/var/run/api.sock
+      - ./mysql/helper.conf:/opt/spire/conf/mysql/helper.conf
+      - ./mysql/mysqld.cnf:/etc/mysql/mysql.conf.d/mysqld.cnf
+      - ./mysql/init.sql:/var/lib/mysql/data/init.sql
+    command: /opt/helper/spiffe-helper -config /opt/spire/conf/mysql/helper.conf
+
+  go-server:
+    build: go-server
+    depends_on:
+      - spire-agent
+    tty: true
+    volumes:
+      - ./var/run/api.sock:/var/run/api.sock
+      - ./go-server/helper.conf:/opt/spire/conf/go-server/helper.conf
+    command: ["su", "go-server", "-c", "/opt/helper/spiffe-helper -config /opt/spire/conf/go-server/helper.conf"]
+
+  client:
+    build: client
+    depends_on:
+      - postgres-db
+      - mysql-db
+    tty: true
+    volumes:
+      - ./var/run/api.sock:/var/run/api.sock
+      - ./client/helper.conf:/opt/spire/conf/client/helper.conf
+    command: ["su", "client", "-c", "/opt/helper/spiffe-helper -config /opt/spire/conf/client/helper.conf"]

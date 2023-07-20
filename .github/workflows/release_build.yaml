@@ -8,6 +8,43 @@ env:
   GO_VERSION: 1.20.5
 
 jobs:
+  build-matrix:
+    name: Build matrix
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.3
+
+      - id: set-matrix
+        name: Collect all tests
+        run: |
+          tests="$(find .github/tests -maxdepth 1 -type f -name '*.sh' -exec basename {} \; | sort | uniq)"
+          tests_json="$(echo "$tests" | jq -c --slurp --raw-input 'split("\n") | map(select(. != ""))')"
+          echo "tests=$tests_json" >> $GITHUB_OUTPUT
+          echo "Collected tests: $tests_json"
+
+    outputs:
+      tests: ${{ steps.set-matrix.outputs.tests }}
+
+  integration-tests:
+    runs-on: ubuntu-22.04
+    needs: [build-matrix]
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+       tests: ${{ fromJson(needs.build-matrix.outputs.tests) }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build containers
+        run: ./build.sh
+        shell: bash
+        working-directory: ./.github/tests/it
+      - name: Run tests
+        run: bash ${{ matrix.tests }}
+        shell: bash
+        working-directory: ./.github/tests
+
   build:
     name: build (linux)
     runs-on: ubuntu-22.04
