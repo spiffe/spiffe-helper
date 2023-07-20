@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MAX_RETRIES=100
+MAX_RETRIES=400
 
 restore-entry(){
     # This test restores the original values of the entry both connection tests should succeed
@@ -9,12 +9,13 @@ restore-entry(){
     PARENTID=$( grep 'Parent ID        :' /tmp/entryFound | awk '{print $4}')
 
     rows_count_client=$(docker compose logs client | grep -c "SVID updated")
+    ((rows_count_client+=2))
     docker compose exec spire-server ./bin/spire-server entry update \
         -entryID $ENTRYID \
         -parentID $PARENTID \
         -spiffeID spiffe://example.org/client \
         -selector unix:uid:72 \
-        -ttl 150 \
+        -ttl 100 \
         -dns client
 
     echo "Entry restored"
@@ -46,13 +47,14 @@ bad-entry(){
     PARENTID=$( grep 'Parent ID        :' /tmp/entryFound | awk '{print $4}')
 
     rows_count_client=$(docker compose logs client | grep -c "SVID updated")
+    ((rows_count_client+=2))
 
     docker compose exec spire-server ./bin/spire-server entry update \
         -entryID $ENTRYID \
         -parentID $PARENTID \
         -spiffeID spiffe://example.org/client \
         -selector unix:uid:72 \
-        -ttl 300 \
+        -ttl 100 \
         -dns testuser1
     
     echo "Entry changed, now with dns=testuser1"

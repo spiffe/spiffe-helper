@@ -43,7 +43,7 @@ docker compose exec spire-server ./bin/spire-server entry create \
     -spiffeID spiffe://example.org/client \
     -selector unix:uid:72 \
 	-dns client \
-	-ttl 300
+	-ttl 100
 
 docker compose exec spire-server ./bin/spire-server entry create \
     -parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \
