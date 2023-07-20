@@ -11,15 +11,16 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/spiffe/go-spiffe/v2/logger"
+	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	certsFileMode = os.FileMode(0644)
-	keyFileMode   = os.FileMode(0600)
+	certsFileMode       = os.FileMode(0644)
+	keyFileMode         = os.FileMode(0600)
+	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
 )
 
 // Sidecar is the component that consumes the Workload API and renews certs
@@ -32,25 +33,31 @@ type Sidecar struct {
 }
 
 // New creates a new SPIFFE sidecar
-func New(configPath string, log logger.Logger) (*Sidecar, error) {
+func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	config, err := ParseConfig(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
 	}
 
+	if log == nil {
+		log = logrus.New()
+	}
+	config.Log = log
+
 	if err := ValidateConfig(config); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	if log == nil {
-		log = logger.Null
+	if config.AgentAddress == "" {
+		config.AgentAddress = os.Getenv("SPIRE_AGENT_ADDRESS")
+		if config.AgentAddress == "" {
+			config.AgentAddress = defaultAgentAddress
+		}
 	}
-	config.Log = log
 
-	// TODO: add default agent socket path
-	log.Infof("Connecting to agent at %q\n", config.AgentAddress)
+	config.Log.WithField("agent_address", config.AgentAddress).Info("Connecting to agent")
 	if config.Cmd == "" {
-		log.Warnf("No cmd defined to execute.")
+		config.Log.Warn("No cmd defined to execute.")
 	}
 
 	return &Sidecar{
@@ -66,16 +73,18 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
-	s.config.Log.Infof("Updating certificates")
+	s.config.Log.Info("Updating certificates")
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
-		s.config.Log.Errorf("Unable to dump bundle: %v", err)
+		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		return
 	}
-	err = s.signalProcess()
-	if err != nil {
-		s.config.Log.Errorf("Unable to signal process: %v", err)
+
+	if s.config.Cmd != "" {
+		if err := s.signalProcess(); err != nil {
+			s.config.Log.WithError(err).Error("Unable to signal process")
+		}
 	}
 
 	select {
@@ -112,8 +121,7 @@ func (s *Sidecar) signalProcess() (err error) {
 		}
 
 	default:
-		err = s.config.ReloadExternalProcess()
-		if err != nil {
+		if err = s.config.ReloadExternalProcess(); err != nil {
 			return fmt.Errorf("error reloading external process: %w", err)
 		}
 	}
@@ -183,7 +191,7 @@ type x509Watcher struct {
 // OnX509ContextUpdate is run every time an SVID is updated
 func (w x509Watcher) OnX509ContextUpdate(svids *workloadapi.X509Context) {
 	for _, svid := range svids.SVIDs {
-		w.sidecar.config.Log.Infof("Received update for spiffeID: %q", svid.ID)
+		w.sidecar.config.Log.WithField("spiffe_id", svid.ID).Info("Received update")
 	}
 
 	w.sidecar.updateCertificates(svids)

@@ -4,12 +4,13 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"os"
 	"path"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spiffe/go-spiffe/v2/bundle/x509bundle"
-	"github.com/spiffe/go-spiffe/v2/logger"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
@@ -63,13 +64,15 @@ func TestSidecar_RunDaemon(t *testing.T) {
 
 	tmpdir := t.TempDir()
 
+	log, _ := test.NewNullLogger()
+
 	config := &Config{
 		Cmd:                "echo",
 		CertDir:            tmpdir,
 		SvidFileName:       "svid.pem",
 		SvidKeyFileName:    "svid_key.pem",
 		SvidBundleFileName: "svid_bundle.pem",
-		Log:                logger.Std,
+		Log:                log,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -80,12 +83,12 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	defer close(sidecar.certReadyChan)
 
 	testCases := []struct {
-		name     string
-		response *workloadapi.X509Context
-		certs    []*x509.Certificate
-		key      crypto.Signer
-		bundle   []*x509.Certificate
-
+		name                 string
+		response             *workloadapi.X509Context
+		certs                []*x509.Certificate
+		key                  crypto.Signer
+		bundle               []*x509.Certificate
+		renewSignal          string
 		intermediateInBundle bool
 	}{
 		{
@@ -133,6 +136,17 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			key:    svidKey,
 			bundle: domain1Bundle,
 		},
+		{
+			name: "single svid with RenewSignal",
+			response: &workloadapi.X509Context{
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), domain1CA.Roots())),
+				SVIDs:   svid,
+			},
+			certs:       svidChain,
+			key:         svidKey,
+			bundle:      domain1Bundle,
+			renewSignal: "SIGHUP",
+		},
 	}
 
 	svidFile := path.Join(tmpdir, config.SvidFileName)
@@ -145,7 +159,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			sidecar.config.AddIntermediatesToBundle = testCase.intermediateInBundle
-
+			sidecar.config.RenewSignal = testCase.renewSignal
 			// Push response to start updating process
 			// updateMockChan <- testCase.response.ToProto(t)
 			w.OnX509ContextUpdate(testCase.response)
@@ -176,6 +190,29 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	}
 
 	cancel()
+}
+
+func TestDefaultAgentAddress(t *testing.T) {
+	log, _ := test.NewNullLogger()
+	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", log)
+	require.NoError(t, err)
+	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/spire-agent/public/api.sock")
+}
+func TestEnvAgentAddress(t *testing.T) {
+	os.Setenv("SPIRE_AGENT_ADDRESS", "/tmp/agent.sock")
+	log, _ := test.NewNullLogger()
+	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", log)
+	require.NoError(t, err)
+	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/agent.sock")
+}
+
+func TestAgentAddress(t *testing.T) {
+	// This test is used to verify that we get the agent_address of the .conf file instead of the ENV value, if we have both
+	os.Setenv("SPIRE_AGENT_ADDRESS", "/tmp/agent.sock")
+	log, _ := test.NewNullLogger()
+	spiffeSidecar, err := New("../../test/sidecar/configWithAddress/helper.conf", log)
+	require.NoError(t, err)
+	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/spire-agent/public/api.sock")
 }
 
 func TestGetCmdArgs(t *testing.T) {

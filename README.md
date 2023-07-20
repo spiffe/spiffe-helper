@@ -18,32 +18,33 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
 
  |Configuration        | Description                                                                                    | Example Value |
  |--------------------------|------------------------------------------------------------------------------------------------| ------------- |
- |`agentAddress`            | Socket address of SPIRE Agent.                                                                                 | `"/tmp/agent.sock"`                                                                                                                                                  |
+ |`agent_address`            | Socket address of SPIRE Agent.                                                                                 | `"/tmp/agent.sock"`                                                                                                                                                  |
  |`cmd`                     | The path to the process to launch.                                                                             | `"ghostunnel"`                                                                                                                                                       |
- |`cmdArgs`                 | The arguments of the process to launch.                                                                        | `"server --listen localhost:8002 --target localhost:8001--keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"` |
- |`certDir`                 | Directory name to store the fetched certificates. This directory must be created previously.                   | `"certs"`                                                                                                                                                            |
- |`addIntermediatesToBundle`| Add intermediate certificates into Bundle file instead of SVID file.                                           | `true`                                                                                                                                                            |
- |`renewSignal`             | The signal that the process to be launched expects to reload the certificates. It is not supported on Windows. | `"SIGUSR1"`                                                                                                                                                          |
- |`svidFileName`            | File name to be used to store the X.509 SVID public certificate in PEM format.                                 | `"svid.pem"`                                                                                                                                                         |
- |`svidKeyFileName`         | File name to be used to store the X.509 SVID private key and public certificate in PEM format.                 | `"svid_key.pem"`                                                                                                                                                     |
- |`svidBundleFileName`      | File name to be used to store the X.509 SVID Bundle in PEM format.                                             | `"svid_bundle.pem"`                                                                                                                                                  |
+ |`cmd_args`                 | The arguments of the process to launch.                                                                        | `"server --listen localhost:8002 --target localhost:8001--keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"` |
+ |`cert_dir`                 | Directory name to store the fetched certificates. This directory must be created previously.                   | `"certs"`                                                                                                                                                            |
+ |`add_intermediates_to_bundle`| Add intermediate certificates into Bundle file instead of SVID file.                                           | `true`                                                                                                                                                            |
+ |`renew_signal`             | The signal that the process to be launched expects to reload the certificates. It is not supported on Windows. | `"SIGUSR1"`                                                                                                                                                          |
+ |`svid_file_name`            | File name to be used to store the X.509 SVID public certificate in PEM format.                                 | `"svid.pem"`                                                                                                                                                         |
+ |`svid_key_file_name`         | File name to be used to store the X.509 SVID private key and public certificate in PEM format.                 | `"svid_key.pem"`                                                                                                                                                     |
+ |`svid_bundle_file_name`      | File name to be used to store the X.509 SVID Bundle in PEM format.                                             | `"svid_bundle.pem"`                                                                                                                                                  |
 
 ### Configuration example
 ```
-agentAddress = "/tmp/agent.sock"
+agent_address = "/tmp/agent.sock"
 cmd = "ghostunnel"
-cmdArgs = "server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
-certDir = "certs"
-renewSignal = "SIGUSR1"
-svidFileName = "svid.pem"
-svidKeyFileName = "svid_key.pem"
-svidBundleFileName = "svid_bundle.pem"
+cmd_args = "server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
+cert_dir = "certs"
+renew_signal = "SIGUSR1"
+svid_file_name = "svid.pem"
+svid_key_file_name = "svid_key.pem"
+svid_bundle_file_name = "svid_bundle.pem"
 ```
 
 ### Windows example
-
-agentAddress = "spire-agent\\public\\api"
-certDir = "certs"
-svidFileName = "svid.pem"
-svidKeyFileName = "svid_key.pem"
-svidBundleFileName = "svid_bundle.pem"
+```
+agent_address = "spire-agent\\public\\api"
+cert_dir = "certs"
+svid_file_name = "svid.pem"
+svid_key_file_name = "svid_key.pem"
+svid_bundle_file_name = "svid_bundle.pem"
+```
