@@ -41,7 +41,7 @@ type Sidecar struct {
 	processRunning int32
 	process        *os.Process
 	certReadyChan  chan struct{}
-	plugins        map[string]*pb.Notifier
+	plugins        map[string]*pb.NotifierServer
 }
 
 // New creates a new SPIFFE sidecar
@@ -75,7 +75,7 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	sidecar := &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
-		plugins:       make(map[string]*pb.Notifier),
+		plugins:       make(map[string]*pb.NotifierServer),
 	}
 	sidecar.loadPlugins()
 
@@ -221,7 +221,7 @@ func (s *Sidecar) loadPlugins() {
 			continue
 		}
 
-		request := &pb.ConfigsRequest{}
+		request := &pb.LoadConfigsRequest{}
 		request.Configs = pluginConfig
 		request.Configs["certDir"] = s.config.CertDir
 		request.Configs["addIntermediatesToBundle"] = strconv.FormatBool(s.config.AddIntermediatesToBundle)
@@ -249,7 +249,7 @@ func (s *Sidecar) loadPlugins() {
 			continue
 		}
 
-		notifier := raw.(pb.Notifier)
+		notifier := raw.(pb.NotifierServer)
 		response, err := notifier.LoadConfigs(context.Background(), request)
 		if err != nil {
 			s.config.Log.Warnf("Failed to load configs into plugin %s", pluginName)
@@ -275,7 +275,7 @@ func (s *Sidecar) checkProcessExit() {
 func (s *Sidecar) notifyPlugins() {
 	for pluginName := range s.plugins {
 		plugin := *s.plugins[pluginName]
-		_, err := plugin.UpdateX509SVID(context.Background(), &pb.Empty{})
+		_, err := plugin.UpdateX509SVID(context.Background(), &pb.UpdateX509SVIDRequest{})
 		if err != nil {
 			s.config.Log.Warnf("Failed to update x509 svid to plugin %s", pluginName)
 			continue

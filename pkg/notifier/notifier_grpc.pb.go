@@ -27,8 +27,8 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NotifierClient interface {
-	LoadConfigs(ctx context.Context, in *ConfigsRequest, opts ...grpc.CallOption) (*Empty, error)
-	UpdateX509SVID(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	LoadConfigs(ctx context.Context, in *LoadConfigsRequest, opts ...grpc.CallOption) (*LoadConfigsResponse, error)
+	UpdateX509SVID(ctx context.Context, in *UpdateX509SVIDRequest, opts ...grpc.CallOption) (*UpdateX509SVIDResponse, error)
 }
 
 type notifierClient struct {
@@ -39,8 +39,8 @@ func NewNotifierClient(cc grpc.ClientConnInterface) NotifierClient {
 	return &notifierClient{cc}
 }
 
-func (c *notifierClient) LoadConfigs(ctx context.Context, in *ConfigsRequest, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
+func (c *notifierClient) LoadConfigs(ctx context.Context, in *LoadConfigsRequest, opts ...grpc.CallOption) (*LoadConfigsResponse, error) {
+	out := new(LoadConfigsResponse)
 	err := c.cc.Invoke(ctx, Notifier_LoadConfigs_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -48,8 +48,8 @@ func (c *notifierClient) LoadConfigs(ctx context.Context, in *ConfigsRequest, op
 	return out, nil
 }
 
-func (c *notifierClient) UpdateX509SVID(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
+func (c *notifierClient) UpdateX509SVID(ctx context.Context, in *UpdateX509SVIDRequest, opts ...grpc.CallOption) (*UpdateX509SVIDResponse, error) {
+	out := new(UpdateX509SVIDResponse)
 	err := c.cc.Invoke(ctx, Notifier_UpdateX509SVID_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -61,8 +61,8 @@ func (c *notifierClient) UpdateX509SVID(ctx context.Context, in *Empty, opts ...
 // All implementations must embed UnimplementedNotifierServer
 // for forward compatibility
 type NotifierServer interface {
-	LoadConfigs(context.Context, *ConfigsRequest) (*Empty, error)
-	UpdateX509SVID(context.Context, *Empty) (*Empty, error)
+	LoadConfigs(context.Context, *LoadConfigsRequest) (*LoadConfigsResponse, error)
+	UpdateX509SVID(context.Context, *UpdateX509SVIDRequest) (*UpdateX509SVIDResponse, error)
 	mustEmbedUnimplementedNotifierServer()
 }
 
@@ -70,10 +70,10 @@ type NotifierServer interface {
 type UnimplementedNotifierServer struct {
 }
 
-func (UnimplementedNotifierServer) LoadConfigs(context.Context, *ConfigsRequest) (*Empty, error) {
+func (UnimplementedNotifierServer) LoadConfigs(context.Context, *LoadConfigsRequest) (*LoadConfigsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoadConfigs not implemented")
 }
-func (UnimplementedNotifierServer) UpdateX509SVID(context.Context, *Empty) (*Empty, error) {
+func (UnimplementedNotifierServer) UpdateX509SVID(context.Context, *UpdateX509SVIDRequest) (*UpdateX509SVIDResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateX509SVID not implemented")
 }
 func (UnimplementedNotifierServer) mustEmbedUnimplementedNotifierServer() {}
@@ -90,7 +90,7 @@ func RegisterNotifierServer(s grpc.ServiceRegistrar, srv NotifierServer) {
 }
 
 func _Notifier_LoadConfigs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ConfigsRequest)
+	in := new(LoadConfigsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -102,13 +102,13 @@ func _Notifier_LoadConfigs_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: Notifier_LoadConfigs_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotifierServer).LoadConfigs(ctx, req.(*ConfigsRequest))
+		return srv.(NotifierServer).LoadConfigs(ctx, req.(*LoadConfigsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Notifier_UpdateX509SVID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(UpdateX509SVIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func _Notifier_UpdateX509SVID_Handler(srv interface{}, ctx context.Context, dec 
 		FullMethod: Notifier_UpdateX509SVID_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotifierServer).UpdateX509SVID(ctx, req.(*Empty))
+		return srv.(NotifierServer).UpdateX509SVID(ctx, req.(*UpdateX509SVIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

@@ -3,13 +3,20 @@ syntax = "proto3";
 package notifier;
 option go_package = "./;notifier";
 
-message Empty {}
-
-message ConfigsRequest {
+message LoadConfigsRequest {
     map<string,string> configs = 1;
 }
 
+message LoadConfigsResponse {
+}
+
+message UpdateX509SVIDRequest {
+}
+
+message UpdateX509SVIDResponse {
+}
+
 service Notifier {
-    rpc LoadConfigs(ConfigsRequest) returns (Empty) {};
-    rpc UpdateX509SVID(Empty) returns (Empty) {};
+    rpc LoadConfigs(LoadConfigsRequest) returns (LoadConfigsResponse) {};
+    rpc UpdateX509SVID(UpdateX509SVIDRequest) returns (UpdateX509SVIDResponse) {};
 }

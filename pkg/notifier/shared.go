@@ -10,15 +10,9 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-type Notifier interface {
-	LoadConfigs(context.Context, *ConfigsRequest) (*Empty, error)
-	UpdateX509SVID(context.Context, *Empty) (*Empty, error)
-	mustEmbedUnimplementedNotifierServer()
-}
-
 type GRPCNotifier struct {
 	plugin.Plugin
-	Impl Notifier
+	Impl NotifierServer
 }
 
 func (p *GRPCNotifier) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
@@ -34,11 +28,11 @@ type GRPCClient struct {
 	client NotifierClient
 }
 
-func (m *GRPCClient) LoadConfigs(ctx context.Context, config *ConfigsRequest) (*Empty, error) {
+func (m *GRPCClient) LoadConfigs(ctx context.Context, config *LoadConfigsRequest) (*LoadConfigsResponse, error) {
 	return m.client.LoadConfigs(context.Background(), config)
 }
 
-func (m *GRPCClient) UpdateX509SVID(ctx context.Context, empty *Empty) (*Empty, error) {
+func (m *GRPCClient) UpdateX509SVID(ctx context.Context, empty *UpdateX509SVIDRequest) (*UpdateX509SVIDResponse, error) {
 	return m.client.UpdateX509SVID(context.Background(), empty)
 }
 
@@ -46,17 +40,17 @@ func (m *GRPCClient) mustEmbedUnimplementedNotifierServer() {
 }
 
 type GRPCServer struct {
-	Impl Notifier
+	Impl NotifierServer
 }
 
-func (m *GRPCServer) LoadConfigs(ctx context.Context, config *ConfigsRequest) (*Empty, error) {
-	_, err := m.Impl.LoadConfigs(ctx, config)
-	return &Empty{}, err
+func (m *GRPCServer) LoadConfigs(ctx context.Context, request *LoadConfigsRequest) (*LoadConfigsResponse, error) {
+	_, err := m.Impl.LoadConfigs(ctx, request)
+	return &LoadConfigsResponse{}, err
 }
 
-func (m *GRPCServer) UpdateX509SVID(ctx context.Context, empty *Empty) (*Empty, error) {
-	_, err := m.Impl.UpdateX509SVID(ctx, empty)
-	return &Empty{}, err
+func (m *GRPCServer) UpdateX509SVID(ctx context.Context, request *UpdateX509SVIDRequest) (*UpdateX509SVIDResponse, error) {
+	_, err := m.Impl.UpdateX509SVID(ctx, request)
+	return &UpdateX509SVIDResponse{}, err
 }
 
 func (m *GRPCServer) mustEmbedUnimplementedNotifierServer() {

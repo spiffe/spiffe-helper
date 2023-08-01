@@ -12,15 +12,15 @@ type SimplePlugin struct {
 	pb.NotifierServer
 }
 
-func (s *SimplePlugin) LoadConfigs(ctx context.Context, request *pb.ConfigsRequest) (*pb.Empty, error) {
+func (s *SimplePlugin) LoadConfigs(ctx context.Context, request *pb.LoadConfigsRequest) (*pb.LoadConfigsResponse, error) {
 	configs := request.Configs
 	log.Printf("Message sent by %s to %s: %s", configs["from"], configs["to"], configs["message"])
-	return &pb.Empty{}, nil
+	return &pb.LoadConfigsResponse{}, nil
 }
 
-func (s *SimplePlugin) UpdateX509SVID(ctx context.Context, empty *pb.Empty) (*pb.Empty, error) {
+func (s *SimplePlugin) UpdateX509SVID(ctx context.Context, request *pb.UpdateX509SVIDRequest) (*pb.UpdateX509SVIDResponse, error) {
 	log.Printf("Svid updated")
-	return &pb.Empty{}, nil
+	return &pb.UpdateX509SVIDResponse{}, nil
 }
 
 func main() {
