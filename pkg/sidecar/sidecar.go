@@ -348,7 +348,7 @@ func getCmdArgs(args string) ([]string, error) {
 	return cmdArgs, nil
 }
 
-// JWTBundleWatcher is a implementation of workload.JWTBundleWatcher interface
+// JWTBundleWatcher is an implementation of workload.JWTBundleWatcher interface
 type JWTBundlesWatcher struct {
 	sidecar *Sidecar
 }
