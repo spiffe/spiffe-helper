@@ -32,8 +32,9 @@ type Config struct {
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
 
 	// JWT configuration
-	JwtAudience  string `hcl:"audience"`
-	JSONFilename string `hcl:"json_filename"`
+	JwtAudience            string `hcl:"audience"`
+	JSONFilename           string `hcl:"json_filename"`
+	JSONFilenameDeprecated string `hcl:"jsonFilename"`
 
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error
@@ -117,6 +118,14 @@ func ValidateConfig(c *Config) error {
 		}
 		c.Log.Warn(getWarning("renewSignal", "renew_signal"))
 		c.RenewSignal = c.RenewSignalDeprecated
+	}
+
+	if c.JSONFilenameDeprecated != "" {
+		if c.JSONFilename != "" {
+			return errors.New("use of json_filename and jsonFilename found, use only json_filename")
+		}
+		c.Log.Warn(getWarning("jsonFilename", "json_filename"))
+		c.JSONFilename = c.JSONFilenameDeprecated
 	}
 
 	switch {
