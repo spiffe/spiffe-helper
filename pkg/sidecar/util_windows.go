@@ -6,8 +6,11 @@ package sidecar
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // RunDaemon starts the main loop
@@ -16,38 +19,31 @@ import (
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	var wg sync.WaitGroup
-	ctx, cancel := context.WithCancel(ctx)
-	defer func() {
-		cancel()
-		wg.Wait()
-	}()
 
-	tasks := 0
 	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
-		tasks++
-	}
-	if s.config.JSONFilename != "" {
-		tasks++
-	}
-	if s.config.JSONFilename != "" && s.config.JwtAudience != "" {
-		tasks++
-	}
-	wg.Add(tasks)
-
-	errch := make(chan error, tasks)
-	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
+		wg.add(1)
 		go func() {
 			defer wg.Done()
-			errch <- workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithNamedPipeName(s.config.AgentAddress))
+			err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithNamedPipeName(s.config.AgentAddress))
+			if err != nil && status.Code(err) != codes.Canceled {
+				s.config.Log.Errorf("Error watching X.509 context: %w", err)
+			}
 		}()
 	}
+
 	if s.config.JSONFilename != "" {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errch <- workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, workloadapi.WithNamedPipeName(s.config.AgentAddress))
+			err := workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, workloadapi.WithNamedPipeName(s.config.AgentAddress))
+			if err != nil && status.Code(err) != codes.Canceled {
+				s.config.Log.Fatalf("Error watching JWT bundles updates: %w", err)
+			}
 		}()
 	}
+
 	if s.config.JSONFilename != "" && s.config.JwtAudience != "" {
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			s.updateJWTSVID(ctx, workloadapi.WithNamedPipeName(s.config.AgentAddress))
@@ -55,17 +51,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		}()
 	}
 
-	for complete := 0; complete < tasks; {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case err := <-errch:
-			if err != nil {
-				return err
-			}
-			complete++
-		}
-	}
+	wg.Wait()
 
 	return nil
 }

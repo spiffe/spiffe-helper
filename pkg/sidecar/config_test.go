@@ -159,19 +159,6 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectError: "use of renew_signal and renewSignal found, use only renew_signal",
 		},
-		{
-			name: "Using JSONFilenameDeprecated",
-			config: &Config{
-				AgentAddress:           "path",
-				SvidFileName:           "cert.pem",
-				SvidKeyFileName:        "key.pem",
-				SvidBundleFileName:     "bundle.pem",
-				RenewSignal:            "SIGHUP",
-				JSONFilename:           "cert.json",
-				JSONFilenameDeprecated: "cert.json",
-			},
-			expectError: "use of jsonFilename and json_filename found, use only json_filename",
-		},
 		// Deprecated field warning:
 		{
 			name: "Using AgentAddressDeprecated",
@@ -277,21 +264,6 @@ func TestValidateConfig(t *testing.T) {
 			expectLogs: []shortEntry{{
 				Level:   logrus.WarnLevel,
 				Message: "renewSignal will be deprecated, should be used as renew_signal",
-			}},
-		},
-		{
-			name: "Using JSONFilenameDeprecated",
-			config: &Config{
-				AgentAddress:           "path",
-				SvidFileName:           "cert.pem",
-				SvidKeyFileName:        "key.pem",
-				SvidBundleFileName:     "bundle.pem",
-				RenewSignal:            "SIGHUP",
-				JSONFilenameDeprecated: "cert.json",
-			},
-			expectLogs: []shortEntry{{
-				Level:   logrus.WarnLevel,
-				Message: "jsonFilename will be deprecated, should be used as json_filename",
 			}},
 		},
 	} {
