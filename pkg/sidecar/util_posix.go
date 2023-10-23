@@ -27,7 +27,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 			defer wg.Done()
 			err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
 			if err != nil && status.Code(err) != codes.Canceled {
-				s.config.Log.Errorf("Error watching X.509 context: %w", err)
+				s.config.Log.Fatalf("Error watching X.509 context: %w", err)
 			}
 		}()
 	}
