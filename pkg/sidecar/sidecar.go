@@ -270,6 +270,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.Clie
 			s.config.Log.Infof("Updating JWT SVID")
 			jwtSVID, err := s.fetchJWTSVID(options...)
 			if err != nil {
+				time.Sleep(time.Second)
 				continue
 			}
 
@@ -278,8 +279,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.Clie
 			s.writeJSON(certs)
 
 			s.config.Log.Infof("JWT SVID updated")
-
-			time.Sleep(time.Minute)
+			time.Sleep(time.Until(jwtSVID.Expiry)/2 + 1*time.Second)
 		}
 	}
 }
