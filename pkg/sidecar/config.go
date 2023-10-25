@@ -32,8 +32,9 @@ type Config struct {
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
 
 	// JWT configuration
-	JwtAudience  string `hcl:"audience"`
-	JSONFilename string `hcl:"json_filename"`
+	JWTAudience string `hcl:"audience"`
+	JWTFilename string `hcl:"jwt_file_name"`
+	JWKFilename string `hcl:"jwk_file_name"`
 
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error

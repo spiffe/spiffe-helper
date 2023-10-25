@@ -32,7 +32,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		}()
 	}
 
-	if s.config.JSONFilename != "" {
+	if s.config.JWKFilename != "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -43,7 +43,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		}()
 	}
 
-	if s.config.JSONFilename != "" && s.config.JwtAudience != "" {
+	if s.config.JWTFilename != "" && s.config.JWTAudience != "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

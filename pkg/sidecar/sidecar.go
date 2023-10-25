@@ -189,8 +189,8 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	return nil
 }
 
-func (s *Sidecar) readJSON() map[string]interface{} {
-	jsonPath := path.Join(s.config.CertDir, s.config.JSONFilename)
+func (s *Sidecar) readJSON(file_name string) map[string]interface{} {
+	jsonPath := path.Join(s.config.CertDir, file_name)
 	file, err := os.ReadFile(jsonPath)
 	if err != nil {
 		s.config.Log.Warnf("Unable to read json file: %v", err)
@@ -205,13 +205,13 @@ func (s *Sidecar) readJSON() map[string]interface{} {
 	return certs
 }
 
-func (s *Sidecar) writeJSON(certs map[string]interface{}) {
+func (s *Sidecar) writeJSON(file_name string, certs map[string]interface{}) {
 	file, err := json.Marshal(certs)
 	if err != nil {
 		s.config.Log.Warnf("Unable to parse certs: %v", err)
 	}
 
-	jsonPath := path.Join(s.config.CertDir, s.config.JSONFilename)
+	jsonPath := path.Join(s.config.CertDir, file_name)
 	err = os.WriteFile(jsonPath, file, os.ModePerm)
 	if err != nil {
 		s.config.Log.Warnf("Unable to write JSON file: %v", err)
@@ -225,15 +225,15 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 	for _, bundle := range jwkSet.Bundles() {
 		bytes, err := bundle.Marshal()
 		if err != nil {
-			s.config.Log.Warnf("Unable to marshal JWT bundle: %v", err)
+			s.config.Log.Warnf("Unable to marshal JWK bundle: %v", err)
 			continue
 		}
 		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
 	}
 
-	certs := s.readJSON()
+	certs := s.readJSON(s.config.JWKFilename)
 	certs["bundles"] = bundles
-	s.writeJSON(certs)
+	s.writeJSON(s.config.JWKFilename, certs)
 }
 
 func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
@@ -246,13 +246,13 @@ func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SV
 	}
 	defer jwtSource.Close()
 
-	jwtSVID, err := jwtSource.FetchJWTSVID(context.Background(), jwtsvid.Params{Audience: s.config.JwtAudience})
+	jwtSVID, err := jwtSource.FetchJWTSVID(context.Background(), jwtsvid.Params{Audience: s.config.JWTAudience})
 	if err != nil {
 		s.config.Log.Warnf("Unable to fetch JWT SVID: %v", err)
 		return nil, err
 	}
 
-	_, err = jwtsvid.ParseAndValidate(jwtSVID.Marshal(), jwtSource, []string{s.config.JwtAudience})
+	_, err = jwtsvid.ParseAndValidate(jwtSVID.Marshal(), jwtSource, []string{s.config.JWTAudience})
 	if err != nil {
 		s.config.Log.Warnf("Unable to parse or validate token: %v", err)
 		return nil, err
@@ -274,9 +274,9 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.Clie
 				continue
 			}
 
-			certs := s.readJSON()
+			certs := s.readJSON(s.config.JWTFilename)
 			certs["svid"] = jwtSVID.Marshal()
-			s.writeJSON(certs)
+			s.writeJSON(s.config.JWTFilename, certs)
 
 			s.config.Log.Infof("JWT SVID updated")
 			time.Sleep(time.Until(jwtSVID.Expiry)/2 + 1*time.Second)
