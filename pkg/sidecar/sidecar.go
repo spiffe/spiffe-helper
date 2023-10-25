@@ -189,8 +189,8 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	return nil
 }
 
-func (s *Sidecar) readJSON(file_name string) map[string]interface{} {
-	jsonPath := path.Join(s.config.CertDir, file_name)
+func (s *Sidecar) readJSON(fileName string) map[string]interface{} {
+	jsonPath := path.Join(s.config.CertDir, fileName)
 	file, err := os.ReadFile(jsonPath)
 	if err != nil {
 		s.config.Log.Warnf("Unable to read json file: %v", err)
@@ -205,13 +205,13 @@ func (s *Sidecar) readJSON(file_name string) map[string]interface{} {
 	return certs
 }
 
-func (s *Sidecar) writeJSON(file_name string, certs map[string]interface{}) {
+func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) {
 	file, err := json.Marshal(certs)
 	if err != nil {
 		s.config.Log.Warnf("Unable to parse certs: %v", err)
 	}
 
-	jsonPath := path.Join(s.config.CertDir, file_name)
+	jsonPath := path.Join(s.config.CertDir, fileName)
 	err = os.WriteFile(jsonPath, file, os.ModePerm)
 	if err != nil {
 		s.config.Log.Warnf("Unable to write JSON file: %v", err)
