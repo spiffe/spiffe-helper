@@ -189,22 +189,6 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	return nil
 }
 
-func (s *Sidecar) readJSON(fileName string) map[string]interface{} {
-	jsonPath := path.Join(s.config.CertDir, fileName)
-	file, err := os.ReadFile(jsonPath)
-	if err != nil {
-		s.config.Log.Warnf("Unable to read json file: %v", err)
-	}
-
-	certs := make(map[string]interface{})
-	err = json.Unmarshal(file, &certs)
-	if err != nil {
-		s.config.Log.Warnf("Unable to parse json: %v", err)
-	}
-
-	return certs
-}
-
 func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) {
 	file, err := json.Marshal(certs)
 	if err != nil {
@@ -221,7 +205,7 @@ func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) {
 func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 	s.config.Log.Info("Updating JWK bundles")
 
-	bundles := make(map[string]string)
+	bundles := make(map[string]interface{})
 	for _, bundle := range jwkSet.Bundles() {
 		bytes, err := bundle.Marshal()
 		if err != nil {
@@ -231,9 +215,7 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
 	}
 
-	certs := s.readJSON(s.config.JWKFilename)
-	certs["bundles"] = bundles
-	s.writeJSON(s.config.JWKFilename, certs)
+	s.writeJSON(s.config.JWKFilename, bundles)
 }
 
 func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
@@ -274,9 +256,12 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.Clie
 				continue
 			}
 
-			certs := s.readJSON(s.config.JWTFilename)
-			certs["svid"] = jwtSVID.Marshal()
-			s.writeJSON(s.config.JWTFilename, certs)
+			filePath := path.Join(s.config.CertDir, s.config.JWTFilename)
+			err = os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm)
+			if err != nil {
+				s.config.Log.Warnf("Unable to write JWT SVID to a file: %v", err)
+				continue
+			}
 
 			s.config.Log.Infof("JWT SVID updated")
 			time.Sleep(time.Until(jwtSVID.Expiry)/2 + 1*time.Second)

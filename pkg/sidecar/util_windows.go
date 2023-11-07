@@ -47,7 +47,6 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		go func() {
 			defer wg.Done()
 			s.updateJWTSVID(ctx, workloadapi.WithNamedPipeName(s.config.AgentAddress))
-			errch <- nil
 		}()
 	}
 

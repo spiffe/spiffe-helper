@@ -50,34 +50,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidBundleFileName: "bundle.pem",
 			},
 		},
-		{
-			name: "no SVID file",
-			config: &Config{
-				AgentAddress:       "path",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
-			},
-			expectError: "svid_file_name is required",
-		},
-		{
-			name: "no key file",
-			config: &Config{
-				AgentAddress:       "path",
-				SvidFileName:       "cert.pem",
-				SvidBundleFileName: "bundle.pem",
-			},
-			expectError: "svid_key_file_name is required",
-		},
-		{
-			name: "no bundle file",
-			config: &Config{
-				AgentAddress:    "path",
-				SvidFileName:    "cert.pem",
-				SvidKeyFileName: "key.pem",
-			},
-			expectError: "svid_bundle_file_name is required",
-		},
-
 		// Duplicated field error:
 		{
 			name: "Both agent_address & agentAddress in use",

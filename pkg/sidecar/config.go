@@ -32,7 +32,7 @@ type Config struct {
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
 
 	// JWT configuration
-	JWTAudience string `hcl:"audience"`
+	JWTAudience string `hcl:"jwt_audience"`
 	JWTFilename string `hcl:"jwt_file_name"`
 	JWKFilename string `hcl:"jwk_file_name"`
 
@@ -120,16 +120,7 @@ func ValidateConfig(c *Config) error {
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
-	switch {
-	case c.SvidFileName == "":
-		return errors.New("svid_file_name is required")
-	case c.SvidKeyFileName == "":
-		return errors.New("svid_key_file_name is required")
-	case c.SvidBundleFileName == "":
-		return errors.New("svid_bundle_file_name is required")
-	default:
-		return nil
-	}
+	return nil
 }
 
 func getWarning(s1 string, s2 string) string {
