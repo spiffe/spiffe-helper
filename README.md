@@ -27,9 +27,9 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  |`svid_file_name`          | File name to be used to store the X.509 SVID public certificate in PEM format.                                 | `"svid.pem"`         |
  |`svid_key_file_name`      | File name to be used to store the X.509 SVID private key and public certificate in PEM format.                 | `"svid_key.pem"`     |
  |`svid_bundle_file_name`   | File name to be used to store the X.509 SVID Bundle in PEM format.                                             | `"svid_bundle.pem"`  |
- |`audience`                | JWT SVID audience.                                                                                             | `"example.org"`|
- |`jwt_file_name`           | File name to be used to store JWT SVID in JSON format.                                                         | `"jwt.json"`         |
- |`jwk_file_name`           | File name to be used to store JWT SVID Bundle in JSON format.                                                  | `"jwk.json"`         |
+ |`audience`                | JWT SVID audience.                                                                                             | `"example.org"`      |
+ |`jwt_svid_file_name`      | File name to be used to store JWT SVID in JSON format.                                                         | `"jwt.json"`         |
+ |`jwt_bundle_file_name`    | File name to be used to store JWT Bundle in JSON format.                                                       | `"jwt_bundle.json"`  |
 
 ### Configuration example
 ```
@@ -42,8 +42,8 @@ svid_file_name = "svid.pem"
 svid_key_file_name = "svid_key.pem"
 svid_bundle_file_name = "svid_bundle.pem"
 audience = "example.org"
-jwt_file_name = "jwt.json"
-jwk_file_name = "jwk.json"
+jwt_svid_file_name = "jwt.json"
+jwt_bundle_file_name = "bundle.json"
 ```
 
 ### Windows example
@@ -54,6 +54,6 @@ svid_file_name = "svid.pem"
 svid_key_file_name = "svid_key.pem"
 svid_bundle_file_name = "svid_bundle.pem"
 audience = "example.org"
-jwt_file_name = "jwt.json"
-jwk_file_name = "jwk.json"
+jwt_svid_file_name = "jwt.json"
+jwt_bundle_file_name = "bundle.json"
 ```

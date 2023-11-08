@@ -79,7 +79,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
-	s.config.Log.Info("Updating x509 certificates")
+	s.config.Log.Info("Updating X.509 certificates")
 
 	err := s.dumpBundles(svidResponse)
 	if err != nil {
@@ -192,30 +192,30 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) {
 	file, err := json.Marshal(certs)
 	if err != nil {
-		s.config.Log.Warnf("Unable to parse certs: %v", err)
+		s.config.Log.Errorf("Unable to parse certs: %v", err)
 	}
 
 	jsonPath := path.Join(s.config.CertDir, fileName)
 	err = os.WriteFile(jsonPath, file, os.ModePerm)
 	if err != nil {
-		s.config.Log.Warnf("Unable to write JSON file: %v", err)
+		s.config.Log.Errorf("Unable to write JSON file: %v", err)
 	}
 }
 
 func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
-	s.config.Log.Info("Updating JWK bundles")
+	s.config.Log.Info("Updating JWT bundle")
 
 	bundles := make(map[string]interface{})
 	for _, bundle := range jwkSet.Bundles() {
 		bytes, err := bundle.Marshal()
 		if err != nil {
-			s.config.Log.Warnf("Unable to marshal JWK bundle: %v", err)
+			s.config.Log.Errorf("Unable to marshal JWT bundle: %v", err)
 			continue
 		}
 		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
 	}
 
-	s.writeJSON(s.config.JWKFilename, bundles)
+	s.writeJSON(s.config.JWTBundleFilename, bundles)
 }
 
 func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
@@ -223,48 +223,68 @@ func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SV
 
 	jwtSource, err := workloadapi.NewJWTSource(context.Background(), clientOptions)
 	if err != nil {
-		s.config.Log.Warnf("Unable to create JWTSource: %v", err)
+		s.config.Log.Errorf("Unable to create JWTSource: %v", err)
 		return nil, err
 	}
 	defer jwtSource.Close()
 
 	jwtSVID, err := jwtSource.FetchJWTSVID(context.Background(), jwtsvid.Params{Audience: s.config.JWTAudience})
 	if err != nil {
-		s.config.Log.Warnf("Unable to fetch JWT SVID: %v", err)
+		s.config.Log.Errorf("Unable to fetch JWT SVID: %v", err)
 		return nil, err
 	}
 
 	_, err = jwtsvid.ParseAndValidate(jwtSVID.Marshal(), jwtSource, []string{s.config.JWTAudience})
 	if err != nil {
-		s.config.Log.Warnf("Unable to parse or validate token: %v", err)
+		s.config.Log.Errorf("Unable to parse or validate token: %v", err)
 		return nil, err
 	}
 
 	return jwtSVID, nil
 }
 
+func getRetryInterval() func() time.Duration {
+	backoffInterval := 0
+	return func() time.Duration {
+		backoffInterval += 5
+		return time.Duration(backoffInterval) * time.Second
+	}
+}
+
+func getRefreshInterval(svid *jwtsvid.SVID) time.Duration {
+	return time.Until(svid.Expiry)/2 + time.Second
+}
+
 func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.ClientOption) {
+	retryInterval := getRetryInterval()
+
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		default:
+		case <-ticker.C:
 			s.config.Log.Infof("Updating JWT SVID")
+
 			jwtSVID, err := s.fetchJWTSVID(options...)
 			if err != nil {
-				time.Sleep(time.Second)
+				ticker.Reset(retryInterval())
 				continue
 			}
 
-			filePath := path.Join(s.config.CertDir, s.config.JWTFilename)
+			filePath := path.Join(s.config.CertDir, s.config.JWTSvidFilename)
 			err = os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm)
 			if err != nil {
-				s.config.Log.Warnf("Unable to write JWT SVID to a file: %v", err)
+				s.config.Log.Errorf("Unable to write JWT SVID to a file: %v", err)
+				ticker.Reset(retryInterval())
 				continue
 			}
+			retryInterval = getRetryInterval()
 
 			s.config.Log.Infof("JWT SVID updated")
-			time.Sleep(time.Until(jwtSVID.Expiry)/2 + 1*time.Second)
+			ticker.Reset(getRefreshInterval(jwtSVID))
 		}
 	}
 }

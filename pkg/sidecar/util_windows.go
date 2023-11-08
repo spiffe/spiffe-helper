@@ -26,23 +26,23 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 			defer wg.Done()
 			err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithNamedPipeName(s.config.AgentAddress))
 			if err != nil && status.Code(err) != codes.Canceled {
-				s.config.Log.Fatalf("Error watching X.509 context: %w", err)
+				s.config.Log.Errorf("Error watching X.509 context: %v", err)
 			}
 		}()
 	}
 
-	if s.config.JWKFilename != "" {
+	if s.config.JWTBundleFilename != "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			err := workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, workloadapi.WithNamedPipeName(s.config.AgentAddress))
 			if err != nil && status.Code(err) != codes.Canceled {
-				s.config.Log.Fatalf("Error watching JWT bundles updates: %w", err)
+				s.config.Log.Errorf("Error watching JWT bundle updates: %v", err)
 			}
 		}()
 	}
 
-	if s.config.JWTFilename != "" && s.config.JwtAudience != "" {
+	if s.config.JWTSvidFilename != "" && s.config.JWTAudience != "" {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
