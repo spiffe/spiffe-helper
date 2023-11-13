@@ -286,11 +286,21 @@ func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SV
 	return jwtSVID, nil
 }
 
-func getRetryInterval() func() time.Duration {
-	backoffInterval := 0
+func createRetryIntervalFunc() func() time.Duration {
+	const (
+		initialBackoff = 1 * time.Second
+		maxBackoff     = 60 * time.Second
+		multiplier     = 2
+	)
+	backoffInterval := initialBackoff
 	return func() time.Duration {
-		backoffInterval += 5
-		return time.Duration(backoffInterval) * time.Second
+		currentBackoff := backoffInterval
+		// Update backoffInterval for next call, capped at maxBackoff
+		backoffInterval *= multiplier
+		if backoffInterval > maxBackoff {
+			backoffInterval = maxBackoff
+		}
+		return currentBackoff
 	}
 }
 
@@ -319,15 +329,17 @@ func (s *Sidecar) performJWTSVIDUpdate(options ...workloadapi.ClientOption) (*jw
 }
 
 func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.ClientOption) {
+	retryInterval := createRetryIntervalFunc()
+	var initialInterval time.Duration
 	jwtSVID, err := s.performJWTSVIDUpdate(options...)
-
-	retryInterval := getRetryInterval()
-	var ticker *time.Ticker
-	if err == nil {
-		ticker = time.NewTicker(getRefreshInterval(jwtSVID))
+	if err != nil {
+		// If the first update fails, use the retry interval
+		initialInterval = retryInterval()
 	} else {
-		ticker = time.NewTicker(retryInterval())
+		// If the update succeeds, use the refresh interval
+		initialInterval = getRefreshInterval(jwtSVID)
 	}
+	ticker := time.NewTicker(initialInterval)
 	defer ticker.Stop()
 
 	for {
@@ -337,7 +349,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.Clie
 		case <-ticker.C:
 			jwtSVID, err = s.performJWTSVIDUpdate(options...)
 			if err == nil {
-				retryInterval = getRetryInterval()
+				retryInterval = createRetryIntervalFunc()
 				ticker.Reset(getRefreshInterval(jwtSVID))
 			} else {
 				ticker.Reset(retryInterval())
