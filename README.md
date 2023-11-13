@@ -41,7 +41,7 @@ renew_signal = "SIGUSR1"
 svid_file_name = "svid.pem"
 svid_key_file_name = "svid_key.pem"
 svid_bundle_file_name = "svid_bundle.pem"
-audience = "example.org"
+jwt_audience = "example.org"
 jwt_svid_file_name = "jwt.json"
 jwt_bundle_file_name = "bundle.json"
 ```
