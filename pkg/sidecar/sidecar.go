@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -255,10 +256,36 @@ func getRefreshInterval(svid *jwtsvid.SVID) time.Duration {
 	return time.Until(svid.Expiry)/2 + time.Second
 }
 
-func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.ClientOption) {
-	retryInterval := getRetryInterval()
+func (s *Sidecar) performJWTSVIDUpdate(options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
+	s.config.Log.Infof("Updating JWT SVID")
 
-	ticker := time.NewTicker(time.Second)
+	jwtSVID, err := s.fetchJWTSVID(options...)
+	if err != nil {
+		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
+		return nil, err
+	}
+
+	filePath := path.Join(s.config.CertDir, s.config.JWTSvidFilename)
+	err = os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm)
+	if err != nil {
+		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
+		return nil, err
+	}
+
+	s.config.Log.Infof("JWT SVID updated")
+	return jwtSVID, nil
+}
+
+func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.ClientOption) {
+	jwtSVID, err := s.performJWTSVIDUpdate(options...)
+
+	retryInterval := getRetryInterval()
+	var ticker *time.Ticker
+	if err == nil {
+		ticker = time.NewTicker(getRefreshInterval(jwtSVID))
+	} else {
+		ticker = time.NewTicker(retryInterval())
+	}
 	defer ticker.Stop()
 
 	for {
@@ -266,25 +293,13 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.Clie
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.config.Log.Infof("Updating JWT SVID")
-
-			jwtSVID, err := s.fetchJWTSVID(options...)
-			if err != nil {
+			jwtSVID, err = s.performJWTSVIDUpdate(options...)
+			if err == nil {
+				retryInterval = getRetryInterval()
+				ticker.Reset(getRefreshInterval(jwtSVID))
+			} else {
 				ticker.Reset(retryInterval())
-				continue
 			}
-
-			filePath := path.Join(s.config.CertDir, s.config.JWTSvidFilename)
-			err = os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm)
-			if err != nil {
-				s.config.Log.Errorf("Unable to write JWT SVID to a file: %v", err)
-				ticker.Reset(retryInterval())
-				continue
-			}
-			retryInterval = getRetryInterval()
-
-			s.config.Log.Infof("JWT SVID updated")
-			ticker.Reset(getRefreshInterval(jwtSVID))
 		}
 	}
 }
@@ -368,4 +383,46 @@ func (w JWTBundlesWatcher) OnJWTBundlesWatchError(err error) {
 	if status.Code(err) != codes.Canceled {
 		w.sidecar.config.Log.Errorf("Error while watching JWT bundles: %v", err)
 	}
+}
+
+// RunDaemon starts the main loop
+// Starts the workload API client to listen for new SVID updates
+// When a new SVID is received on the updateChan, the SVID certificates
+// are stored in disk and a restart signal is sent to the proxy's process
+func (s *Sidecar) RunDaemon(ctx context.Context) error {
+	var wg sync.WaitGroup
+
+	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, s.getWorkloadAPIAdress())
+			if err != nil && status.Code(err) != codes.Canceled {
+				s.config.Log.Errorf("Error watching X.509 context: %v", err)
+			}
+		}()
+	}
+
+	if s.config.JWTBundleFilename != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, s.getWorkloadAPIAdress())
+			if err != nil && status.Code(err) != codes.Canceled {
+				s.config.Log.Errorf("Error watching JWT bundle updates: %v", err)
+			}
+		}()
+	}
+
+	if s.config.JWTSvidFilename != "" && s.config.JWTAudience != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.updateJWTSVID(ctx, s.getWorkloadAPIAdress())
+		}()
+	}
+
+	wg.Wait()
+
+	return nil
 }
