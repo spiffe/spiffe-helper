@@ -124,12 +124,11 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
 	err := s.dumpBundles(svidResponse)
-	s.config.Log.Info("X.509 certificates updated")
-
 	if err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		return
 	}
+	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
 		if err := s.signalProcess(); err != nil {
