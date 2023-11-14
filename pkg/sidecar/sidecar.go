@@ -124,7 +124,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
 	err := s.dumpBundles(svidResponse)
-	s.config.Log.Debug("X.509 certificates updated")
+	s.config.Log.Info("X.509 certificates updated")
 
 	if err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
@@ -260,7 +260,7 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 	}
 
 	s.writeJSON(s.config.JWTBundleFilename, bundles)
-	s.config.Log.Debug("JWT bundle updated")
+	s.config.Log.Info("JWT bundle updated")
 }
 
 func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
@@ -326,7 +326,7 @@ func (s *Sidecar) performJWTSVIDUpdate(options ...workloadapi.ClientOption) (*jw
 		return nil, err
 	}
 
-	s.config.Log.Debug("JWT SVID updated")
+	s.config.Log.Info("JWT SVID updated")
 	return jwtSVID, nil
 }
 
