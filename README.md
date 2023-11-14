@@ -27,7 +27,7 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  |`svid_file_name`          | File name to be used to store the X.509 SVID public certificate in PEM format.                                 | `"svid.pem"`         |
  |`svid_key_file_name`      | File name to be used to store the X.509 SVID private key and public certificate in PEM format.                 | `"svid_key.pem"`     |
  |`svid_bundle_file_name`   | File name to be used to store the X.509 SVID Bundle in PEM format.                                             | `"svid_bundle.pem"`  |
- |`jwt_audience`            | JWT SVID audience.                                                                                             | `"example.org"`      |
+ |`jwt_audience`            | JWT SVID audience.                                                                                             | `"your-audience"`    |
  |`jwt_svid_file_name`      | File name to be used to store JWT SVID in JSON format.                                                         | `"jwt.json"`         |
  |`jwt_bundle_file_name`    | File name to be used to store JWT Bundle in JSON format.                                                       | `"jwt_bundle.json"`  |
 
@@ -41,7 +41,7 @@ renew_signal = "SIGUSR1"
 svid_file_name = "svid.pem"
 svid_key_file_name = "svid_key.pem"
 svid_bundle_file_name = "svid_bundle.pem"
-jwt_audience = "example.org"
+jwt_audience = "your-audience"
 jwt_svid_file_name = "jwt.json"
 jwt_bundle_file_name = "bundle.json"
 ```
@@ -53,7 +53,7 @@ cert_dir = "certs"
 svid_file_name = "svid.pem"
 svid_key_file_name = "svid_key.pem"
 svid_bundle_file_name = "svid_bundle.pem"
-jwt_audience = "example.org"
+jwt_audience = "your-audience"
 jwt_svid_file_name = "jwt.json"
 jwt_bundle_file_name = "bundle.json"
 ```

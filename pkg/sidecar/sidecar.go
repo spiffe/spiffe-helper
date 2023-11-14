@@ -122,9 +122,10 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
-	s.config.Log.Info("Updating X.509 certificates")
-
+	s.config.Log.Debug("Updating X.509 certificates")
 	err := s.dumpBundles(svidResponse)
+	s.config.Log.Debug("X.509 certificates updated")
+
 	if err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		return
@@ -246,7 +247,7 @@ func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) {
 }
 
 func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
-	s.config.Log.Info("Updating JWT bundle")
+	s.config.Log.Debug("Updating JWT bundle")
 
 	bundles := make(map[string]interface{})
 	for _, bundle := range jwkSet.Bundles() {
@@ -259,6 +260,7 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 	}
 
 	s.writeJSON(s.config.JWTBundleFilename, bundles)
+	s.config.Log.Debug("JWT bundle updated")
 }
 
 func (s *Sidecar) fetchJWTSVID(options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
@@ -309,7 +311,7 @@ func getRefreshInterval(svid *jwtsvid.SVID) time.Duration {
 }
 
 func (s *Sidecar) performJWTSVIDUpdate(options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
-	s.config.Log.Infof("Updating JWT SVID")
+	s.config.Log.Debug("Updating JWT SVID")
 
 	jwtSVID, err := s.fetchJWTSVID(options...)
 	if err != nil {
@@ -324,7 +326,7 @@ func (s *Sidecar) performJWTSVIDUpdate(options ...workloadapi.ClientOption) (*jw
 		return nil, err
 	}
 
-	s.config.Log.Infof("JWT SVID updated")
+	s.config.Log.Debug("JWT SVID updated")
 	return jwtSVID, nil
 }
 
