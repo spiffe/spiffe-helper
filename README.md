@@ -28,7 +28,7 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  |`svid_key_file_name`      | File name to be used to store the X.509 SVID private key and public certificate in PEM format.                 | `"svid_key.pem"`     |
  |`svid_bundle_file_name`   | File name to be used to store the X.509 SVID Bundle in PEM format.                                             | `"svid_bundle.pem"`  |
  |`jwt_audience`            | JWT SVID audience.                                                                                             | `"your-audience"`    |
- |`jwt_svid_file_name`      | File name to be used to store JWT SVID in JSON format.                                                         | `"jwt.json"`         |
+ |`jwt_svid_file_name`      | File name to be used to store JWT SVID in Base64-encoded string.                                                         | `"jwt.json"`         |
  |`jwt_bundle_file_name`    | File name to be used to store JWT Bundle in JSON format.                                                       | `"jwt_bundle.json"`  |
 
 ### Configuration example
