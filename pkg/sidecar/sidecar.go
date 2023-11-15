@@ -239,8 +239,7 @@ func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) {
 	}
 
 	jsonPath := path.Join(s.config.CertDir, fileName)
-	err = os.WriteFile(jsonPath, file, os.ModePerm)
-	if err != nil {
+	if err = os.WriteFile(jsonPath, file, os.ModePerm); err != nil {
 		s.config.Log.Errorf("Unable to write JSON file: %v", err)
 	}
 }
