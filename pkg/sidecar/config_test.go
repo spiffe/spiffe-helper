@@ -22,6 +22,9 @@ func TestParseConfig(t *testing.T) {
 	expectedSvidFileName := "svid.pem"
 	expectedKeyFileName := "svid_key.pem"
 	expectedSvidBundleFileName := "svid_bundle.pem"
+	expectedJWTSVIDFileName := "jwt_svid.token"
+	expectedJWTBundleFileName := "jwt_bundle.json"
+	expectedJWTAudience := "your-audience"
 
 	assert.Equal(t, expectedAgentAddress, c.AgentAddress)
 	assert.Equal(t, expectedCmd, c.Cmd)
@@ -31,6 +34,9 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedSvidFileName, c.SvidFileName)
 	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
+	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSvidFilename)
+	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFilename)
+	assert.Equal(t, expectedJWTAudience, c.JWTAudience)
 	assert.True(t, c.AddIntermediatesToBundle)
 }
 
@@ -49,6 +55,40 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
 			},
+		},
+		{
+			name: "no SVID or bundle",
+			config: &Config{
+				AgentAddress: "path",
+			},
+			expectError: "svid_file_name, jwt_svid_file_name or jwt_bundle_file_name is required",
+		},
+		{
+			name: "no key file",
+			config: &Config{
+				AgentAddress: "path",
+				SvidFileName: "cert.pem",
+			},
+			expectError: "svid_key_file_name is required when using svid_file_name",
+		},
+		{
+			name: "no bundle file",
+			config: &Config{
+				AgentAddress:    "path",
+				SvidFileName:    "cert.pem",
+				SvidKeyFileName: "key.pem",
+			},
+			expectError: "svid_bundle_file_name is required when using svid_file_name",
+		},
+		{
+			name: "no audience",
+			config: &Config{
+				AgentAddress:    "path",
+				SvidFileName:    "cert.pem",
+				SvidKeyFileName: "key.pem",
+				JWTSvidFilename: "jwt.token",
+			},
+			expectError: "jwt_svid_bundle_file_name is required when using jwt_svid_file_name",
 		},
 		// Duplicated field error:
 		{
