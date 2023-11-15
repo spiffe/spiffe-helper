@@ -318,8 +318,7 @@ func (s *Sidecar) performJWTSVIDUpdate(options ...workloadapi.ClientOption) (*jw
 	}
 
 	filePath := path.Join(s.config.CertDir, s.config.JWTSvidFilename)
-	err = os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm)
-	if err != nil {
+	if err = os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		return nil, err
 	}
