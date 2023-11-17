@@ -57,38 +57,36 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "no SVID or bundle",
+			name: "no error",
+			config: &Config{
+				AgentAddress:      "path",
+				JWTAudience:       "your-audience",
+				JWTSvidFilename:   "jwt.token",
+				JWTBundleFilename: "bundle.json",
+			},
+		},
+		{
+			name: "no set specified",
 			config: &Config{
 				AgentAddress: "path",
 			},
-			expectError: "svid_file_name, jwt_svid_file_name or jwt_bundle_file_name is required",
+			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name') or ('jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience') must be fully specified",
 		},
 		{
-			name: "no key file",
+			name: "missing svid config",
 			config: &Config{
 				AgentAddress: "path",
 				SvidFileName: "cert.pem",
 			},
-			expectError: "svid_key_file_name is required when using svid_file_name",
+			expectError: "all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified",
 		},
 		{
-			name: "no bundle file",
+			name: "missing jwt config",
 			config: &Config{
 				AgentAddress:    "path",
-				SvidFileName:    "cert.pem",
-				SvidKeyFileName: "key.pem",
+				JWTSvidFilename: "cert.pem",
 			},
-			expectError: "svid_bundle_file_name is required when using svid_file_name",
-		},
-		{
-			name: "no audience",
-			config: &Config{
-				AgentAddress:    "path",
-				SvidFileName:    "cert.pem",
-				SvidKeyFileName: "key.pem",
-				JWTSvidFilename: "jwt.token",
-			},
-			expectError: "jwt_svid_bundle_file_name is required when using jwt_svid_file_name",
+			expectError: "all or none of 'jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience' must be specified",
 		},
 		// Duplicated field error:
 		{
@@ -100,7 +98,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectError: "use of agent_address and AgentAddress found, use only agent_address",
+			expectError: "use of agent_address and agentAddress found, use only agent_address",
 		},
 		{
 			name: "Both cmd_args & cmdArgs in use",
@@ -287,7 +285,7 @@ func TestValidateConfig(t *testing.T) {
 			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
 			if tt.expectError != "" {
-				require.Error(t, err, tt.expectError)
+				require.EqualError(t, err, tt.expectError)
 				return
 			}
 

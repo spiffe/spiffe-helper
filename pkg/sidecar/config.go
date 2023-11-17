@@ -120,20 +120,18 @@ func ValidateConfig(c *Config) error {
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
-	if c.SvidFileName == "" && c.JWTSvidFilename == "" && c.JWTBundleFilename == "" {
-		return errors.New("svid_file_name, jwt_svid_file_name or jwt_bundle_file_name is required")
+	X509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
+	JWTEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTBundleFilename, c.JWTAudience)
+	if X509EmptyCount == 3 && JWTEmptyCount == 3 {
+		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name') or ('jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience') must be fully specified")
 	}
 
-	if c.SvidFileName != "" && c.SvidKeyFileName == "" {
-		return errors.New("svid_key_file_name is required when using svid_file_name")
+	if X509EmptyCount != 0 && X509EmptyCount != 3 {
+		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
 	}
 
-	if c.SvidFileName != "" && c.SvidBundleFileName == "" {
-		return errors.New("svid_bundle_file_name is required when using svid_file_name")
-	}
-
-	if c.JWTSvidFilename != "" && c.JWTAudience == "" {
-		return errors.New("jwt_audience is required when using jwt_svid_file_name")
+	if JWTEmptyCount != 0 && JWTEmptyCount != 3 {
+		return errors.New("all or none of 'jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience' must be specified")
 	}
 
 	return nil
@@ -141,4 +139,14 @@ func ValidateConfig(c *Config) error {
 
 func getWarning(s1 string, s2 string) string {
 	return s1 + " will be deprecated, should be used as " + s2
+}
+
+func countEmpty(configs ...string) int {
+	cnt := 0
+	for _, config := range configs {
+		if config == "" {
+			cnt++
+		}
+	}
+	return cnt
 }
