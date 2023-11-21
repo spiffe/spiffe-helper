@@ -120,17 +120,17 @@ func ValidateConfig(c *Config) error {
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
-	X509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
-	JWTEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTBundleFilename, c.JWTAudience)
-	if X509EmptyCount == 3 && JWTEmptyCount == 3 {
+	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
+	jwtEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTBundleFilename, c.JWTAudience)
+	if x509EmptyCount == 3 && jwtEmptyCount == 3 {
 		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name') or ('jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience') must be fully specified")
 	}
 
-	if X509EmptyCount != 0 && X509EmptyCount != 3 {
+	if x509EmptyCount != 0 && x509EmptyCount != 3 {
 		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
 	}
 
-	if JWTEmptyCount != 0 && JWTEmptyCount != 3 {
+	if jwtEmptyCount != 0 && jwtEmptyCount != 3 {
 		return errors.New("all or none of 'jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience' must be specified")
 	}
 
