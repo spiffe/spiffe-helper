@@ -121,17 +121,18 @@ func ValidateConfig(c *Config) error {
 	}
 
 	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
-	jwtEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTBundleFilename, c.JWTAudience)
-	if x509EmptyCount == 3 && jwtEmptyCount == 3 {
-		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name') or ('jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience') must be fully specified")
+	jwtSVIDEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTAudience)
+	jwtBundleEmptyCount := countEmpty(c.SvidBundleFileName)
+	if x509EmptyCount == 3 && jwtSVIDEmptyCount == 2 && jwtBundleEmptyCount == 1 {
+		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience') or ('jwt_bundle_file_name') must be fully specified")
 	}
 
 	if x509EmptyCount != 0 && x509EmptyCount != 3 {
 		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
 	}
 
-	if jwtEmptyCount != 0 && jwtEmptyCount != 3 {
-		return errors.New("all or none of 'jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience' must be specified")
+	if jwtSVIDEmptyCount != 0 && jwtSVIDEmptyCount != 2 {
+		return errors.New("all or none of 'jwt_file_name', 'jwt_audience' must be specified")
 	}
 
 	return nil

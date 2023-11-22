@@ -70,7 +70,7 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress: "path",
 			},
-			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name') or ('jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience') must be fully specified",
+			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience') or ('jwt_bundle_file_name') must be fully specified",
 		},
 		{
 			name: "missing svid config",
@@ -86,7 +86,7 @@ func TestValidateConfig(t *testing.T) {
 				AgentAddress:    "path",
 				JWTSvidFilename: "cert.pem",
 			},
-			expectError: "all or none of 'jwt_file_name', 'jwt_bundle_file_name', 'jwt_audience' must be specified",
+			expectError: "all or none of 'jwt_file_name', 'jwt_audience' must be specified",
 		},
 		// Duplicated field error:
 		{
