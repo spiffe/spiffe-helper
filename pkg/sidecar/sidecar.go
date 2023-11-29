@@ -232,17 +232,18 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	return nil
 }
 
-func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) {
+func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) error {
 	file, err := json.Marshal(certs)
 	if err != nil {
-		s.config.Log.Errorf("Unable to parse certs: %v", err)
-		return
+		return err
 	}
 
 	jsonPath := path.Join(s.config.CertDir, fileName)
 	if err = os.WriteFile(jsonPath, file, os.ModePerm); err != nil {
-		s.config.Log.Errorf("Unable to write JSON file: %v", err)
+		return err
 	}
+
+	return nil
 }
 
 func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
@@ -258,8 +259,11 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
 	}
 
-	s.writeJSON(s.config.JWTBundleFilename, bundles)
-	s.config.Log.Info("JWT bundle updated")
+	if err := s.writeJSON(s.config.JWTBundleFilename, bundles); err != nil {
+		s.config.Log.Errorf("Unable to write JSON file: %v", err)
+	} else {
+		s.config.Log.Info("JWT bundle updated")
+	}
 }
 
 func (s *Sidecar) fetchJWTSVID(ctx context.Context, options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
