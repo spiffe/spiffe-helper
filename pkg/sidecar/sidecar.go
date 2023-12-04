@@ -34,6 +34,7 @@ const (
 // implements the interface Sidecar
 type Sidecar struct {
 	config         *Config
+	jwtSource      *workloadapi.JWTSource
 	processRunning int32
 	process        *os.Process
 	certReadyChan  chan struct{}
@@ -103,10 +104,17 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	}
 
 	if s.config.JWTSvidFilename != "" && s.config.JWTAudience != "" {
+		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAdress()))
+		if err != nil {
+			s.config.Log.Fatalf("Error watching JWT svid updates: %v", err)
+		}
+		s.jwtSource = jwtSource
+		defer s.jwtSource.Close()
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.updateJWTSVID(ctx, s.getWorkloadAPIAdress())
+			s.updateJWTSVID(ctx)
 		}()
 	}
 
@@ -266,23 +274,14 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 	}
 }
 
-func (s *Sidecar) fetchJWTSVID(ctx context.Context, options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
-	clientOptions := workloadapi.WithClientOptions(options...)
-
-	jwtSource, err := workloadapi.NewJWTSource(ctx, clientOptions)
-	if err != nil {
-		s.config.Log.Errorf("Unable to create JWTSource: %v", err)
-		return nil, err
-	}
-	defer jwtSource.Close()
-
-	jwtSVID, err := jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{Audience: s.config.JWTAudience})
+func (s *Sidecar) fetchJWTSVID(ctx context.Context) (*jwtsvid.SVID, error) {
+	jwtSVID, err := s.jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{Audience: s.config.JWTAudience})
 	if err != nil {
 		s.config.Log.Errorf("Unable to fetch JWT SVID: %v", err)
 		return nil, err
 	}
 
-	_, err = jwtsvid.ParseAndValidate(jwtSVID.Marshal(), jwtSource, []string{s.config.JWTAudience})
+	_, err = jwtsvid.ParseAndValidate(jwtSVID.Marshal(), s.jwtSource, []string{s.config.JWTAudience})
 	if err != nil {
 		s.config.Log.Errorf("Unable to parse or validate token: %v", err)
 		return nil, err
@@ -313,10 +312,10 @@ func getRefreshInterval(svid *jwtsvid.SVID) time.Duration {
 	return time.Until(svid.Expiry)/2 + time.Second
 }
 
-func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, options ...workloadapi.ClientOption) (*jwtsvid.SVID, error) {
+func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context) (*jwtsvid.SVID, error) {
 	s.config.Log.Debug("Updating JWT SVID")
 
-	jwtSVID, err := s.fetchJWTSVID(ctx, options...)
+	jwtSVID, err := s.fetchJWTSVID(ctx)
 	if err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		return nil, err
@@ -332,10 +331,10 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, options ...workloada
 	return jwtSVID, nil
 }
 
-func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.ClientOption) {
+func (s *Sidecar) updateJWTSVID(ctx context.Context) {
 	retryInterval := createRetryIntervalFunc()
 	var initialInterval time.Duration
-	jwtSVID, err := s.performJWTSVIDUpdate(ctx, options...)
+	jwtSVID, err := s.performJWTSVIDUpdate(ctx)
 	if err != nil {
 		// If the first update fails, use the retry interval
 		initialInterval = retryInterval()
@@ -351,7 +350,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, options ...workloadapi.Clie
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			jwtSVID, err = s.performJWTSVIDUpdate(ctx, options...)
+			jwtSVID, err = s.performJWTSVIDUpdate(ctx)
 			if err == nil {
 				retryInterval = createRetryIntervalFunc()
 				ticker.Reset(getRefreshInterval(jwtSVID))
