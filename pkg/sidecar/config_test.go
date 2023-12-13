@@ -34,9 +34,9 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedSvidFileName, c.SvidFileName)
 	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
-	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSvidFilename)
+	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSvidFilenameDeprecated)
 	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFilename)
-	assert.Equal(t, expectedJWTAudience, c.JWTAudience)
+	assert.Equal(t, expectedJWTAudience, c.JWTAudienceDeprecated)
 	assert.True(t, c.AddIntermediatesToBundle)
 }
 
@@ -57,11 +57,28 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "warns on deprecated jwt configs",
+			config: &Config{
+				AgentAddress:              "path",
+				JWTAudienceDeprecated:     "your-audience",
+				JWTSvidFilenameDeprecated: "jwt.token",
+				JWTBundleFilename:         "bundle.json",
+			},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "jwt_file_name and jwt_audience will be deprecated, should be used as jwt_svids",
+				},
+			},
+		},
+		{
 			name: "no error",
 			config: &Config{
-				AgentAddress:      "path",
-				JWTAudience:       "your-audience",
-				JWTSvidFilename:   "jwt.token",
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTSvidFilename: "jwt.token",
+					JWTAudience:     "your-audience",
+				}},
 				JWTBundleFilename: "bundle.json",
 			},
 		},
@@ -70,7 +87,7 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress: "path",
 			},
-			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience'), or ('jwt_bundle_file_name') must be fully specified",
+			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience'), 'jwt_svids', or ('jwt_bundle_file_name') must be fully specified",
 		},
 		{
 			name: "missing svid config",
@@ -83,8 +100,8 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "missing jwt config",
 			config: &Config{
-				AgentAddress:    "path",
-				JWTSvidFilename: "cert.pem",
+				AgentAddress:              "path",
+				JWTSvidFilenameDeprecated: "cert.pem",
 			},
 			expectError: "all or none of 'jwt_file_name', 'jwt_audience' must be specified",
 		},
