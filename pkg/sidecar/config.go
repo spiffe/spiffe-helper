@@ -30,6 +30,12 @@ type Config struct {
 	SvidBundleFileNameDeprecated       string `hcl:"svidBundleFileName"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
+
+	// JWT configuration
+	JWTAudience       string `hcl:"jwt_audience"`
+	JWTSvidFilename   string `hcl:"jwt_svid_file_name"`
+	JWTBundleFilename string `hcl:"jwt_bundle_file_name"`
+
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error
 	// TODO: is there a reason for this to be exposed? and inside of config?
@@ -114,18 +120,34 @@ func ValidateConfig(c *Config) error {
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
-	switch {
-	case c.SvidFileName == "":
-		return errors.New("svid_file_name is required")
-	case c.SvidKeyFileName == "":
-		return errors.New("svid_key_file_name is required")
-	case c.SvidBundleFileName == "":
-		return errors.New("svid_bundle_file_name is required")
-	default:
-		return nil
+	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
+	jwtSVIDEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTAudience)
+	jwtBundleEmptyCount := countEmpty(c.SvidBundleFileName)
+	if x509EmptyCount == 3 && jwtSVIDEmptyCount == 2 && jwtBundleEmptyCount == 1 {
+		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience'), or ('jwt_bundle_file_name') must be fully specified")
 	}
+
+	if x509EmptyCount != 0 && x509EmptyCount != 3 {
+		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
+	}
+
+	if jwtSVIDEmptyCount != 0 && jwtSVIDEmptyCount != 2 {
+		return errors.New("all or none of 'jwt_file_name', 'jwt_audience' must be specified")
+	}
+
+	return nil
 }
 
 func getWarning(s1 string, s2 string) string {
 	return s1 + " will be deprecated, should be used as " + s2
+}
+
+func countEmpty(configs ...string) int {
+	cnt := 0
+	for _, config := range configs {
+		if config == "" {
+			cnt++
+		}
+	}
+	return cnt
 }

@@ -4,25 +4,14 @@
 package sidecar
 
 import (
-	"context"
-	"errors"
 	"fmt"
 
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"golang.org/x/sys/unix"
 )
 
-// RunDaemon starts the main loop
-// Starts the workload API client to listen for new SVID updates
-// When a new SVID is received on the updateChan, the SVID certificates
-// are stored in disk and a restart signal is sent to the proxy's process
-func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, workloadapi.WithAddr("unix://"+s.config.AgentAddress))
-	if err != nil && !errors.Is(err, context.Canceled) {
-		return err
-	}
-
-	return nil
+func (s *Sidecar) getWorkloadAPIAdress() workloadapi.ClientOption {
+	return workloadapi.WithAddr("unix://" + s.config.AgentAddress)
 }
 
 func (s *Sidecar) SignalProcess() error {
