@@ -22,6 +22,9 @@ func TestParseConfig(t *testing.T) {
 	expectedSvidFileName := "svid.pem"
 	expectedKeyFileName := "svid_key.pem"
 	expectedSvidBundleFileName := "svid_bundle.pem"
+	expectedJWTSVIDFileName := "jwt_svid.token"
+	expectedJWTBundleFileName := "jwt_bundle.json"
+	expectedJWTAudience := "your-audience"
 
 	assert.Equal(t, expectedAgentAddress, c.AgentAddress)
 	assert.Equal(t, expectedCmd, c.Cmd)
@@ -31,6 +34,9 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedSvidFileName, c.SvidFileName)
 	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
+	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSvidFilename)
+	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFilename)
+	assert.Equal(t, expectedJWTAudience, c.JWTAudience)
 	assert.True(t, c.AddIntermediatesToBundle)
 }
 
@@ -51,33 +57,37 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "no SVID file",
+			name: "no error",
 			config: &Config{
-				AgentAddress:       "path",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
+				AgentAddress:      "path",
+				JWTAudience:       "your-audience",
+				JWTSvidFilename:   "jwt.token",
+				JWTBundleFilename: "bundle.json",
 			},
-			expectError: "svid_file_name is required",
 		},
 		{
-			name: "no key file",
+			name: "no set specified",
 			config: &Config{
-				AgentAddress:       "path",
-				SvidFileName:       "cert.pem",
-				SvidBundleFileName: "bundle.pem",
+				AgentAddress: "path",
 			},
-			expectError: "svid_key_file_name is required",
+			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience'), or ('jwt_bundle_file_name') must be fully specified",
 		},
 		{
-			name: "no bundle file",
+			name: "missing svid config",
+			config: &Config{
+				AgentAddress: "path",
+				SvidFileName: "cert.pem",
+			},
+			expectError: "all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified",
+		},
+		{
+			name: "missing jwt config",
 			config: &Config{
 				AgentAddress:    "path",
-				SvidFileName:    "cert.pem",
-				SvidKeyFileName: "key.pem",
+				JWTSvidFilename: "cert.pem",
 			},
-			expectError: "svid_bundle_file_name is required",
+			expectError: "all or none of 'jwt_file_name', 'jwt_audience' must be specified",
 		},
-
 		// Duplicated field error:
 		{
 			name: "Both agent_address & agentAddress in use",
@@ -88,7 +98,7 @@ func TestValidateConfig(t *testing.T) {
 				SvidKeyFileName:        "key.pem",
 				SvidBundleFileName:     "bundle.pem",
 			},
-			expectError: "use of agent_address and AgentAddress found, use only agent_address",
+			expectError: "use of agent_address and agentAddress found, use only agent_address",
 		},
 		{
 			name: "Both cmd_args & cmdArgs in use",
@@ -159,7 +169,6 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectError: "use of renew_signal and renewSignal found, use only renew_signal",
 		},
-
 		// Deprecated field warning:
 		{
 			name: "Using AgentAddressDeprecated",
@@ -276,7 +285,7 @@ func TestValidateConfig(t *testing.T) {
 			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
 			if tt.expectError != "" {
-				require.Error(t, err, tt.expectError)
+				require.EqualError(t, err, tt.expectError)
 				return
 			}
 
