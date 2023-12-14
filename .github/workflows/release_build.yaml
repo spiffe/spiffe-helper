@@ -61,7 +61,7 @@ jobs:
       - name: Compress artifact
         run: tar -czvf spiffe-helper-${{ github.ref_name }}.tar.gz spiffe-helper
       - name: Archive artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: spiffe-helper
           path: spiffe-helper-${{ github.ref_name }}.tar.gz
