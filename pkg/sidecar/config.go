@@ -22,6 +22,7 @@ type Config struct {
 	// where this is the expected format for presented certificates and bundles
 	AddIntermediatesToBundle           bool   `hcl:"add_intermediates_to_bundle"`
 	AddIntermediatesToBundleDeprecated bool   `hcl:"addIntermediatesToBundle"`
+	PidFileName                        string `hcl:"pid_file_name"`
 	SvidFileName                       string `hcl:"svid_file_name"`
 	SvidFileNameDeprecated             string `hcl:"svidFileName"`
 	SvidKeyFileName                    string `hcl:"svid_key_file_name"`

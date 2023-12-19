@@ -8,9 +8,11 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -138,7 +140,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 	s.config.Log.Info("X.509 certificates updated")
 
-	if s.config.Cmd != "" {
+	if s.config.Cmd != "" || s.config.PidFileName != "" {
 		if err := s.signalProcess(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal process")
 		}
@@ -153,6 +155,22 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 // signalProcess sends the configured Renew signal to the process running the proxy
 // to reload itself so that the proxy uses the new SVID
 func (s *Sidecar) signalProcess() (err error) {
+	if s.config.PidFileName != "" {
+		atomic.StoreInt32(&s.processRunning, 1)
+		bytes, err := ioutil.ReadFile(s.config.PidFileName)
+		if err != nil {
+			return fmt.Errorf("Failed to read pid file: %s\n%w", s.config.PidFileName, err)
+		}
+		lines := strings.Split(string(bytes), "\n")
+		pid, err := strconv.Atoi(lines[0])
+		if err != nil {
+			return fmt.Errorf("Failed to parse pid file: %s\n%w", s.config.PidFileName, err)
+		}
+		s.process, err = os.FindProcess(pid)
+		if err != nil {
+			return fmt.Errorf("Failed to find process: %d\n%w", pid, err)
+		}
+	}
 	// TODO: is ReloadExternalProcess still used?
 	switch s.config.ReloadExternalProcess {
 	case nil:
