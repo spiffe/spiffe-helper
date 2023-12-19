@@ -103,7 +103,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		}()
 	}
 
-	if s.config.JWTSvidFilenameDeprecated != "" && s.config.JWTAudienceDeprecated != "" {
+	if s.config.JwtSvids != nil {
 		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAdress()))
 		if err != nil {
 			s.config.Log.Fatalf("Error watching JWT svid updates: %v", err)
@@ -111,20 +111,12 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		s.jwtSource = jwtSource
 		defer s.jwtSource.Close()
 
-		if s.config.JwtSvids != nil {
-			for _, jwtConfig := range s.config.JwtSvids {
-				jwtConfig := jwtConfig
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSvidFilename)
-				}()
-			}
-		} else {
+		for _, jwtConfig := range s.config.JwtSvids {
+			jwtConfig := jwtConfig
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				s.updateJWTSVID(ctx, s.config.JWTAudienceDeprecated, s.config.JWTSvidFilenameDeprecated)
+				s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSvidFilename)
 			}()
 		}
 	}

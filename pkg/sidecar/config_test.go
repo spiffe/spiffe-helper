@@ -34,9 +34,9 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedSvidFileName, c.SvidFileName)
 	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
-	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSvidFilenameDeprecated)
+	assert.Equal(t, expectedJWTSVIDFileName, c.JwtSvids[0].JWTSvidFilename)
 	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFilename)
-	assert.Equal(t, expectedJWTAudience, c.JWTAudienceDeprecated)
+	assert.Equal(t, expectedJWTAudience, c.JwtSvids[0].JWTAudience)
 	assert.True(t, c.AddIntermediatesToBundle)
 }
 
@@ -54,21 +54,6 @@ func TestValidateConfig(t *testing.T) {
 				SvidFileName:       "cert.pem",
 				SvidKeyFileName:    "key.pem",
 				SvidBundleFileName: "bundle.pem",
-			},
-		},
-		{
-			name: "warns on deprecated jwt configs",
-			config: &Config{
-				AgentAddress:              "path",
-				JWTAudienceDeprecated:     "your-audience",
-				JWTSvidFilenameDeprecated: "jwt.token",
-				JWTBundleFilename:         "bundle.json",
-			},
-			expectLogs: []shortEntry{
-				{
-					Level:   logrus.WarnLevel,
-					Message: "jwt_file_name and jwt_audience will be deprecated, should be used as jwt_svids",
-				},
 			},
 		},
 		{
@@ -100,10 +85,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "missing jwt config",
 			config: &Config{
-				AgentAddress:              "path",
-				JWTSvidFilenameDeprecated: "cert.pem",
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTSvidFilename: "jwt.token",
+				}},
 			},
-			expectError: "all or none of 'jwt_file_name', 'jwt_audience' must be specified",
+			expectError: "both 'jwt_file_name' and 'jwt_audience' are required in 'jwt_svids'",
 		},
 		// Duplicated field error:
 		{
