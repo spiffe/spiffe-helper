@@ -26,6 +26,7 @@ type Config struct {
 	AgentAddressDeprecated             string `hcl:"agentAddress"`
 	Cmd                                string `hcl:"cmd"`
 	CmdArgs                            string `hcl:"cmd_args"`
+	PidFileName                        string `hcl:"pid_file_name"`
 	CmdArgsDeprecated                  string `hcl:"cmdArgs"`
 	CertDir                            string `hcl:"cert_dir"`
 	CertDirDeprecated                  string `hcl:"certDir"`
