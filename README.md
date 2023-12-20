@@ -32,7 +32,7 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
 
 ### Configuration example
 ```
-agent_address = "/tmp/agent.sock"
+agent_address = "/tmp/spire-agent/public/api.sock"
 cmd = "ghostunnel"
 cmd_args = "server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
 cert_dir = "certs"

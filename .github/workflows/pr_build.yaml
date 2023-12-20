@@ -3,7 +3,7 @@ on:
   pull_request: {}
   workflow_dispatch: {}
 env:
-  GO_VERSION: 1.20.5
+  GO_VERSION: 1.21.5
 permissions:
   contents: read
 
@@ -160,7 +160,7 @@ jobs:
       - name: Build images
         run: make build
       - name: Archive image
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: spiffe-helper
           path: spiffe-helper

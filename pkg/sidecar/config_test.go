@@ -14,7 +14,7 @@ func TestParseConfig(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	expectedAgentAddress := "/tmp/agent.sock"
+	expectedAgentAddress := "/tmp/spire-agent/public/api.sock"
 	expectedCmd := "hot-restarter.py"
 	expectedCmdArgs := "start_envoy.sh"
 	expectedCertDir := "certs"
