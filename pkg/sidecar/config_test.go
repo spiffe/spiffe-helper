@@ -83,14 +83,24 @@ func TestValidateConfig(t *testing.T) {
 			expectError: "all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified",
 		},
 		{
-			name: "missing jwt config",
+			name: "missing jwt audience",
 			config: &Config{
 				AgentAddress: "path",
 				JwtSvids: []JwtConfig{{
 					JWTSvidFilename: "jwt.token",
 				}},
 			},
-			expectError: "both 'jwt_file_name' and 'jwt_audience' are required in 'jwt_svids'",
+			expectError: "'jwt_audience' is required in 'jwt_svids'",
+		},
+		{
+			name: "missing jwt path",
+			config: &Config{
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTAudience: "my-audience",
+				}},
+			},
+			expectError: "'jwt_file_name' is required in 'jwt_svids'",
 		},
 		// Duplicated field error:
 		{
