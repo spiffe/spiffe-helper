@@ -128,7 +128,7 @@ func ValidateConfig(c *Config) error {
 		if jwtConfig.JWTSvidFilename == "" {
 			return errors.New("'jwt_file_name' is required in 'jwt_svids'")
 		}
-		if countEmpty(jwtConfig.JWTAudience) > 0 {
+		if jwtConfig.JWTAudience == "" {
 			return errors.New("'jwt_audience' is required in 'jwt_svids'")
 		}
 	}
