@@ -133,7 +133,7 @@ func ValidateConfig(c *Config) error {
 	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
 	jwtBundleEmptyCount := countEmpty(c.SvidBundleFileName)
 	if x509EmptyCount == 3 && c.JwtSvids == nil && jwtBundleEmptyCount == 1 {
-		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience'), 'jwt_svids', or ('jwt_bundle_file_name') must be fully specified")
+		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
 	if x509EmptyCount != 0 && x509EmptyCount != 3 {
