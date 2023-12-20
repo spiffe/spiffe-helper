@@ -140,10 +140,8 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 	s.config.Log.Info("X.509 certificates updated")
 
-	if s.config.Cmd != "" || s.config.PidFileName != "" {
-		if err := s.signalProcess(); err != nil {
-			s.config.Log.WithError(err).Error("Unable to signal process")
-		}
+	if err := s.signalProcess(); err != nil {
+		s.config.Log.WithError(err).Error("Unable to signal process")
 	}
 
 	select {
@@ -159,45 +157,48 @@ func (s *Sidecar) signalProcess() (err error) {
 		atomic.StoreInt32(&s.processRunning, 1)
 		bytes, err := ioutil.ReadFile(s.config.PidFileName)
 		if err != nil {
-			return fmt.Errorf("Failed to read pid file: %s\n%w", s.config.PidFileName, err)
+			return fmt.Errorf("failed to read pid file: %s\n%w", s.config.PidFileName, err)
 		}
-		lines := strings.Split(string(bytes), "\n")
-		pid, err := strconv.Atoi(lines[0])
+		pid, err = strconv.Atoi(string(bytes.TrimSpace(bytes)))
 		if err != nil {
-			return fmt.Errorf("Failed to parse pid file: %s\n%w", s.config.PidFileName, err)
+			return fmt.Errorf("failed to parse pid file: %s\n%w", s.config.PidFileName, err)
 		}
 		s.process, err = os.FindProcess(pid)
 		if err != nil {
-			return fmt.Errorf("Failed to find process: %d\n%w", pid, err)
+			return fmt.Errorf("failed to find process: %d\n%w", pid, err)
+		}
+		if err := s.SignalProcess(); err != nil {
+			return err
 		}
 	}
 	// TODO: is ReloadExternalProcess still used?
-	switch s.config.ReloadExternalProcess {
-	case nil:
-		if atomic.LoadInt32(&s.processRunning) == 0 {
-			cmdArgs, err := getCmdArgs(s.config.CmdArgs)
-			if err != nil {
-				return fmt.Errorf("error parsing cmd arguments: %w", err)
-			}
+	if s.config.Cmd != "" {
+		switch s.config.ReloadExternalProcess {
+		case nil:
+			if atomic.LoadInt32(&s.processRunning) == 0 {
+				cmdArgs, err := getCmdArgs(s.config.CmdArgs)
+				if err != nil {
+					return fmt.Errorf("error parsing cmd arguments: %w", err)
+				}
 
-			cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			err = cmd.Start()
-			if err != nil {
-				return fmt.Errorf("error executing process: %v\n%w", s.config.Cmd, err)
+				cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				err = cmd.Start()
+				if err != nil {
+					return fmt.Errorf("error executing process: %v\n%w", s.config.Cmd, err)
+				}
+				s.process = cmd.Process
+				go s.checkProcessExit()
+			} else {
+				if err := s.SignalProcess(); err != nil {
+					return err
+				}
 			}
-			s.process = cmd.Process
-			go s.checkProcessExit()
-		} else {
-			if err := s.SignalProcess(); err != nil {
-				return err
+		default:
+			if err = s.config.ReloadExternalProcess(); err != nil {
+				return fmt.Errorf("error reloading external process: %w", err)
 			}
-		}
-
-	default:
-		if err = s.config.ReloadExternalProcess(); err != nil {
-			return fmt.Errorf("error reloading external process: %w", err)
 		}
 	}
 
