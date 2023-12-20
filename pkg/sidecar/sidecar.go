@@ -1,6 +1,7 @@
 package sidecar
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
@@ -8,7 +9,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -155,11 +155,11 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 func (s *Sidecar) signalProcess() (err error) {
 	if s.config.PidFileName != "" {
 		atomic.StoreInt32(&s.processRunning, 1)
-		bytes, err := ioutil.ReadFile(s.config.PidFileName)
+		byts, err := os.ReadFile(s.config.PidFileName)
 		if err != nil {
 			return fmt.Errorf("failed to read pid file: %s\n%w", s.config.PidFileName, err)
 		}
-		pid, err = strconv.Atoi(string(bytes.TrimSpace(bytes)))
+		pid, err := strconv.Atoi(string(bytes.TrimSpace(byts)))
 		if err != nil {
 			return fmt.Errorf("failed to parse pid file: %s\n%w", s.config.PidFileName, err)
 		}
