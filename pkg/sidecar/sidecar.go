@@ -195,6 +195,7 @@ func (s *Sidecar) signalProcess() (err error) {
 				}
 			}
 		}
+
 	default:
 		if err = s.config.ReloadExternalProcess(); err != nil {
 			return fmt.Errorf("error reloading external process: %w", err)
