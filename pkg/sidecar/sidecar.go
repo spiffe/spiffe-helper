@@ -154,7 +154,6 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 // to reload itself so that the proxy uses the new SVID
 func (s *Sidecar) signalProcess() (err error) {
 	if s.config.PidFileName != "" {
-		atomic.StoreInt32(&s.processRunning, 1)
 		byts, err := os.ReadFile(s.config.PidFileName)
 		if err != nil {
 			return fmt.Errorf("failed to read pid file: %s\n%w", s.config.PidFileName, err)
@@ -172,9 +171,9 @@ func (s *Sidecar) signalProcess() (err error) {
 		}
 	}
 	// TODO: is ReloadExternalProcess still used?
-	if s.config.Cmd != "" {
-		switch s.config.ReloadExternalProcess {
-		case nil:
+	switch s.config.ReloadExternalProcess {
+	case nil:
+		if s.config.Cmd != "" {
 			if atomic.LoadInt32(&s.processRunning) == 0 {
 				cmdArgs, err := getCmdArgs(s.config.CmdArgs)
 				if err != nil {
@@ -195,10 +194,10 @@ func (s *Sidecar) signalProcess() (err error) {
 					return err
 				}
 			}
-		default:
-			if err = s.config.ReloadExternalProcess(); err != nil {
-				return fmt.Errorf("error reloading external process: %w", err)
-			}
+		}
+	default:
+		if err = s.config.ReloadExternalProcess(); err != nil {
+			return fmt.Errorf("error reloading external process: %w", err)
 		}
 	}
 
