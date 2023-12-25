@@ -144,6 +144,10 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		s.config.Log.WithError(err).Error("Unable to signal process")
 	}
 
+	if s.config.ExitWhenReady {
+		os.Exit(0)
+	}
+
 	select {
 	case s.certReadyChan <- struct{}{}:
 	default:

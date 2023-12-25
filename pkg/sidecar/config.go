@@ -17,6 +17,7 @@ type Config struct {
 	CmdArgsDeprecated      string `hcl:"cmdArgs"`
 	CertDir                string `hcl:"cert_dir"`
 	CertDirDeprecated      string `hcl:"certDir"`
+	ExitWhenReady          bool   `hcl:"exit_when_ready"`
 	// Merge intermediate certificates into Bundle file instead of SVID file,
 	// it is useful is some scenarios like MySQL,
 	// where this is the expected format for presented certificates and bundles
