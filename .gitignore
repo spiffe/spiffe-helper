@@ -7,3 +7,7 @@ rpm/*.rpm
 *.swp
 *.swo
 bootstrap.crt
+
+# oci image builds
+oci/
+*-image.tar
