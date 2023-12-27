@@ -46,7 +46,7 @@ type Sidecar struct {
 }
 
 // New creates a new SPIFFE sidecar
-func New(configPath string, ctx context.Context, log logrus.FieldLogger) (*Sidecar, error) {
+func New(ctx context.Context, configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	config, err := ParseConfig(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
