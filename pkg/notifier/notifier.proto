@@ -16,7 +16,21 @@ message UpdateX509SVIDRequest {
 message UpdateX509SVIDResponse {
 }
 
+message UpdateJWTSVIDRequest {
+}
+
+message UpdateJWTSVIDResponse {
+}
+
+message UpdateJWTBundleRequest {
+}
+
+message UpdateJWTBundleResponse {
+}
+
 service Notifier {
     rpc LoadConfigs(LoadConfigsRequest) returns (LoadConfigsResponse) {};
     rpc UpdateX509SVID(UpdateX509SVIDRequest) returns (UpdateX509SVIDResponse) {};
+    rpc UpdateJWTSVID(UpdateJWTSVIDRequest) returns (UpdateJWTSVIDResponse) {};
+    rpc UpdateJWTBundle(UpdateJWTBundleRequest) returns (UpdateJWTBundleResponse) {};
 }

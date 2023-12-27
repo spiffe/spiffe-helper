@@ -42,10 +42,11 @@ type Sidecar struct {
 	process        *os.Process
 	certReadyChan  chan struct{}
 	plugins        map[string]*pb.NotifierServer
+	ctx            context.Context
 }
 
 // New creates a new SPIFFE sidecar
-func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
+func New(configPath string, ctx context.Context, log logrus.FieldLogger) (*Sidecar, error) {
 	config, err := ParseConfig(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
@@ -73,6 +74,7 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	}
 
 	sidecar := &Sidecar{
+		ctx:           ctx,
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
 		plugins:       make(map[string]*pb.NotifierServer),
@@ -145,6 +147,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		return
 	}
 	s.config.Log.Info("X.509 certificates updated")
+	s.notifyX509Update()
 
 	if s.config.Cmd != "" {
 		if err := s.signalProcess(); err != nil {
@@ -155,9 +158,6 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	if s.config.ExitWhenReady {
 		os.Exit(0)
 	}
-
-	s.config.Log.Infof("Updating plugins")
-	s.notifyPlugins()
 
 	select {
 	case s.certReadyChan <- struct{}{}:
@@ -223,11 +223,14 @@ func (s *Sidecar) loadPlugins() {
 
 		request := &pb.LoadConfigsRequest{}
 		request.Configs = pluginConfig
-		request.Configs["certDir"] = s.config.CertDir
-		request.Configs["addIntermediatesToBundle"] = strconv.FormatBool(s.config.AddIntermediatesToBundle)
-		request.Configs["svidFileName"] = s.config.SvidFileName
-		request.Configs["svidKeyFileName"] = s.config.SvidKeyFileName
-		request.Configs["svidBundleFileName"] = s.config.SvidBundleFileName
+		request.Configs["cert_dir"] = s.config.CertDir
+		request.Configs["add_intermediates_to_bundle"] = strconv.FormatBool(s.config.AddIntermediatesToBundle)
+		request.Configs["svid_file_name"] = s.config.SvidFileName
+		request.Configs["svid_key_file_name"] = s.config.SvidKeyFileName
+		request.Configs["svid_bundle_file_name"] = s.config.SvidBundleFileName
+		request.Configs["jwt_audience"] = s.config.JWTAudience
+		request.Configs["jwt_svid_file_name"] = s.config.JWTSvidFilename
+		request.Configs["jwt_bundle_file_name"] = s.config.JWTBundleFilename
 
 		client := plugin.NewClient(&plugin.ClientConfig{
 			HandshakeConfig:  pb.GetHandshakeConfig(),
@@ -250,7 +253,7 @@ func (s *Sidecar) loadPlugins() {
 		}
 
 		notifier := raw.(pb.NotifierServer)
-		response, err := notifier.LoadConfigs(context.Background(), request)
+		response, err := notifier.LoadConfigs(s.ctx, request)
 		if err != nil {
 			s.config.Log.Warnf("Failed to load configs into plugin %s", pluginName)
 			continue
@@ -258,7 +261,7 @@ func (s *Sidecar) loadPlugins() {
 
 		s.plugins[pluginName] = &notifier
 
-		s.config.Log.Infof("Plugin %s updated %s", pluginName, response)
+		s.config.Log.Infof("Plugin %s loaded %s", pluginName, response)
 	}
 }
 
@@ -272,12 +275,40 @@ func (s *Sidecar) checkProcessExit() {
 	atomic.StoreInt32(&s.processRunning, 0)
 }
 
-func (s *Sidecar) notifyPlugins() {
+func (s *Sidecar) notifyX509Update() {
 	for pluginName := range s.plugins {
 		plugin := *s.plugins[pluginName]
-		_, err := plugin.UpdateX509SVID(context.Background(), &pb.UpdateX509SVIDRequest{})
+		ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+		defer cancel()
+		_, err := plugin.UpdateX509SVID(ctx, &pb.UpdateX509SVIDRequest{})
 		if err != nil {
 			s.config.Log.Warnf("Failed to update x509 svid to plugin %s", pluginName)
+			continue
+		}
+	}
+}
+
+func (s *Sidecar) notifyJWTSVIDUpdate() {
+	for pluginName := range s.plugins {
+		plugin := *s.plugins[pluginName]
+		ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+		defer cancel()
+		_, err := plugin.UpdateJWTSVID(ctx, &pb.UpdateJWTSVIDRequest{})
+		if err != nil {
+			s.config.Log.Warnf("Failed to update jwt svid to plugin %s", pluginName)
+			continue
+		}
+	}
+}
+
+func (s *Sidecar) notifyJWTBundleUpdate() {
+	for pluginName := range s.plugins {
+		plugin := *s.plugins[pluginName]
+		ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+		defer cancel()
+		_, err := plugin.UpdateJWTBundle(ctx, &pb.UpdateJWTBundleRequest{})
+		if err != nil {
+			s.config.Log.Warnf("Failed to update jwt bundle to plugin %s", pluginName)
 			continue
 		}
 	}
@@ -324,8 +355,6 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 		return err
 	}
 
-	s.notifyPlugins()
-
 	return nil
 }
 
@@ -360,6 +389,7 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 		s.config.Log.Errorf("Unable to write JSON file: %v", err)
 	} else {
 		s.config.Log.Info("JWT bundle updated")
+		s.notifyJWTBundleUpdate()
 	}
 }
 
@@ -417,6 +447,8 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context) (*jwtsvid.SVID, erro
 	}
 
 	s.config.Log.Info("JWT SVID updated")
+	s.notifyJWTSVIDUpdate()
+
 	return jwtSVID, nil
 }
 

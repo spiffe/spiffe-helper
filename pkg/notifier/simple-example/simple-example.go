@@ -19,8 +19,18 @@ func (s *SimplePlugin) LoadConfigs(ctx context.Context, request *pb.LoadConfigsR
 }
 
 func (s *SimplePlugin) UpdateX509SVID(ctx context.Context, request *pb.UpdateX509SVIDRequest) (*pb.UpdateX509SVIDResponse, error) {
-	log.Printf("Svid updated")
+	log.Printf("X.509 SVID updated")
 	return &pb.UpdateX509SVIDResponse{}, nil
+}
+
+func (s *SimplePlugin) UpdateJWTSVID(ctx context.Context, request *pb.UpdateJWTSVIDRequest) (*pb.UpdateJWTSVIDResponse, error) {
+	log.Printf("JWT SVID updated")
+	return &pb.UpdateJWTSVIDResponse{}, nil
+}
+
+func (s *SimplePlugin) UpdateJWTBundle(ctx context.Context, request *pb.UpdateJWTBundleRequest) (*pb.UpdateJWTBundleResponse, error) {
+	log.Printf("JWT bundle updated")
+	return &pb.UpdateJWTBundleResponse{}, nil
 }
 
 func main() {

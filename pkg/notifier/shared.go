@@ -29,11 +29,19 @@ type GRPCClient struct {
 }
 
 func (m *GRPCClient) LoadConfigs(ctx context.Context, config *LoadConfigsRequest) (*LoadConfigsResponse, error) {
-	return m.client.LoadConfigs(context.Background(), config)
+	return m.client.LoadConfigs(ctx, config)
 }
 
 func (m *GRPCClient) UpdateX509SVID(ctx context.Context, empty *UpdateX509SVIDRequest) (*UpdateX509SVIDResponse, error) {
-	return m.client.UpdateX509SVID(context.Background(), empty)
+	return m.client.UpdateX509SVID(ctx, empty)
+}
+
+func (m *GRPCClient) UpdateJWTSVID(ctx context.Context, empty *UpdateJWTSVIDRequest) (*UpdateJWTSVIDResponse, error) {
+	return m.client.UpdateJWTSVID(ctx, empty)
+}
+
+func (m *GRPCClient) UpdateJWTBundle(ctx context.Context, empty *UpdateJWTBundleRequest) (*UpdateJWTBundleResponse, error) {
+	return m.client.UpdateJWTBundle(ctx, empty)
 }
 
 func (m *GRPCClient) mustEmbedUnimplementedNotifierServer() {
@@ -51,6 +59,16 @@ func (m *GRPCServer) LoadConfigs(ctx context.Context, request *LoadConfigsReques
 func (m *GRPCServer) UpdateX509SVID(ctx context.Context, request *UpdateX509SVIDRequest) (*UpdateX509SVIDResponse, error) {
 	_, err := m.Impl.UpdateX509SVID(ctx, request)
 	return &UpdateX509SVIDResponse{}, err
+}
+
+func (m *GRPCServer) UpdateJWTSVID(ctx context.Context, request *UpdateJWTSVIDRequest) (*UpdateJWTSVIDResponse, error) {
+	_, err := m.Impl.UpdateJWTSVID(ctx, request)
+	return &UpdateJWTSVIDResponse{}, err
+}
+
+func (m *GRPCServer) UpdateJWTBundle(ctx context.Context, request *UpdateJWTBundleRequest) (*UpdateJWTBundleResponse, error) {
+	_, err := m.Impl.UpdateJWTBundle(ctx, request)
+	return &UpdateJWTBundleResponse{}, err
 }
 
 func (m *GRPCServer) mustEmbedUnimplementedNotifierServer() {
