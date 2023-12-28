@@ -31,9 +31,11 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  | `jwt_audience`                | JWT SVID audience.                                                                                             | `"your-audience"`                                                                                                                                                    |
  | `jwt_svid_file_name`          | File name to be used to store JWT SVID in Base64-encoded string.                                               | `"jwt_svid.token"`                                                                                                                                                   |
  | `jwt_bundle_file_name`        | File name to be used to store JWT Bundle in JSON format.                                                       | `"jwt_bundle.json"`                                                                                                                                                  |
+| `plugins`                      | Block of plugins.                                                                                              |   |
+
 
 ### Configuration example
-```
+```hcl
 agent_address = "/tmp/spire-agent/public/api.sock"
 cmd = "ghostunnel"
 cmd_args = "server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
@@ -45,10 +47,17 @@ svid_bundle_file_name = "svid_bundle.pem"
 jwt_audience = "your-audience"
 jwt_svid_file_name = "jwt.token"
 jwt_bundle_file_name = "bundle.json"
+plugins {
+    "plugin_name" {
+        path="/tmp/plugins/plugin_name"
+        checksum="7ae182614c5b2f96b0c6655a6bf3e1e64fb0dbb9142fa50c8cf0002c5c5bb9c5"
+        custom_config="random_value"
+    }
+}
 ```
 
 ### Windows example
-```
+```hcl
 agent_address = "spire-agent\\public\\api"
 cert_dir = "certs"
 svid_file_name = "svid.pem"
@@ -57,4 +66,11 @@ svid_bundle_file_name = "svid_bundle.pem"
 jwt_audience = "your-audience"
 jwt_svid_file_name = "jwt.token"
 jwt_bundle_file_name = "bundle.json"
+plugins {
+    "plugin_name" {
+        path="c:\\tmp\\plugins\\plugin_name"
+        checksum="7ae182614c5b2f96b0c6655a6bf3e1e64fb0dbb9142fa50c8cf0002c5c5bb9c5"
+        custom_config="random_value"
+    }
+}
 ```
