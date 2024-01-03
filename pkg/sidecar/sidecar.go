@@ -215,6 +215,11 @@ func (s *Sidecar) loadPlugins() {
 			continue
 		}
 
+		if _, typeIsPresent := pluginConfig["type"]; typeIsPresent {
+			s.config.Log.Warnf("Please update the configuration for plugin %s, type is a reserved configuration name", pluginName)
+			continue
+		}
+
 		secureConfig, err := pb.GetSecureConfig(checksum)
 		if err != nil {
 			s.config.Log.Warnf("Error while trying to create secure config for plugin %s", pluginName)

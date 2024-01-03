@@ -33,6 +33,10 @@ TEST_FAILED=$((TEST_FAILED + $?))
 bash change-entry-client-test.sh
 TEST_FAILED=$((TEST_FAILED + $?))
 
+# Testing to upload a plugin and notify changes on SVIDs and bundles
+bash run-plugin-test.sh
+TEST_FAILED=$((TEST_FAILED + $?))
+
 echo
 if  ((TEST_FAILED == 1)); then
     echo -e "${RED}❌ ${TEST_FAILED} test failed.${RESET}"
