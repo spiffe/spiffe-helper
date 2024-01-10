@@ -198,6 +198,14 @@ func TestDefaultAgentAddress(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/spire-agent/public/api.sock")
 }
+
+func TestExitOnWaitFlag(t *testing.T) {
+	log, _ := test.NewNullLogger()
+	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", true, log)
+	require.NoError(t, err)
+	assert.Equal(t, spiffeSidecar.config.ExitWhenReady, true)
+}
+
 func TestEnvAgentAddress(t *testing.T) {
 	os.Setenv("SPIRE_AGENT_ADDRESS", "/tmp/spire-agent/public/api.sock")
 	log, _ := test.NewNullLogger()
