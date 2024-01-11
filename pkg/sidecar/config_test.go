@@ -34,9 +34,9 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedSvidFileName, c.SvidFileName)
 	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
 	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
-	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSvidFilename)
+	assert.Equal(t, expectedJWTSVIDFileName, c.JwtSvids[0].JWTSvidFilename)
 	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFilename)
-	assert.Equal(t, expectedJWTAudience, c.JWTAudience)
+	assert.Equal(t, expectedJWTAudience, c.JwtSvids[0].JWTAudience)
 	assert.True(t, c.AddIntermediatesToBundle)
 }
 
@@ -59,9 +59,11 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "no error",
 			config: &Config{
-				AgentAddress:      "path",
-				JWTAudience:       "your-audience",
-				JWTSvidFilename:   "jwt.token",
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTSvidFilename: "jwt.token",
+					JWTAudience:     "your-audience",
+				}},
 				JWTBundleFilename: "bundle.json",
 			},
 		},
@@ -70,7 +72,7 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress: "path",
 			},
-			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience'), or ('jwt_bundle_file_name') must be fully specified",
+			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified",
 		},
 		{
 			name: "missing svid config",
@@ -81,12 +83,24 @@ func TestValidateConfig(t *testing.T) {
 			expectError: "all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified",
 		},
 		{
-			name: "missing jwt config",
+			name: "missing jwt audience",
 			config: &Config{
-				AgentAddress:    "path",
-				JWTSvidFilename: "cert.pem",
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTSvidFilename: "jwt.token",
+				}},
 			},
-			expectError: "all or none of 'jwt_file_name', 'jwt_audience' must be specified",
+			expectError: "'jwt_audience' is required in 'jwt_svids'",
+		},
+		{
+			name: "missing jwt path",
+			config: &Config{
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTAudience: "my-audience",
+				}},
+			},
+			expectError: "'jwt_file_name' is required in 'jwt_svids'",
 		},
 		// Duplicated field error:
 		{
