@@ -11,21 +11,33 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update && apt install postgresql mysql-client -y
 
 RUN mkdir -p /run/client/certs
+RUN mkdir -p /run/client/plugin_certs
 COPY ./postgres-connect.sh /run/client/postgres-connect.sh
 COPY ./mysql-connect.sh /run/client/mysql-connect.sh
 COPY ./assert.sh /run/client/assert.sh
 
-RUN touch /run/client/certs/svid.crt /run/client/certs/svid.key /run/client/certs/root.crt
+RUN touch /run/client/certs/svid.crt /run/client/certs/svid.key /run/client/certs/root.crt \
+/run/client/certs/jwt.json /run/client/certs/jwk.json /run/client/plugin_certs/svid.crt \
+/run/client/plugin_certs/jwt.json /run/client/plugin_certs/jwk.json
 RUN chmod +x /run/client/postgres-connect.sh /run/client/mysql-connect.sh /run/client/assert.sh
-RUN chmod 600 /run/client/certs/svid.crt /run/client/certs/svid.key /run/client/certs/root.crt
+RUN chmod 600 /run/client/certs/svid.crt /run/client/certs/svid.key /run/client/certs/root.crt \ 
+/run/client/certs/jwt.json /run/client/certs/jwk.json /run/client/plugin_certs/svid.crt \
+/run/client/plugin_certs/jwt.json /run/client/plugin_certs/jwk.json
 RUN chown client:client \
     /run/client/postgres-connect.sh \
     /run/client/mysql-connect.sh \
     /run/client/assert.sh \
     /run/client/certs/svid.crt \
     /run/client/certs/svid.key \
-    /run/client/certs/root.crt
+    /run/client/certs/root.crt \
+    /run/client/certs/jwt.json \
+    /run/client/certs/jwk.json \
+    /run/client/plugin_certs/svid.crt \
+    /run/client/plugin_certs/jwt.json \
+    /run/client/plugin_certs/jwk.json
+
 
 USER root
 COPY --from=it-spiffe-helper /service/spiffe-helper /opt/helper/spiffe-helper
+COPY --from=it-spiffe-helper /service/simple-plugin /opt/helper/simple-plugin
 COPY --from=builder /service/client /opt/go-client/client

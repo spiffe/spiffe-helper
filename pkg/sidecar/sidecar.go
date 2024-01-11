@@ -11,15 +11,18 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	pb "github.com/spiffe/spiffe-helper/pkg/notifier"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -38,10 +41,12 @@ type Sidecar struct {
 	processRunning int32
 	process        *os.Process
 	certReadyChan  chan struct{}
+	plugins        map[string]*pb.NotifierServer
+	ctx            context.Context
 }
 
 // New creates a new SPIFFE sidecar
-func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
+func New(ctx context.Context, configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	config, err := ParseConfig(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
@@ -68,10 +73,15 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 		config.Log.Warn("No cmd defined to execute.")
 	}
 
-	return &Sidecar{
+	sidecar := &Sidecar{
+		ctx:           ctx,
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
-	}, nil
+		plugins:       make(map[string]*pb.NotifierServer),
+	}
+	sidecar.loadPlugins()
+
+	return sidecar, nil
 }
 
 // RunDaemon starts the main loop
@@ -140,6 +150,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		return
 	}
 	s.config.Log.Info("X.509 certificates updated")
+	s.notifyX509Update()
 
 	if s.config.Cmd != "" {
 		if err := s.signalProcess(); err != nil {
@@ -193,6 +204,75 @@ func (s *Sidecar) signalProcess() (err error) {
 	return nil
 }
 
+func (s *Sidecar) loadPlugins() {
+	for pluginName, pluginConfig := range s.config.Plugins {
+		pluginPath := pluginConfig["path"]
+		if pluginPath == "" {
+			s.config.Log.Warnf("Please provide a path for plugin %s", pluginName)
+			continue
+		}
+
+		checksum := pluginConfig["checksum"]
+		if checksum == "" {
+			s.config.Log.Warnf("Please provide a checksum for plugin %s", pluginName)
+			continue
+		}
+
+		if _, typeIsPresent := pluginConfig["type"]; typeIsPresent {
+			s.config.Log.Warnf("Please update the configuration for plugin %s, type is a reserved configuration name", pluginName)
+			continue
+		}
+
+		secureConfig, err := pb.GetSecureConfig(checksum)
+		if err != nil {
+			s.config.Log.Warnf("Error while trying to create secure config for plugin %s", pluginName)
+			continue
+		}
+
+		request := &pb.LoadConfigsRequest{}
+		request.Configs = pluginConfig
+		request.Configs["cert_dir"] = s.config.CertDir
+		request.Configs["add_intermediates_to_bundle"] = strconv.FormatBool(s.config.AddIntermediatesToBundle)
+		request.Configs["svid_file_name"] = s.config.SvidFileName
+		request.Configs["svid_key_file_name"] = s.config.SvidKeyFileName
+		request.Configs["svid_bundle_file_name"] = s.config.SvidBundleFileName
+		request.Configs["jwt_audience"] = s.config.JWTAudience
+		request.Configs["jwt_svid_file_name"] = s.config.JWTSvidFilename
+		request.Configs["jwt_bundle_file_name"] = s.config.JWTBundleFilename
+
+		client := plugin.NewClient(&plugin.ClientConfig{
+			HandshakeConfig:  pb.GetHandshakeConfig(),
+			Plugins:          pb.GetPluginMap(),
+			Cmd:              exec.Command(pluginPath),
+			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+			SecureConfig:     secureConfig,
+		})
+
+		RPCClient, err := client.Client()
+		if err != nil {
+			s.config.Log.Warn(err)
+			continue
+		}
+
+		raw, err := RPCClient.Dispense("plugin")
+		if err != nil {
+			s.config.Log.Warn(err)
+			continue
+		}
+
+		notifier := raw.(pb.NotifierServer)
+		response, err := notifier.LoadConfigs(s.ctx, request)
+		if err != nil {
+			s.config.Log.Warnf("Failed to load configs into plugin %s", pluginName)
+			continue
+		}
+
+		s.plugins[pluginName] = &notifier
+
+		s.config.Log.Infof("Plugin %s loaded %s", pluginName, response)
+	}
+}
+
 func (s *Sidecar) checkProcessExit() {
 	atomic.StoreInt32(&s.processRunning, 1)
 	_, err := s.process.Wait()
@@ -201,6 +281,45 @@ func (s *Sidecar) checkProcessExit() {
 	}
 
 	atomic.StoreInt32(&s.processRunning, 0)
+}
+
+func (s *Sidecar) notifyX509Update() {
+	for pluginName := range s.plugins {
+		plugin := *s.plugins[pluginName]
+		ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+		defer cancel()
+		_, err := plugin.UpdateX509SVID(ctx, &pb.UpdateX509SVIDRequest{})
+		if err != nil {
+			s.config.Log.Warnf("Failed to update x509 svid to plugin %s", pluginName)
+			continue
+		}
+	}
+}
+
+func (s *Sidecar) notifyJWTSVIDUpdate() {
+	for pluginName := range s.plugins {
+		plugin := *s.plugins[pluginName]
+		ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+		defer cancel()
+		_, err := plugin.UpdateJWTSVID(ctx, &pb.UpdateJWTSVIDRequest{})
+		if err != nil {
+			s.config.Log.Warnf("Failed to update jwt svid to plugin %s", pluginName)
+			continue
+		}
+	}
+}
+
+func (s *Sidecar) notifyJWTBundleUpdate() {
+	for pluginName := range s.plugins {
+		plugin := *s.plugins[pluginName]
+		ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+		defer cancel()
+		_, err := plugin.UpdateJWTBundle(ctx, &pb.UpdateJWTBundleRequest{})
+		if err != nil {
+			s.config.Log.Warnf("Failed to update jwt bundle to plugin %s", pluginName)
+			continue
+		}
+	}
 }
 
 // dumpBundles takes a X509SVIDResponse, representing a svid message from
@@ -278,6 +397,7 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 		s.config.Log.Errorf("Unable to write JSON file: %v", err)
 	} else {
 		s.config.Log.Info("JWT bundle updated")
+		s.notifyJWTBundleUpdate()
 	}
 }
 
@@ -335,6 +455,8 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 	}
 
 	s.config.Log.Info("JWT SVID updated")
+	s.notifyJWTSVIDUpdate()
+
 	return jwtSVID, nil
 }
 

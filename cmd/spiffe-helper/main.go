@@ -34,9 +34,9 @@ func startSidecar(configPath string, log logrus.FieldLogger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	spiffeSidecar, err := sidecar.New(configPath, log)
+	spiffeSidecar, err := sidecar.New(ctx, configPath, log)
 	if err != nil {
-		return fmt.Errorf("Failed to create sidecar: %w", err)
+		return fmt.Errorf("failed to create sidecar: %w", err)
 	}
 
 	return spiffeSidecar.RunDaemon(ctx)
