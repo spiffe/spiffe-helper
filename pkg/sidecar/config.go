@@ -33,14 +33,18 @@ type Config struct {
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
 
 	// JWT configuration
-	JWTAudience       string `hcl:"jwt_audience"`
-	JWTSvidFilename   string `hcl:"jwt_svid_file_name"`
-	JWTBundleFilename string `hcl:"jwt_bundle_file_name"`
+	JwtSvids          []JwtConfig `hcl:"jwt_svids"`
+	JWTBundleFilename string      `hcl:"jwt_bundle_file_name"`
 
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	Log logrus.FieldLogger
+}
+
+type JwtConfig struct {
+	JWTAudience     string `hcl:"jwt_audience"`
+	JWTSvidFilename string `hcl:"jwt_svid_file_name"`
 }
 
 // ParseConfig parses the given HCL file into a SidecarConfig struct
@@ -121,19 +125,23 @@ func ValidateConfig(c *Config) error {
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
+	for _, jwtConfig := range c.JwtSvids {
+		if jwtConfig.JWTSvidFilename == "" {
+			return errors.New("'jwt_file_name' is required in 'jwt_svids'")
+		}
+		if jwtConfig.JWTAudience == "" {
+			return errors.New("'jwt_audience' is required in 'jwt_svids'")
+		}
+	}
+
 	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
-	jwtSVIDEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTAudience)
 	jwtBundleEmptyCount := countEmpty(c.SvidBundleFileName)
-	if x509EmptyCount == 3 && jwtSVIDEmptyCount == 2 && jwtBundleEmptyCount == 1 {
-		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), ('jwt_file_name', 'jwt_audience'), or ('jwt_bundle_file_name') must be fully specified")
+	if x509EmptyCount == 3 && len(c.JwtSvids) == 0 && jwtBundleEmptyCount == 1 {
+		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
 	if x509EmptyCount != 0 && x509EmptyCount != 3 {
 		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
-	}
-
-	if jwtSVIDEmptyCount != 0 && jwtSVIDEmptyCount != 2 {
-		return errors.New("all or none of 'jwt_file_name', 'jwt_audience' must be specified")
 	}
 
 	return nil
