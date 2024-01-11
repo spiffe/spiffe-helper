@@ -1,5 +1,6 @@
 # Build the spiffe-helper binary
-FROM --platform=$BUILDPLATFORM golang:1.21.5-alpine as base
+ARG go_version
+FROM --platform=$BUILDPLATFORM golang:${go_version}-alpine as base
 WORKDIR /workspace
 
 # Cache deps before building and copying source so that we don't need to re-download as much

@@ -190,6 +190,7 @@ container-builder: ## Create a buildx node to create crossplatform images.
 spiffe-helper-image.tar: Dockerfile FORCE | container-builder
 	$(CONTAINER_TOOL) buildx build \
 		--platform $(PLATFORMS) \
+		--build-arg go_version=$(go_version) \
 		--target spiffe-helper \
 		-o type=oci,dest=$@ \
 	    .
