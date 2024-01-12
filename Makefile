@@ -1,5 +1,6 @@
 export GO111MODULE=on
 DIR := ${CURDIR}
+PLATFORMS ?= linux/amd64,linux/arm64
 
 E:=@
 ifeq ($(V),1)
@@ -41,6 +42,15 @@ help:
 	@echo "For verbose output set V=1"
 	@echo "  for example: $(cyan)make V=1 build$(reset)"
 
+# Used to force some rules to run every time
+.PHONY: FORCE
+FORCE: ;
+
+# CONTAINER_TOOL defines the container tool to be used for building images.
+# Be aware that the target commands are only tested with Docker which is
+# scaffolded by default. However, you might want to replace it to use other
+# tools. (i.e. podman)
+CONTAINER_TOOL ?= docker
 
 ############################################################################
 # OS/ARCH detection
@@ -167,10 +177,26 @@ lint-code: $(golangci_lint_bin) | go-check
 # Build targets
 ############################################################################
 
-.PHONY: build test clean distclean artifact tarball rpm
+.PHONY: build test clean distclean artifact tarball rpm docker-build container-builder load-images
 
 build: | go-check
 	CGO_ENABLED=0 go build -o spiffe-helper${exe} ./cmd/spiffe-helper
+
+docker-build: $(addsuffix -image.tar, spiffe-helper) ## Build docker image with spiffe-helper.
+
+container-builder: ## Create a buildx node to create crossplatform images.
+	$(CONTAINER_TOOL) buildx create --platform $(PLATFORMS) --name container-builder --node container-builder0 --use
+
+spiffe-helper-image.tar: Dockerfile FORCE | container-builder
+	$(CONTAINER_TOOL) buildx build \
+		--platform $(PLATFORMS) \
+		--build-arg go_version=$(go_version) \
+		--target spiffe-helper \
+		-o type=oci,dest=$@ \
+	    .
+
+load-images: $(addsuffix -image.tar,$(BINARIES)) ## Load the image for your current PLATFORM into docker from the cross-platform oci tar.
+	./.github/workflows/scripts/load-oci-archives.sh
 
 artifact: tarball rpm
 
