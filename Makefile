@@ -170,7 +170,7 @@ lint-code: $(golangci_lint_bin) | go-check
 .PHONY: build test clean distclean artifact tarball rpm
 
 build: | go-check
-	go build -o spiffe-helper${exe} ./cmd/spiffe-helper
+	CGO_ENABLED=0 go build -o spiffe-helper${exe} ./cmd/spiffe-helper
 
 artifact: tarball rpm
 
