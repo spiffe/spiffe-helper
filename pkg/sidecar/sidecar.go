@@ -232,17 +232,15 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	}
 
 	// If using federated domains, add them to the CA bundle
-	if s.config.FederatedTrustDomains {
+	if s.config.IncludeFederatedDomains {
 		bundleSets := svidResponse.Bundles.Bundles()
 		for _,bundle := range bundleSets {
 			//The bundle corresponding to svid.ID.TrustDomain is already stored
-			if bundle.TrustDomain().String() != svid.ID.TrustDomain().String() {
+			if bundle.TrustDomain().Name() != svid.ID.TrustDomain().Name() {
 				bundles = append(bundles, bundle.X509Authorities()...)
 			}
 		}
 	}
-
-
 
 	if err := writeCerts(svidFile, certs); err != nil {
 		return err

@@ -29,6 +29,10 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	// Create an intermediate certificate
 	domain1Inter := domain1CA.CreateCA()
 	domain1Bundle := domain1CA.Roots()
+	
+	//Used for testing federated trust domains
+	domain2CA := spiffetest.NewCA(t)
+	domain2Bundle := domain2CA.Roots()
 
 	// Svid with intermediate
 	spiffeIDWithIntermediate, err := spiffeid.FromString("spiffe://example.test/workloadWithIntermediate")
@@ -62,6 +66,11 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 	}
 
+	bundleWithFederatedDomains := append(domain1Bundle, domain2Bundle[0:]...)
+	//Used to create an additional bundle when testing federated trust domains
+	federatedSpiffeID, err := spiffeid.FromString("spiffe://foo.test/server")
+	require.NoError(t, err)
+
 	tmpdir := t.TempDir()
 
 	log, _ := test.NewNullLogger()
@@ -90,6 +99,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		bundle               []*x509.Certificate
 		renewSignal          string
 		intermediateInBundle bool
+		federatedDomains     bool
 	}{
 		{
 			name: "svid with intermediate",
@@ -147,6 +157,17 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			bundle:      domain1Bundle,
 			renewSignal: "SIGHUP",
 		},
+		{
+			name: "svid with federated trust domains",
+			response: &workloadapi.X509Context{
+				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), domain1CA.Roots()), x509bundle.FromX509Authorities(federatedSpiffeID.TrustDomain(), domain2CA.Roots())),
+				SVIDs:   svid,
+			},
+			certs:       svidChain,
+			key:         svidKey,
+			bundle:      bundleWithFederatedDomains,
+			federatedDomains: true,
+		},
 	}
 
 	svidFile := path.Join(tmpdir, config.SvidFileName)
@@ -160,6 +181,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			sidecar.config.AddIntermediatesToBundle = testCase.intermediateInBundle
 			sidecar.config.RenewSignal = testCase.renewSignal
+			sidecar.config.IncludeFederatedDomains = testCase.federatedDomains
 			// Push response to start updating process
 			// updateMockChan <- testCase.response.ToProto(t)
 			w.OnX509ContextUpdate(testCase.response)

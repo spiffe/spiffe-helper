@@ -31,7 +31,7 @@ type Config struct {
 	SvidBundleFileNameDeprecated       string `hcl:"svidBundleFileName"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
-	FederatedTrustDomains              bool   `hcl:"federated_trust_domains"`
+	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
 
 	// JWT configuration
 	JWTAudience       string `hcl:"jwt_audience"`
@@ -121,7 +121,6 @@ func ValidateConfig(c *Config) error {
 		c.Log.Warn(getWarning("renewSignal", "renew_signal"))
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
-
 
 	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
 	jwtSVIDEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTAudience)
