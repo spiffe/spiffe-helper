@@ -20,6 +20,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -213,9 +214,18 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	svidBundleFile := path.Join(s.config.CertDir, s.config.SvidBundleFileName)
 
 	certs := svid.Certificates
-	bundleSet, found := svidResponse.Bundles.Get(svid.ID.TrustDomain())
+	trust_domain := svid.ID.TrustDomain()
+
+	if s.config.FederatedTrustDomain != "" {
+		td, err := spiffeid.TrustDomainFromString(s.config.FederatedTrustDomain)
+		if err == nil {
+			trust_domain = td
+		}
+	}
+
+	bundleSet, found := svidResponse.Bundles.Get(trust_domain)
 	if !found {
-		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
+		return fmt.Errorf("no bundles found for %s trust domain", trust_domain.String())
 	}
 	bundles := bundleSet.X509Authorities()
 	privateKey, err := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
