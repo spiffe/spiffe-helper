@@ -242,11 +242,7 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 		return err
 	}
 
-	if err := writeCerts(svidBundleFile, bundles); err != nil {
-		return err
-	}
-
-	return nil
+	return writeCerts(svidBundleFile, bundles)
 }
 
 func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) error {
@@ -256,11 +252,8 @@ func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) error
 	}
 
 	jsonPath := path.Join(s.config.CertDir, fileName)
-	if err = os.WriteFile(jsonPath, file, os.ModePerm); err != nil {
-		return err
-	}
 
-	return nil
+	return os.WriteFile(jsonPath, file, os.ModePerm)
 }
 
 func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
