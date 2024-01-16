@@ -41,7 +41,7 @@ type Sidecar struct {
 }
 
 // New creates a new SPIFFE sidecar
-func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
+func New(configPath string, exitWhenReady bool, log logrus.FieldLogger) (*Sidecar, error) {
 	config, err := ParseConfig(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
@@ -67,6 +67,8 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	if config.Cmd == "" {
 		config.Log.Warn("No cmd defined to execute.")
 	}
+
+	config.ExitWhenReady = config.ExitWhenReady || exitWhenReady
 
 	return &Sidecar{
 		config:        config,
