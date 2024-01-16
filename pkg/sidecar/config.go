@@ -31,8 +31,7 @@ type Config struct {
 	SvidBundleFileNameDeprecated       string `hcl:"svidBundleFileName"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
-	FederatedTrustDomain               string `hcl:"federated_trust_domain"`
-	FederationBundleFile               string `hcl:"federation_bundle_file"`
+	FederatedTrustDomains              []string `hcl:"federated_trust_domains"`
 
 	// JWT configuration
 	JWTAudience       string `hcl:"jwt_audience"`
@@ -123,11 +122,6 @@ func ValidateConfig(c *Config) error {
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
-	if c.FederatedTrustDomain != "" {
-		if c.FederationBundleFile == "" {
-			return errors.New("federation_bundle_file must be used when using federated_trust_domain")
-		}
-	}
 
 	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
 	jwtSVIDEmptyCount := countEmpty(c.JWTSvidFilename, c.JWTAudience)
