@@ -29,8 +29,8 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	// Create an intermediate certificate
 	domain1Inter := domain1CA.CreateCA()
 	domain1Bundle := domain1CA.Roots()
-	
-	//Used for testing federated trust domains
+
+	// Used for testing federated trust domains
 	domain2CA := spiffetest.NewCA(t)
 	domain2Bundle := domain2CA.Roots()
 
@@ -66,8 +66,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 	}
 
-	bundleWithFederatedDomains := append(domain1Bundle, domain2Bundle[0:]...)
-	//Used to create an additional bundle when testing federated trust domains
+	bundleWithFederatedDomains := domain1CA.Roots()
+	bundleWithFederatedDomains = append(bundleWithFederatedDomains, domain2Bundle[0:]...)
+	// Used to create an additional bundle when testing federated trust domains
 	federatedSpiffeID, err := spiffeid.FromString("spiffe://foo.test/server")
 	require.NoError(t, err)
 
@@ -163,9 +164,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), domain1CA.Roots()), x509bundle.FromX509Authorities(federatedSpiffeID.TrustDomain(), domain2CA.Roots())),
 				SVIDs:   svid,
 			},
-			certs:       svidChain,
-			key:         svidKey,
-			bundle:      bundleWithFederatedDomains,
+			certs:            svidChain,
+			key:              svidKey,
+			bundle:           bundleWithFederatedDomains,
 			federatedDomains: true,
 		},
 	}
