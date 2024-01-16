@@ -41,7 +41,7 @@ type Sidecar struct {
 }
 
 // New creates a new SPIFFE sidecar
-func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
+func New(configPath string, exitWhenReady bool, log logrus.FieldLogger) (*Sidecar, error) {
 	config, err := ParseConfig(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
@@ -67,6 +67,8 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 	if config.Cmd == "" {
 		config.Log.Warn("No cmd defined to execute.")
 	}
+
+	config.ExitWhenReady = config.ExitWhenReady || exitWhenReady
 
 	return &Sidecar{
 		config:        config,
@@ -103,7 +105,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		}()
 	}
 
-	if s.config.JWTSvidFilename != "" && s.config.JWTAudience != "" {
+	if len(s.config.JwtSvids) > 0 {
 		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAdress()))
 		if err != nil {
 			s.config.Log.Fatalf("Error watching JWT svid updates: %v", err)
@@ -111,11 +113,14 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		s.jwtSource = jwtSource
 		defer s.jwtSource.Close()
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			s.updateJWTSVID(ctx)
-		}()
+		for _, jwtConfig := range s.config.JwtSvids {
+			jwtConfig := jwtConfig
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSvidFilename)
+			}()
+		}
 	}
 
 	wg.Wait()
@@ -291,14 +296,14 @@ func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
 	}
 }
 
-func (s *Sidecar) fetchJWTSVID(ctx context.Context) (*jwtsvid.SVID, error) {
-	jwtSVID, err := s.jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{Audience: s.config.JWTAudience})
+func (s *Sidecar) fetchJWTSVIDs(ctx context.Context, jwtAudience string) (*jwtsvid.SVID, error) {
+	jwtSVID, err := s.jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{Audience: jwtAudience})
 	if err != nil {
 		s.config.Log.Errorf("Unable to fetch JWT SVID: %v", err)
 		return nil, err
 	}
 
-	_, err = jwtsvid.ParseAndValidate(jwtSVID.Marshal(), s.jwtSource, []string{s.config.JWTAudience})
+	_, err = jwtsvid.ParseAndValidate(jwtSVID.Marshal(), s.jwtSource, []string{jwtAudience})
 	if err != nil {
 		s.config.Log.Errorf("Unable to parse or validate token: %v", err)
 		return nil, err
@@ -329,16 +334,16 @@ func getRefreshInterval(svid *jwtsvid.SVID) time.Duration {
 	return time.Until(svid.Expiry)/2 + time.Second
 }
 
-func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context) (*jwtsvid.SVID, error) {
+func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, jwtSvidFilename string) (*jwtsvid.SVID, error) {
 	s.config.Log.Debug("Updating JWT SVID")
 
-	jwtSVID, err := s.fetchJWTSVID(ctx)
+	jwtSVID, err := s.fetchJWTSVIDs(ctx, jwtAudience)
 	if err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		return nil, err
 	}
 
-	filePath := path.Join(s.config.CertDir, s.config.JWTSvidFilename)
+	filePath := path.Join(s.config.CertDir, jwtSvidFilename)
 	if err = os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		return nil, err
@@ -348,10 +353,10 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context) (*jwtsvid.SVID, erro
 	return jwtSVID, nil
 }
 
-func (s *Sidecar) updateJWTSVID(ctx context.Context) {
+func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtSvidFilename string) {
 	retryInterval := createRetryIntervalFunc()
 	var initialInterval time.Duration
-	jwtSVID, err := s.performJWTSVIDUpdate(ctx)
+	jwtSVID, err := s.performJWTSVIDUpdate(ctx, jwtAudience, jwtSvidFilename)
 	if err != nil {
 		// If the first update fails, use the retry interval
 		initialInterval = retryInterval()
@@ -367,7 +372,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			jwtSVID, err = s.performJWTSVIDUpdate(ctx)
+			jwtSVID, err = s.performJWTSVIDUpdate(ctx, jwtAudience, jwtSvidFilename)
 			if err == nil {
 				retryInterval = createRetryIntervalFunc()
 				ticker.Reset(getRefreshInterval(jwtSVID))
