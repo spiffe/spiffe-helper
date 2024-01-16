@@ -180,7 +180,7 @@ lint-code: $(golangci_lint_bin) | go-check
 .PHONY: build test clean distclean artifact tarball rpm docker-build container-builder load-images
 
 build: | go-check
-	go build -o spiffe-helper${exe} ./cmd/spiffe-helper
+	CGO_ENABLED=0 go build -o spiffe-helper${exe} ./cmd/spiffe-helper
 
 docker-build: $(addsuffix -image.tar, spiffe-helper) ## Build docker image with spiffe-helper.
 

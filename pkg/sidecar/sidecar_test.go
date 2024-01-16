@@ -194,14 +194,22 @@ func TestSidecar_RunDaemon(t *testing.T) {
 
 func TestDefaultAgentAddress(t *testing.T) {
 	log, _ := test.NewNullLogger()
-	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", log)
+	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", false, log)
 	require.NoError(t, err)
 	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/spire-agent/public/api.sock")
 }
+
+func TestExitOnWaitFlag(t *testing.T) {
+	log, _ := test.NewNullLogger()
+	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", true, log)
+	require.NoError(t, err)
+	assert.Equal(t, spiffeSidecar.config.ExitWhenReady, true)
+}
+
 func TestEnvAgentAddress(t *testing.T) {
 	os.Setenv("SPIRE_AGENT_ADDRESS", "/tmp/spire-agent/public/api.sock")
 	log, _ := test.NewNullLogger()
-	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", log)
+	spiffeSidecar, err := New("../../test/sidecar/config/helper.conf", false, log)
 	require.NoError(t, err)
 	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/spire-agent/public/api.sock")
 }
@@ -210,7 +218,7 @@ func TestAgentAddress(t *testing.T) {
 	// This test is used to verify that we get the agent_address of the .conf file instead of the ENV value, if we have both
 	os.Setenv("SPIRE_AGENT_ADDRESS", "/tmp/spire-agent/public/api.sock")
 	log, _ := test.NewNullLogger()
-	spiffeSidecar, err := New("../../test/sidecar/configWithAddress/helper.conf", log)
+	spiffeSidecar, err := New("../../test/sidecar/configWithAddress/helper.conf", false, log)
 	require.NoError(t, err)
 	assert.Equal(t, spiffeSidecar.config.AgentAddress, "/tmp/spire-agent/public/api.sock")
 }
