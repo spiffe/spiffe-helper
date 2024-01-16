@@ -20,7 +20,6 @@ import (
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -214,10 +213,12 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	svidBundleFile := path.Join(s.config.CertDir, s.config.SvidBundleFileName)
 
 	certs := svid.Certificates
+
 	bundleSet, found := svidResponse.Bundles.Get(svid.ID.TrustDomain())
 	if !found {
 		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
 	}
+	
 	bundles := bundleSet.X509Authorities()
 	privateKey, err := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
 	if err != nil {
@@ -231,24 +232,17 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	}
 
 	// If using federated domains, add them to the CA bundle
-	if len(s.config.FederatedTrustDomains) > 0 {
-		for _,trustDomain := range s.config.FederatedTrustDomains {
-			federatedTrustDomain, err := spiffeid.TrustDomainFromString(trustDomain)
-			if err == nil {
-				federationBundleSet, foundFederatedBundle := svidResponse.Bundles.Get(federatedTrustDomain)
-
-				if !foundFederatedBundle {
-					return fmt.Errorf("no bundles found for %s trust domain", federatedTrustDomain.String())
-				}
-
-				federationBundles := federationBundleSet.X509Authorities()
-				bundles = append(bundles, federationBundles[0:]...)
-
-			} else {
-				return err
+	if s.config.FederatedTrustDomains {
+		bundleSets := svidResponse.Bundles.Bundles()
+		for _,bundle := range bundleSets {
+			//The bundle corresponding to svid.ID.TrustDomain is already stored
+			if bundle.TrustDomain().String() != svid.ID.TrustDomain().String() {
+				bundles = append(bundles, bundle.X509Authorities()...)
 			}
 		}
 	}
+
+
 
 	if err := writeCerts(svidFile, certs); err != nil {
 		return err
