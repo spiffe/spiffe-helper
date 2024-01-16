@@ -214,18 +214,9 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	svidBundleFile := path.Join(s.config.CertDir, s.config.SvidBundleFileName)
 
 	certs := svid.Certificates
-	trust_domain := svid.ID.TrustDomain()
-
-	if s.config.FederatedTrustDomain != "" {
-		td, err := spiffeid.TrustDomainFromString(s.config.FederatedTrustDomain)
-		if err == nil {
-			trust_domain = td
-		}
-	}
-
-	bundleSet, found := svidResponse.Bundles.Get(trust_domain)
+	bundleSet, found := svidResponse.Bundles.Get(svid.ID.TrustDomain())
 	if !found {
-		return fmt.Errorf("no bundles found for %s trust domain", trust_domain.String())
+		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
 	}
 	bundles := bundleSet.X509Authorities()
 	privateKey, err := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
@@ -249,6 +240,27 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 
 	if err := writeCerts(svidBundleFile, bundles); err != nil {
 		return err
+	}
+
+	if s.config.FederatedTrustDomain != "" {
+		federatedTrustDomain, err := spiffeid.TrustDomainFromString(s.config.FederatedTrustDomain)
+		if err == nil {
+			federationBundleSet, foundFederatedBundle := svidResponse.Bundles.Get(federatedTrustDomain)
+
+			if !foundFederatedBundle {
+				return fmt.Errorf("no bundles found for %s trust domain", federatedTrustDomain.String())
+			}
+
+			federationBundles := federationBundleSet.X509Authorities()
+
+			federationBundleFile := path.Join(s.config.CertDir, s.config.FederationBundleFile)
+			if err := writeCerts(federationBundleFile, federationBundles); err != nil {
+				return err
+			}
+
+		} else {
+			return err
+		}
 	}
 
 	return nil
