@@ -79,6 +79,16 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
+	s.run(ctx)
+
+	if s.config.ExitWhenJwtReady {
+		os.Exit(0)
+	}
+
+	return nil
+}
+
+func (s *Sidecar) run(ctx context.Context) {
 	var wg sync.WaitGroup
 
 	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
@@ -122,12 +132,6 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	}
 
 	wg.Wait()
-
-	if s.config.ExitWhenJwtReady {
-		os.Exit(0)
-	}
-
-	return nil
 }
 
 // CertReadyChan returns a channel to know when the certificates are ready
