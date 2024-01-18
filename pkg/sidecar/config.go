@@ -10,14 +10,16 @@ import (
 
 // Config contains config variables when creating a SPIFFE Sidecar.
 type Config struct {
-	AgentAddress           string `hcl:"agent_address"`
-	AgentAddressDeprecated string `hcl:"agentAddress"`
-	Cmd                    string `hcl:"cmd"`
-	CmdArgs                string `hcl:"cmd_args"`
-	CmdArgsDeprecated      string `hcl:"cmdArgs"`
-	CertDir                string `hcl:"cert_dir"`
-	CertDirDeprecated      string `hcl:"certDir"`
-	ExitWhenReady          bool   `hcl:"exit_when_ready"`
+	AgentAddress            string `hcl:"agent_address"`
+	AgentAddressDeprecated  string `hcl:"agentAddress"`
+	Cmd                     string `hcl:"cmd"`
+	CmdArgs                 string `hcl:"cmd_args"`
+	CmdArgsDeprecated       string `hcl:"cmdArgs"`
+	CertDir                 string `hcl:"cert_dir"`
+	CertDirDeprecated       string `hcl:"certDir"`
+	ExitWhenReadyDeprecated bool   `hcl:"exit_when_ready"`
+	ExitWhenCertReady       bool   `hcl:"exit_when_cert_ready"`
+	ExitWhenJwtReady        bool   `hcl:"exit_when_jwt_ready"`
 	// Merge intermediate certificates into Bundle file instead of SVID file,
 	// it is useful is some scenarios like MySQL,
 	// where this is the expected format for presented certificates and bundles
@@ -142,6 +144,13 @@ func ValidateConfig(c *Config) error {
 
 	if x509EmptyCount != 0 && x509EmptyCount != 3 {
 		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
+	}
+
+	if c.ExitWhenReadyDeprecated {
+		c.Log.Warn(getWarning("exit_when_ready", "exit_when_cert_ready"))
+	}
+	if (c.ExitWhenReadyDeprecated || c.ExitWhenCertReady) && c.ExitWhenJwtReady {
+		return errors.New("'exit_when_cert_ready' (or 'exit_when_ready') and 'exit_when_jwt_ready' cannot both be configured")
 	}
 
 	return nil

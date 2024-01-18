@@ -290,6 +290,58 @@ func TestValidateConfig(t *testing.T) {
 				Message: "renewSignal will be deprecated, should be used as renew_signal",
 			}},
 		},
+		{
+			name: "Using ExitWhenReady",
+			config: &Config{
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTSvidFilename: "jwt.token",
+					JWTAudience:     "your-audience",
+				}},
+				JWTBundleFilename:       "bundle.json",
+				ExitWhenReadyDeprecated: true,
+			},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "exit_when_ready will be deprecated, should be used as exit_when_cert_ready",
+				},
+			},
+		},
+		{
+			name: "Using ExitWhenCertReady and ExitWhenJwtReady",
+			config: &Config{
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTSvidFilename: "jwt.token",
+					JWTAudience:     "your-audience",
+				}},
+				JWTBundleFilename: "bundle.json",
+				ExitWhenCertReady: true,
+				ExitWhenJwtReady:  true,
+			},
+			expectError: "'exit_when_cert_ready' (or 'exit_when_ready') and 'exit_when_jwt_ready' cannot both be configured",
+		},
+		{
+			name: "Using ExitWhenReady and ExitWhenJwtReady",
+			config: &Config{
+				AgentAddress: "path",
+				JwtSvids: []JwtConfig{{
+					JWTSvidFilename: "jwt.token",
+					JWTAudience:     "your-audience",
+				}},
+				JWTBundleFilename:       "bundle.json",
+				ExitWhenReadyDeprecated: true,
+				ExitWhenJwtReady:        true,
+			},
+			expectLogs: []shortEntry{
+				{
+					Level:   logrus.WarnLevel,
+					Message: "exit_when_ready will be deprecated, should be used as exit_when_cert_ready",
+				},
+			},
+			expectError: "'exit_when_cert_ready' (or 'exit_when_ready') and 'exit_when_jwt_ready' cannot both be configured",
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			log, hook := test.NewNullLogger()

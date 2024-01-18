@@ -123,6 +123,10 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 
 	wg.Wait()
 
+	if s.config.ExitWhenJwtReady {
+		os.Exit(0)
+	}
+
 	return nil
 }
 
@@ -147,7 +151,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		}
 	}
 
-	if s.config.ExitWhenReady {
+	if s.config.ExitWhenCertReady {
 		os.Exit(0)
 	}
 
