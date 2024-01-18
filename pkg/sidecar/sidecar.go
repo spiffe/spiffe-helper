@@ -78,14 +78,12 @@ func New(configPath string, log logrus.FieldLogger) (*Sidecar, error) {
 // Starts the workload API client to listen for new SVID updates
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
-func (s *Sidecar) RunDaemon(ctx context.Context) error {
+func (s *Sidecar) RunDaemon(ctx context.Context) {
 	s.run(ctx)
 
 	if s.config.ExitWhenJwtReady {
 		os.Exit(0)
 	}
-
-	return nil
 }
 
 func (s *Sidecar) run(ctx context.Context) {
