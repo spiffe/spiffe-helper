@@ -298,8 +298,8 @@ func TestValidateConfig(t *testing.T) {
 					JWTSvidFilename: "jwt.token",
 					JWTAudience:     "your-audience",
 				}},
-				JWTBundleFilename:       "bundle.json",
-				ExitWhenReadyDeprecated: true,
+				JWTBundleFilename: "bundle.json",
+				ExitWhenReady:     true,
 			},
 			expectLogs: []shortEntry{
 				{
@@ -330,9 +330,9 @@ func TestValidateConfig(t *testing.T) {
 					JWTSvidFilename: "jwt.token",
 					JWTAudience:     "your-audience",
 				}},
-				JWTBundleFilename:       "bundle.json",
-				ExitWhenReadyDeprecated: true,
-				ExitWhenJwtReady:        true,
+				JWTBundleFilename: "bundle.json",
+				ExitWhenReady:     true,
+				ExitWhenJwtReady:  true,
 			},
 			expectLogs: []shortEntry{
 				{
