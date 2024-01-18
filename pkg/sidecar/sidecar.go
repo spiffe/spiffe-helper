@@ -153,7 +153,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		}
 	}
 
-	if s.config.ExitWhenCertReady {
+	if s.config.ExitWhenReady || s.config.ExitWhenCertReady {
 		os.Exit(0)
 	}
 
