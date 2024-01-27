@@ -31,6 +31,7 @@ type Config struct {
 	SvidBundleFileNameDeprecated       string `hcl:"svidBundleFileName"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
+	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
 
 	// JWT configuration
 	JwtSvids          []JwtConfig `hcl:"jwt_svids"`

@@ -218,10 +218,12 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	svidBundleFile := path.Join(s.config.CertDir, s.config.SvidBundleFileName)
 
 	certs := svid.Certificates
+
 	bundleSet, found := svidResponse.Bundles.Get(svid.ID.TrustDomain())
 	if !found {
 		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
 	}
+
 	bundles := bundleSet.X509Authorities()
 	privateKey, err := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
 	if err != nil {
@@ -232,6 +234,17 @@ func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
 	if s.config.AddIntermediatesToBundle {
 		bundles = append(bundles, certs[1:]...)
 		certs = []*x509.Certificate{certs[0]}
+	}
+
+	// If using federated domains, add them to the CA bundle
+	if s.config.IncludeFederatedDomains {
+		bundleSets := svidResponse.Bundles.Bundles()
+		for _, bundle := range bundleSets {
+			// The bundle corresponding to svid.ID.TrustDomain is already stored
+			if bundle.TrustDomain().Name() != svid.ID.TrustDomain().Name() {
+				bundles = append(bundles, bundle.X509Authorities()...)
+			}
+		}
 	}
 
 	if err := writeCerts(svidFile, certs); err != nil {

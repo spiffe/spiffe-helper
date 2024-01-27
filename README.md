@@ -32,6 +32,8 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  | `svid_bundle_file_name`       | File name to be used to store the X.509 SVID Bundle in PEM format.                                             | `"svid_bundle.pem"`                                                                                                                                                  |
  | `jwt_svids`                   | An array with the audience and file name to store the JWT SVIDs. File is Base64-encoded string).               | `[{jwt_audience="your-audience", jwt_svid_file_name="jwt_svid.token"}]`                                                                                              |
  | `jwt_bundle_file_name`        | File name to be used to store JWT Bundle in JSON format.                                                       | `"jwt_bundle.json"`                                                                                                                                                  |
+ | `include_federated_domains`   | Include trust domains from federated servers in the CA bundle.                                                 | `true`                                                                                                                                                               |
+ 
 
 ### Configuration example
 ```
