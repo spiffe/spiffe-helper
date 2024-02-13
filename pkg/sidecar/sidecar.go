@@ -11,17 +11,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"github.com/spiffe/spiffe-helper/pkg/disk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-)
-
-const (
-	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
 )
 
 // Sidecar is the component that consumes the Workload API and renews certs
@@ -35,39 +30,11 @@ type Sidecar struct {
 }
 
 // New creates a new SPIFFE sidecar
-func New(configPath string, exitWhenReady bool, log logrus.FieldLogger) (*Sidecar, error) {
-	config, err := ParseConfig(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse %q: %w", configPath, err)
-	}
-
-	if log == nil {
-		log = logrus.New()
-	}
-	config.Log = log
-
-	if err := ValidateConfig(config); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
-	}
-
-	if config.AgentAddress == "" {
-		config.AgentAddress = os.Getenv("SPIRE_AGENT_ADDRESS")
-		if config.AgentAddress == "" {
-			config.AgentAddress = defaultAgentAddress
-		}
-	}
-
-	config.Log.WithField("agent_address", config.AgentAddress).Info("Connecting to agent")
-	if config.Cmd == "" {
-		config.Log.Warn("No cmd defined to execute.")
-	}
-
-	config.ExitWhenReady = config.ExitWhenReady || exitWhenReady
-
+func New(config *Config) *Sidecar {
 	return &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
-	}, nil
+	}
 }
 
 // RunDaemon starts the main loop
@@ -78,6 +45,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	var wg sync.WaitGroup
 
 	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
+		s.config.Log.Info("Watching for X509 Context")
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -140,10 +108,6 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		if err := s.signalProcess(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal process")
 		}
-	}
-
-	if s.config.ExitWhenReady {
-		os.Exit(0)
 	}
 
 	select {
