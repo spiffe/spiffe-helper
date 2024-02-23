@@ -114,9 +114,9 @@ func TestWriteX509Context(t *testing.T) {
 			}
 
 			if test.includeFederatedDomains {
-				federatedSpiffeID, err := spiffeid.FromString("spiffe://federated.test/server")
+				federatedTrustDomain := spiffeid.RequireTrustDomainFromString("federated.test")
 				require.NoError(t, err)
-				x509Context.Bundles.Add(x509bundle.FromX509Authorities(federatedSpiffeID.TrustDomain(), test.federatedCA.Roots()))
+				x509Context.Bundles.Add(x509bundle.FromX509Authorities(federatedTrustDomain, test.federatedCA.Roots()))
 				bundle = append(bundle, test.federatedCA.Roots()...)
 			}
 
