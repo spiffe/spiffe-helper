@@ -26,7 +26,6 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 
 	// There may be more than one certificate, but we're only interested in the default one
 	svid := x509Context.DefaultSVID()
-	certs := svid.Certificates
 
 	// Extract bundle for the default SVID
 	bundleSet, found := x509Context.Bundles.Get(svid.ID.TrustDomain())
@@ -42,6 +41,7 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 	}
 
 	// Add intermediates into bundles and remove them from certs
+	certs := svid.Certificates
 	if addIntermediatesToBundle {
 		bundles = append(bundles, certs[1:]...)
 		certs = []*x509.Certificate{certs[0]}
