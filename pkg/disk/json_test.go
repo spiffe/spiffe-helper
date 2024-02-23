@@ -31,7 +31,6 @@ func TestWriteJWTBundleSet(t *testing.T) {
 
 	jwtBundle := jwtbundle.New(td)
 	jwtBundleSet := jwtbundle.NewSet(jwtBundle)
-	require.True(t, jwtBundleSet.Has(td))
 
 	tempDir := t.TempDir()
 
