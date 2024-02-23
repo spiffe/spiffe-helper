@@ -30,7 +30,7 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 	// Extract bundle for the default SVID
 	bundleSet, found := x509Context.Bundles.Get(svid.ID.TrustDomain())
 	if !found {
-		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
+		return fmt.Errorf("no bundles found for %q trust domain", svid.ID.TrustDomain().String())
 	}
 	bundles := bundleSet.X509Authorities()
 
