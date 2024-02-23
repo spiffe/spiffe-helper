@@ -39,7 +39,7 @@ func WriteJWTSVID(jwtSVID *jwtsvid.SVID, dir, jwtSVIDFilename string) error {
 	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm)
 }
 
-func writeJSON(certs map[string]interface{}, dir, filename string) error {
+func writeJSON(certs map[string]any, dir, filename string) error {
 	file, err := json.Marshal(certs)
 	if err != nil {
 		return err
