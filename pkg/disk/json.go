@@ -19,7 +19,7 @@ func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename stri
 	for _, bundle := range jwkSet.Bundles() {
 		bytes, err := bundle.Marshal()
 		if err != nil {
-			errs = append(errs, fmt.Errorf("Unable to marshal JWT bundle: %w", err))
+			errs = append(errs, fmt.Errorf("unable to marshal JWT bundle: %w", err))
 			continue
 		}
 		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
