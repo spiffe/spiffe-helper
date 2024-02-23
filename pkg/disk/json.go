@@ -26,7 +26,7 @@ func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename stri
 	}
 
 	if err := writeJSON(bundles, dir, jwtBundleFilename); err != nil {
-		errs = append(errs, fmt.Errorf("Unable to write JSON file: %w", err))
+		errs = append(errs, fmt.Errorf("unable to write JSON file: %w", err))
 	}
 
 	return errors.Join(errs...)
