@@ -27,8 +27,7 @@ const (
 )
 
 func TestWriteJWTBundleSet(t *testing.T) {
-	td, err := spiffeid.TrustDomainFromString("example.test")
-	require.NoError(t, err)
+	td := spiffeid.RequireTrustDomainFromString("example.test")
 
 	jwtBundle := jwtbundle.New(td)
 	jwtBundleSet := jwtbundle.NewSet(jwtBundle)
@@ -36,7 +35,7 @@ func TestWriteJWTBundleSet(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	err = WriteJWTBundleSet(jwtBundleSet, tempDir, jwtBundleFilename)
+	err := WriteJWTBundleSet(jwtBundleSet, tempDir, jwtBundleFilename)
 	require.NoError(t, err)
 
 	actualJWTBundle, err := jwtbundle.Load(td, path.Join(tempDir, jwtBundleFilename))
@@ -45,8 +44,7 @@ func TestWriteJWTBundleSet(t *testing.T) {
 }
 
 func TestWriteJWTSVID(t *testing.T) {
-	spiffeID, err := spiffeid.FromString("spiffe://example.test/workload")
-	require.NoError(t, err)
+	spiffeID := spiffeid.RequireFromString("spiffe://example.test/workload")
 
 	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	require.NoError(t, err)
