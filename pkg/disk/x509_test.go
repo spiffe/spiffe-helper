@@ -78,6 +78,15 @@ func TestWriteX509Context(t *testing.T) {
 			intermediateInBundle:    false,
 		},
 		{
+			name:                    "SVID with federated trust domains but not included in bundle",
+			ca:                      rootCA,
+			federatedCA:             federatedCA,
+			spiffeIDString:          "spiffe://example.test/workload",
+			chainLength:             1,
+			includeFederatedDomains: false,
+			intermediateInBundle:    false,
+		},
+		{
 			name:                    "SVID with federated trust domains and intermediate in bundle",
 			ca:                      intermediateCA,
 			federatedCA:             federatedCA,
@@ -113,11 +122,13 @@ func TestWriteX509Context(t *testing.T) {
 				certs = certs[:1]
 			}
 
-			if test.includeFederatedDomains {
+			if test.federatedCA != nil {
 				federatedTrustDomain := spiffeid.RequireTrustDomainFromString("federated.test")
-				require.NoError(t, err)
 				x509Context.Bundles.Add(x509bundle.FromX509Authorities(federatedTrustDomain, test.federatedCA.Roots()))
-				bundle = append(bundle, test.federatedCA.Roots()...)
+
+				if test.includeFederatedDomains {
+					bundle = append(bundle, test.federatedCA.Roots()...)
+				}
 			}
 
 			err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename)
