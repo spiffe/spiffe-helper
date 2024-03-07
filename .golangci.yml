@@ -13,17 +13,21 @@ linters:
   enable:
     - bodyclose
     - depguard
+    - dupword
     - durationcheck
     - errorlint
+    - gocritic
+    - gofmt
     - goimports
-    - revive
     - gosec
     - misspell
     - nakedret
+    - nilerr
+    - prealloc
+    - revive
     - unconvert
     - unparam
     - whitespace
-    - gocritic
 
 linters-settings:
   revive:
