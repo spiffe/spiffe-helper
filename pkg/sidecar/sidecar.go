@@ -2,15 +2,10 @@ package sidecar
 
 import (
 	"context"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/csv"
-	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,13 +15,12 @@ import (
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	"github.com/spiffe/spiffe-helper/pkg/disk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	certsFileMode       = os.FileMode(0644)
-	keyFileMode         = os.FileMode(0600)
 	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
 )
 
@@ -136,8 +130,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
-	err := s.dumpBundles(svidResponse)
-	if err != nil {
+	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SvidFileName, s.config.SvidKeyFileName, s.config.SvidBundleFileName); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		return
 	}
@@ -205,90 +198,6 @@ func (s *Sidecar) checkProcessExit() {
 	atomic.StoreInt32(&s.processRunning, 0)
 }
 
-// dumpBundles takes a X509SVIDResponse, representing a svid message from
-// the Workload API, and calls writeCerts and writeKey to write to disk
-// the svid, key and bundle of certificates.
-// It is possible to change output setting `addIntermediatesToBundle` as true.
-func (s *Sidecar) dumpBundles(svidResponse *workloadapi.X509Context) error {
-	// There may be more than one certificate, but we are interested in the first one only
-	svid := svidResponse.DefaultSVID()
-
-	svidFile := path.Join(s.config.CertDir, s.config.SvidFileName)
-	svidKeyFile := path.Join(s.config.CertDir, s.config.SvidKeyFileName)
-	svidBundleFile := path.Join(s.config.CertDir, s.config.SvidBundleFileName)
-
-	certs := svid.Certificates
-
-	bundleSet, found := svidResponse.Bundles.Get(svid.ID.TrustDomain())
-	if !found {
-		return fmt.Errorf("no bundles found for %s trust domain", svid.ID.TrustDomain().String())
-	}
-
-	bundles := bundleSet.X509Authorities()
-	privateKey, err := x509.MarshalPKCS8PrivateKey(svid.PrivateKey)
-	if err != nil {
-		return err
-	}
-
-	// Add intermediates into bundles, and remove them from certs
-	if s.config.AddIntermediatesToBundle {
-		bundles = append(bundles, certs[1:]...)
-		certs = []*x509.Certificate{certs[0]}
-	}
-
-	// If using federated domains, add them to the CA bundle
-	if s.config.IncludeFederatedDomains {
-		bundleSets := svidResponse.Bundles.Bundles()
-		for _, bundle := range bundleSets {
-			// The bundle corresponding to svid.ID.TrustDomain is already stored
-			if bundle.TrustDomain().Name() != svid.ID.TrustDomain().Name() {
-				bundles = append(bundles, bundle.X509Authorities()...)
-			}
-		}
-	}
-
-	if err := writeCerts(svidFile, certs); err != nil {
-		return err
-	}
-
-	if err := writeKey(svidKeyFile, privateKey); err != nil {
-		return err
-	}
-
-	return writeCerts(svidBundleFile, bundles)
-}
-
-func (s *Sidecar) writeJSON(fileName string, certs map[string]interface{}) error {
-	file, err := json.Marshal(certs)
-	if err != nil {
-		return err
-	}
-
-	jsonPath := path.Join(s.config.CertDir, fileName)
-
-	return os.WriteFile(jsonPath, file, os.ModePerm)
-}
-
-func (s *Sidecar) updateJWTBundle(jwkSet *jwtbundle.Set) {
-	s.config.Log.Debug("Updating JWT bundle")
-
-	bundles := make(map[string]interface{})
-	for _, bundle := range jwkSet.Bundles() {
-		bytes, err := bundle.Marshal()
-		if err != nil {
-			s.config.Log.Errorf("Unable to marshal JWT bundle: %v", err)
-			continue
-		}
-		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
-	}
-
-	if err := s.writeJSON(s.config.JWTBundleFilename, bundles); err != nil {
-		s.config.Log.Errorf("Unable to write JSON file: %v", err)
-	} else {
-		s.config.Log.Info("JWT bundle updated")
-	}
-}
-
 func (s *Sidecar) fetchJWTSVIDs(ctx context.Context, jwtAudience string) (*jwtsvid.SVID, error) {
 	jwtSVID, err := s.jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{Audience: jwtAudience})
 	if err != nil {
@@ -336,8 +245,7 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 		return nil, err
 	}
 
-	filePath := path.Join(s.config.CertDir, jwtSvidFilename)
-	if err = os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm); err != nil {
+	if err = disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSvidFilename); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		return nil, err
 	}
@@ -397,32 +305,6 @@ func (w x509Watcher) OnX509ContextWatchError(err error) {
 	}
 }
 
-// writeCerts takes an array of certificates,
-// and encodes them as PEM blocks, writing them to file
-func writeCerts(file string, certs []*x509.Certificate) error {
-	var pemData []byte
-	for _, cert := range certs {
-		b := &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cert.Raw,
-		}
-		pemData = append(pemData, pem.EncodeToMemory(b)...)
-	}
-
-	return os.WriteFile(file, pemData, certsFileMode)
-}
-
-// writeKey takes a private key as a slice of bytes,
-// formats as PEM, and writes it to file
-func writeKey(file string, data []byte) error {
-	b := &pem.Block{
-		Type:  "EC PRIVATE KEY",
-		Bytes: data,
-	}
-
-	return os.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
-}
-
 // getCmdArgs receives the command line arguments as a string
 // and split it at spaces, except when the space is inside quotation marks
 func getCmdArgs(args string) ([]string, error) {
@@ -447,7 +329,13 @@ type JWTBundlesWatcher struct {
 
 // OnJWTBundlesUpdate is ran every time a bundle is updated
 func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
-	w.sidecar.updateJWTBundle(jwkSet)
+	w.sidecar.config.Log.Debug("Updating JWT bundle")
+	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename); err != nil {
+		w.sidecar.config.Log.Errorf("Error writing JWT Bundle to disk: %v", err)
+		return
+	}
+
+	w.sidecar.config.Log.Info("JWT bundle updated")
 }
 
 // OnJWTBundlesWatchError is ran when the client runs into an error
