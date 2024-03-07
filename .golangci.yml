@@ -2,28 +2,31 @@ run:
   # timeout for analysis, e.g. 30s, 5m, default is 1m
   deadline: 10m
 
-  skip-dirs:
+issues:
+  exclude-dirs:
     - testdata$
     - test/mock
-
-  skip-files:
+  exclude-files:
     - ".*\\.pb\\.go"
 
 linters:
   enable:
     - bodyclose
-    - depguard
+    - dupword
     - durationcheck
     - errorlint
+    - gocritic
+    - gofmt
     - goimports
-    - revive
     - gosec
     - misspell
     - nakedret
+    - nilerr
+    - prealloc
+    - revive
     - unconvert
     - unparam
     - whitespace
-    - gocritic
 
 linters-settings:
   revive:
