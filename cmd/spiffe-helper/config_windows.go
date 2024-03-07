@@ -1,4 +1,4 @@
-package  main
+package main
 
 func validateOSConfig(c *Config) error {
 	if c.RenewSignal != "" {

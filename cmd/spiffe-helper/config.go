@@ -30,6 +30,7 @@ type Config struct {
 	SvidBundleFileNameDeprecated string `hcl:"svidBundleFileName"`
 	RenewSignal                  string `hcl:"renew_signal"`
 	RenewSignalDeprecated        string `hcl:"renewSignal"`
+	IncludeFederatedDomains      bool   `hcl:"include_federated_domains"`
 	DaemonMode                   *bool  `hcl:"daemon_mode"`
 
 	// JWT configuration
@@ -155,7 +156,6 @@ func ValidateConfig(c *Config, log logrus.FieldLogger) (bool, error) {
 	if !x509Enabled && len(c.JwtSvids) == 0 && jwtBundleEmptyCount == 1 {
 		return false, errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
-
 
 	if c.DaemonMode == nil {
 		daemonMode := true

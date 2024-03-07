@@ -75,5 +75,5 @@ func fetchX509Context(ctx context.Context, config *Config) error {
 		return err
 	}
 
-	return disk.WriteX509Context(x509Context, config.AddIntermediatesToBundle, config.CertDir, config.SvidFileName, config.SvidKeyFileName, config.SvidBundleFileName)
+	return disk.WriteX509Context(x509Context, config.AddIntermediatesToBundle, config.IncludeFederatedDomains, config.CertDir, config.SvidFileName, config.SvidKeyFileName, config.SvidBundleFileName)
 }

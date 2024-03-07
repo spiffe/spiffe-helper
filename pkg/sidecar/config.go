@@ -15,7 +15,7 @@ type Config struct {
 	SvidBundleFileName string
 	Log                logrus.FieldLogger
 	RenewSignal        string
-	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
+	IncludeFederatedDomains            bool
 
 	// Merge intermediate certificates into Bundle file instead of SVID file,
 	// it is useful is some scenarios like MySQL,
