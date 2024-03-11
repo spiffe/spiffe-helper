@@ -9,7 +9,7 @@ COPY go.* ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 # Copy the go source
-COPY cmd/spiffe-helper/main.go cmd/spiffe-helper/main.go
+COPY cmd/spiffe-helper/ cmd/spiffe-helper/
 COPY pkg/ pkg/
 
 # xx is a helper for cross-compilation
@@ -27,7 +27,7 @@ COPY --link --from=xx / /
 RUN xx-go --wrap
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    go build -o bin/spiffe-helper cmd/spiffe-helper/main.go
+    go build -o bin/spiffe-helper ./cmd/spiffe-helper
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
