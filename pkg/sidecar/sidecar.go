@@ -23,6 +23,7 @@ import (
 // implements the interface Sidecar
 type Sidecar struct {
 	config         *Config
+	client         *workloadapi.Client
 	jwtSource      *workloadapi.JWTSource
 	processRunning int32
 	process        *os.Process
@@ -44,30 +45,40 @@ func New(config *Config) *Sidecar {
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	var wg sync.WaitGroup
 
-	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
+	if s.config.X509Enabled || s.config.JWTBundleEnabled {
+		client, err := workloadapi.New(ctx, s.getWorkloadAPIAdress())
+		if err != nil {
+			return err
+		}
+		s.client = client
+		defer client.Close()
+	}
+
+	if s.config.X509Enabled {
 		s.config.Log.Info("Watching for X509 Context")
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, s.getWorkloadAPIAdress())
+			err := s.client.WatchX509Context(ctx, &x509Watcher{sidecar: s})
 			if err != nil && status.Code(err) != codes.Canceled {
 				s.config.Log.Fatalf("Error watching X.509 context: %v", err)
 			}
 		}()
 	}
 
-	if s.config.JWTBundleFilename != "" {
+	if s.config.JWTBundleEnabled {
+		s.config.Log.Info("Watching for JWT Bundles")
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, s.getWorkloadAPIAdress())
+			err := s.client.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s})
 			if err != nil && status.Code(err) != codes.Canceled {
 				s.config.Log.Fatalf("Error watching JWT bundle updates: %v", err)
 			}
 		}()
 	}
 
-	if len(s.config.JwtSvids) > 0 {
+	if s.config.JWTSVIDsEnabled {
 		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAdress()))
 		if err != nil {
 			s.config.Log.Fatalf("Error watching JWT svid updates: %v", err)
@@ -75,17 +86,46 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		s.jwtSource = jwtSource
 		defer s.jwtSource.Close()
 
-		for _, jwtConfig := range s.config.JwtSvids {
+		for _, jwtConfig := range s.config.JWTSVIDs {
 			jwtConfig := jwtConfig
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSvidFilename)
+				s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSVIDFilename)
 			}()
 		}
 	}
 
 	wg.Wait()
+
+	return nil
+}
+
+func (s *Sidecar) Run(ctx context.Context) error {
+	if s.config.X509Enabled {
+		s.config.Log.Debug("Fetching x509 certificates")
+		if err := s.fetchAndWriteX509Context(ctx); err != nil {
+			s.config.Log.WithError(err).Error("Error fetching x509 certificates")
+			return err
+		}
+		s.config.Log.Info("Successfully fetched x509 certificates")
+	}
+	if s.config.JWTBundleEnabled {
+		s.config.Log.Debug("Fetching JWT Bundle")
+		if err := s.fetchAndWriteJWTBundle(ctx); err != nil {
+			s.config.Log.WithError(err).Error("Error fetching JWT bundle")
+			return err
+		}
+		s.config.Log.Info("Successfully fetched JWT bundle")
+	}
+	if s.config.JWTSVIDsEnabled {
+		s.config.Log.Debug("Fetching JWT SVIDs")
+		if err := s.fetchAndWriteJWTSVIDs(ctx); err != nil {
+			s.config.Log.WithError(err).Error("Error fetching JWT SVIDs")
+			return err
+		}
+		s.config.Log.Info("Successfully fetched JWT SVIDs")
+	}
 
 	return nil
 }
@@ -98,7 +138,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
-	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SvidFileName, s.config.SvidKeyFileName, s.config.SvidBundleFileName); err != nil {
+	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		return
 	}
@@ -200,7 +240,7 @@ func getRefreshInterval(svid *jwtsvid.SVID) time.Duration {
 	return time.Until(svid.Expiry)/2 + time.Second
 }
 
-func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, jwtSvidFilename string) (*jwtsvid.SVID, error) {
+func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, jwtSVIDFilename string) (*jwtsvid.SVID, error) {
 	s.config.Log.Debug("Updating JWT SVID")
 
 	jwtSVID, err := s.fetchJWTSVIDs(ctx, jwtAudience)
@@ -209,7 +249,7 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 		return nil, err
 	}
 
-	if err = disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSvidFilename); err != nil {
+	if err = disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSVIDFilename); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		return nil, err
 	}
@@ -218,10 +258,10 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 	return jwtSVID, nil
 }
 
-func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtSvidFilename string) {
+func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtSVIDFilename string) {
 	retryInterval := createRetryIntervalFunc()
 	var initialInterval time.Duration
-	jwtSVID, err := s.performJWTSVIDUpdate(ctx, jwtAudience, jwtSvidFilename)
+	jwtSVID, err := s.performJWTSVIDUpdate(ctx, jwtAudience, jwtSVIDFilename)
 	if err != nil {
 		// If the first update fails, use the retry interval
 		initialInterval = retryInterval()
@@ -237,7 +277,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtSvid
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			jwtSVID, err = s.performJWTSVIDUpdate(ctx, jwtAudience, jwtSvidFilename)
+			jwtSVID, err = s.performJWTSVIDUpdate(ctx, jwtAudience, jwtSVIDFilename)
 			if err == nil {
 				retryInterval = createRetryIntervalFunc()
 				ticker.Reset(getRefreshInterval(jwtSVID))

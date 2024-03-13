@@ -21,20 +21,19 @@ type Config struct {
 	CmdArgsDeprecated            string `hcl:"cmdArgs"`
 	CertDir                      string `hcl:"cert_dir"`
 	CertDirDeprecated            string `hcl:"certDir"`
-	ExitWhenReady                bool   `hcl:"exit_when_ready"`
-	SvidFileName                 string `hcl:"svid_file_name"`
-	SvidFileNameDeprecated       string `hcl:"svidFileName"`
-	SvidKeyFileName              string `hcl:"svid_key_file_name"`
-	SvidKeyFileNameDeprecated    string `hcl:"svidKeyFileName"`
-	SvidBundleFileName           string `hcl:"svid_bundle_file_name"`
-	SvidBundleFileNameDeprecated string `hcl:"svidBundleFileName"`
+	SVIDFileName                 string `hcl:"svid_file_name"`
+	SVIDFileNameDeprecated       string `hcl:"svidFileName"`
+	SVIDKeyFileName              string `hcl:"svid_key_file_name"`
+	SVIDKeyFileNameDeprecated    string `hcl:"svidKeyFileName"`
+	SVIDBundleFileName           string `hcl:"svid_bundle_file_name"`
+	SVIDBundleFileNameDeprecated string `hcl:"svidBundleFileName"`
 	RenewSignal                  string `hcl:"renew_signal"`
 	RenewSignalDeprecated        string `hcl:"renewSignal"`
 	IncludeFederatedDomains      bool   `hcl:"include_federated_domains"`
 	DaemonMode                   *bool  `hcl:"daemon_mode"`
 
 	// JWT configuration
-	JWTSvids          []JwtConfig `hcl:"jwt_svids"`
+	JWTSVIDs          []JWTConfig `hcl:"jwt_svids"`
 	JWTBundleFilename string      `hcl:"jwt_bundle_file_name"`
 
 	// Merge intermediate certificates into Bundle file instead of SVID file,
@@ -44,9 +43,9 @@ type Config struct {
 	AddIntermediatesToBundleDeprecated bool `hcl:"addIntermediatesToBundle"`
 }
 
-type JwtConfig struct {
+type JWTConfig struct {
 	JWTAudience     string `hcl:"jwt_audience"`
-	JWTSvidFilename string `hcl:"jwt_svid_file_name"`
+	JWTSVIDFilename string `hcl:"jwt_svid_file_name"`
 }
 
 // ParseConfig parses the given HCL file into a SidecarConfig struct
@@ -95,28 +94,28 @@ func ValidateConfig(c *Config, log logrus.FieldLogger) (bool, bool, bool, error)
 		c.CertDir = c.CertDirDeprecated
 	}
 
-	if c.SvidFileNameDeprecated != "" {
-		if c.SvidFileName != "" {
+	if c.SVIDFileNameDeprecated != "" {
+		if c.SVIDFileName != "" {
 			return false, false, false, errors.New("use of svid_file_name and svidFileName found, use only svid_file_name")
 		}
 		log.Warn(getWarning("svidFileName", "svid_file_name"))
-		c.SvidFileName = c.SvidFileNameDeprecated
+		c.SVIDFileName = c.SVIDFileNameDeprecated
 	}
 
-	if c.SvidKeyFileNameDeprecated != "" {
-		if c.SvidKeyFileName != "" {
+	if c.SVIDKeyFileNameDeprecated != "" {
+		if c.SVIDKeyFileName != "" {
 			return false, false, false, errors.New("use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name")
 		}
 		log.Warn(getWarning("svidKeyFileName", "svid_key_file_name"))
-		c.SvidKeyFileName = c.SvidKeyFileNameDeprecated
+		c.SVIDKeyFileName = c.SVIDKeyFileNameDeprecated
 	}
 
-	if c.SvidBundleFileNameDeprecated != "" {
-		if c.SvidBundleFileName != "" {
+	if c.SVIDBundleFileNameDeprecated != "" {
+		if c.SVIDBundleFileName != "" {
 			return false, false, false, errors.New("use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name")
 		}
 		log.Warn(getWarning("svidBundleFileName", "svid_bundle_file_name"))
-		c.SvidBundleFileName = c.SvidBundleFileNameDeprecated
+		c.SVIDBundleFileName = c.SVIDBundleFileNameDeprecated
 	}
 
 	if c.RenewSignalDeprecated != "" {
@@ -127,8 +126,8 @@ func ValidateConfig(c *Config, log logrus.FieldLogger) (bool, bool, bool, error)
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
-	for _, jwtConfig := range c.JWTSvids {
-		if jwtConfig.JWTSvidFilename == "" {
+	for _, jwtConfig := range c.JWTSVIDs {
+		if jwtConfig.JWTSVIDFilename == "" {
 			return false, false, false, errors.New("'jwt_file_name' is required in 'jwt_svids'")
 		}
 		if jwtConfig.JWTAudience == "" {
@@ -167,7 +166,7 @@ func ValidateConfig(c *Config, log logrus.FieldLogger) (bool, bool, bool, error)
 }
 
 func validateX509Config(c *Config) (bool, error) {
-	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
+	x509EmptyCount := countEmpty(c.SVIDFileName, c.SVIDBundleFileName, c.SVIDKeyFileName)
 	if x509EmptyCount != 0 && x509EmptyCount != 3 {
 		return false, errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
 	}
@@ -176,9 +175,9 @@ func validateX509Config(c *Config) (bool, error) {
 }
 
 func validateJWTConfig(c *Config) (bool, bool) {
-	jwtBundleEmptyCount := countEmpty(c.SvidBundleFileName)
+	jwtBundleEmptyCount := countEmpty(c.SVIDBundleFileName)
 
-	return jwtBundleEmptyCount == 0, len(c.JWTSvids) > 0
+	return jwtBundleEmptyCount == 0, len(c.JWTSVIDs) > 0
 }
 
 func getWarning(s1 string, s2 string) string {
