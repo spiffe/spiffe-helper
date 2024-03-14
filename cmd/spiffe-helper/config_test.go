@@ -1,6 +1,7 @@
-package sidecar
+package main
 
 import (
+	"os"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -293,8 +294,7 @@ func TestValidateConfig(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			log, hook := test.NewNullLogger()
-			tt.config.Log = log
-			err := ValidateConfig(tt.config)
+			err := ValidateConfig(tt.config, false, log)
 
 			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
@@ -306,6 +306,62 @@ func TestValidateConfig(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestDefaultAgentAddress(t *testing.T) {
+	for _, tt := range []struct {
+		name                 string
+		agentAddress         string
+		envAgentAddress      string
+		expectedAgentAddress string
+	}{
+		{
+			name:                 "Agent Address not set in config or env",
+			expectedAgentAddress: defaultAgentAddress,
+		},
+		{
+			name:                 "Agent Address set in config but not in env",
+			agentAddress:         "MY_ADDRESS",
+			expectedAgentAddress: "MY_ADDRESS",
+		},
+		{
+			name:                 "Agent Address not set in config but set in env",
+			envAgentAddress:      "MY_ENV_ADDRESS",
+			expectedAgentAddress: "MY_ENV_ADDRESS",
+		},
+		{
+			name:                 "Agent Address set in config and set in env",
+			agentAddress:         "MY_ADDRESS",
+			envAgentAddress:      "MY_ENV_ADDRESS",
+			expectedAgentAddress: "MY_ADDRESS",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("SPIRE_AGENT_ADDRESS", tt.envAgentAddress)
+			config := &Config{
+				AgentAddress:       tt.agentAddress,
+				SvidFileName:       "cert.pem",
+				SvidKeyFileName:    "key.pem",
+				SvidBundleFileName: "bundle.pem",
+			}
+			log, _ := test.NewNullLogger()
+			err := ValidateConfig(config, false, log)
+			require.NoError(t, err)
+			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
+		})
+	}
+}
+
+func TestExitOnWaitFlag(t *testing.T) {
+	config := &Config{
+		SvidFileName:       "cert.pem",
+		SvidKeyFileName:    "key.pem",
+		SvidBundleFileName: "bundle.pem",
+	}
+	log, _ := test.NewNullLogger()
+	err := ValidateConfig(config, true, log)
+	require.NoError(t, err)
+	assert.Equal(t, config.ExitWhenReady, true)
 }
 
 type shortEntry struct {

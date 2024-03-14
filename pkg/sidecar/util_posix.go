@@ -32,7 +32,3 @@ func (s *Sidecar) SignalProcess() error {
 
 	return nil
 }
-
-func validateOSConfig(*Config) error {
-	return nil
-}
