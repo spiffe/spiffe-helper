@@ -40,5 +40,7 @@ func startSidecar(configPath string, exitWhenReady bool, log logrus.FieldLogger)
 		return fmt.Errorf("Failed to create sidecar: %w", err)
 	}
 
-	return spiffeSidecar.RunDaemon(ctx)
+	spiffeSidecar.RunDaemon(ctx)
+
+	return nil
 }

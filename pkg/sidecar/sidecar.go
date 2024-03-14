@@ -74,7 +74,15 @@ func New(configPath string, exitWhenReady bool, log logrus.FieldLogger) (*Sideca
 // Starts the workload API client to listen for new SVID updates
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
-func (s *Sidecar) RunDaemon(ctx context.Context) error {
+func (s *Sidecar) RunDaemon(ctx context.Context) {
+	s.run(ctx)
+
+	if s.config.ExitWhenJwtReady {
+		os.Exit(0)
+	}
+}
+
+func (s *Sidecar) run(ctx context.Context) {
 	var wg sync.WaitGroup
 
 	if s.config.SvidFileName != "" && s.config.SvidKeyFileName != "" && s.config.SvidBundleFileName != "" {
@@ -118,8 +126,6 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	}
 
 	wg.Wait()
-
-	return nil
 }
 
 // CertReadyChan returns a channel to know when the certificates are ready
@@ -142,7 +148,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		}
 	}
 
-	if s.config.ExitWhenReady {
+	if s.config.ExitWhenReady || s.config.ExitWhenCertReady {
 		os.Exit(0)
 	}
 

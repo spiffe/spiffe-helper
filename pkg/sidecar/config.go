@@ -18,6 +18,8 @@ type Config struct {
 	CertDir                string `hcl:"cert_dir"`
 	CertDirDeprecated      string `hcl:"certDir"`
 	ExitWhenReady          bool   `hcl:"exit_when_ready"`
+	ExitWhenCertReady      bool   `hcl:"exit_when_cert_ready"`
+	ExitWhenJwtReady       bool   `hcl:"exit_when_jwt_ready"`
 	// Merge intermediate certificates into Bundle file instead of SVID file,
 	// it is useful is some scenarios like MySQL,
 	// where this is the expected format for presented certificates and bundles
@@ -143,6 +145,13 @@ func ValidateConfig(c *Config) error {
 
 	if x509EmptyCount != 0 && x509EmptyCount != 3 {
 		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
+	}
+
+	if c.ExitWhenReady {
+		c.Log.Warn(getWarning("exit_when_ready", "exit_when_cert_ready"))
+	}
+	if (c.ExitWhenReady || c.ExitWhenCertReady) && c.ExitWhenJwtReady {
+		return errors.New("'exit_when_cert_ready' (or 'exit_when_ready') and 'exit_when_jwt_ready' cannot both be configured")
 	}
 
 	return nil
