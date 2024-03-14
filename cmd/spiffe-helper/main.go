@@ -35,10 +35,36 @@ func startSidecar(configPath string, exitWhenReady bool, log logrus.FieldLogger)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	spiffeSidecar, err := sidecar.New(configPath, exitWhenReady, log)
+	config, err := ParseConfig(configPath)
 	if err != nil {
-		return fmt.Errorf("Failed to create sidecar: %w", err)
+		return fmt.Errorf("failed to parse %q: %w", configPath, err)
+	}
+	if err := ValidateConfig(config, exitWhenReady, log); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
+	sidecarConfig := &sidecar.Config{
+		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+		AgentAddress:             config.AgentAddress,
+		Cmd:                      config.Cmd,
+		CmdArgs:                  config.CmdArgs,
+		CertDir:                  config.CertDir,
+		ExitWhenReady:            config.ExitWhenReady,
+		JWTBundleFilename:        config.JWTBundleFilename,
+		Log:                      log,
+		RenewSignal:              config.RenewSignal,
+		SvidFileName:             config.SvidFileName,
+		SvidKeyFileName:          config.SvidKeyFileName,
+		SvidBundleFileName:       config.SvidBundleFileName,
+	}
+
+	for _, jwtSvid := range config.JwtSvids {
+		sidecarConfig.JwtSvids = append(sidecarConfig.JwtSvids, sidecar.JwtConfig{
+			JWTAudience:     jwtSvid.JWTAudience,
+			JWTSvidFilename: jwtSvid.JWTSvidFilename,
+		})
+	}
+
+	spiffeSidecar := sidecar.New(sidecarConfig)
 	return spiffeSidecar.RunDaemon(ctx)
 }
