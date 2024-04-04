@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.22.1-alpine AS builder
 COPY ./server.go /service/server.go
 WORKDIR /service
 RUN go build -tags netgo -a -v -o /service/server ./server.go
