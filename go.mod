@@ -1,6 +1,6 @@
 module github.com/spiffe/spiffe-helper
 
-go 1.21
+go 1.22.1
 
 require (
 	github.com/hashicorp/hcl v1.0.0
