@@ -352,6 +352,40 @@ func TestDefaultAgentAddress(t *testing.T) {
 	}
 }
 
+func TestNewSidecarConfig(t *testing.T) {
+	config := &Config{
+		AgentAddress:    "my-agent-address",
+		Cmd:             "my-cmd",
+		CertDir:         "my-cert-dir",
+		SvidKeyFileName: "my-key",
+		JwtSvids: []JwtConfig{
+			{
+				JWTAudience:     "my-audience",
+				JWTSvidFilename: "my-jwt-filename",
+			},
+		},
+	}
+
+	sidecarConfig := NewSidecarConfig(config, nil)
+
+	// Ensure fields were populated correctly
+	assert.Equal(t, config.AgentAddress, sidecarConfig.AgentAddress)
+	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
+	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
+	assert.Equal(t, config.SvidKeyFileName, sidecarConfig.SvidKeyFileName)
+
+	// Ensure JWT Config was populated correctly
+	require.Equal(t, len(config.JwtSvids), len(sidecarConfig.JwtSvids))
+	for i := 0; i < len(config.JwtSvids); i++ {
+		assert.Equal(t, config.JwtSvids[i].JWTAudience, sidecarConfig.JwtSvids[i].JWTAudience)
+		assert.Equal(t, config.JwtSvids[i].JWTSvidFilename, sidecarConfig.JwtSvids[i].JWTSvidFilename)
+	}
+
+	// Ensure empty fields were not populated
+	assert.Equal(t, "", sidecarConfig.SvidFileName)
+	assert.Equal(t, "", sidecarConfig.RenewSignal)
+}
+
 func TestExitOnWaitFlag(t *testing.T) {
 	config := &Config{
 		SvidFileName:       "cert.pem",
