@@ -8,7 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/sirupsen/logrus"
-	hclconfig "github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
+	config "github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
@@ -36,36 +36,16 @@ func startSidecar(configPath string, exitWhenReady bool, log logrus.FieldLogger)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	config, err := hclconfig.ParseConfig(configPath)
+	hclConfig, err := config.ParseConfig(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse %q: %w", configPath, err)
 	}
-	if err := hclconfig.ValidateConfig(config, exitWhenReady, log); err != nil {
+	if err := config.ValidateConfig(hclConfig, exitWhenReady, log); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	sidecarConfig := &sidecar.Config{
-		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
-		AgentAddress:             config.AgentAddress,
-		Cmd:                      config.Cmd,
-		CmdArgs:                  config.CmdArgs,
-		CertDir:                  config.CertDir,
-		ExitWhenReady:            config.ExitWhenReady,
-		JWTBundleFilename:        config.JWTBundleFilename,
-		Log:                      log,
-		RenewSignal:              config.RenewSignal,
-		SvidFileName:             config.SvidFileName,
-		SvidKeyFileName:          config.SvidKeyFileName,
-		SvidBundleFileName:       config.SvidBundleFileName,
-	}
-
-	for _, jwtSvid := range config.JwtSvids {
-		sidecarConfig.JwtSvids = append(sidecarConfig.JwtSvids, sidecar.JwtConfig{
-			JWTAudience:     jwtSvid.JWTAudience,
-			JWTSvidFilename: jwtSvid.JWTSvidFilename,
-		})
-	}
-
+	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
 	spiffeSidecar := sidecar.New(sidecarConfig)
+
 	return spiffeSidecar.RunDaemon(ctx)
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
 const (
@@ -152,6 +153,32 @@ func ValidateConfig(c *Config, exitWhenReady bool, log logrus.FieldLogger) error
 	}
 
 	return nil
+}
+
+func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
+	sidecarConfig := &sidecar.Config{
+		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+		AgentAddress:             config.AgentAddress,
+		Cmd:                      config.Cmd,
+		CmdArgs:                  config.CmdArgs,
+		CertDir:                  config.CertDir,
+		ExitWhenReady:            config.ExitWhenReady,
+		JWTBundleFilename:        config.JWTBundleFilename,
+		Log:                      log,
+		RenewSignal:              config.RenewSignal,
+		SvidFileName:             config.SvidFileName,
+		SvidKeyFileName:          config.SvidKeyFileName,
+		SvidBundleFileName:       config.SvidBundleFileName,
+	}
+
+	for _, jwtSvid := range config.JwtSvids {
+		sidecarConfig.JwtSvids = append(sidecarConfig.JwtSvids, sidecar.JwtConfig{
+			JWTAudience:     jwtSvid.JWTAudience,
+			JWTSvidFilename: jwtSvid.JWTSvidFilename,
+		})
+	}
+
+	return sidecarConfig
 }
 
 func getWarning(s1 string, s2 string) string {
