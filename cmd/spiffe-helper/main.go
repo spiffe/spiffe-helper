@@ -8,7 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/sirupsen/logrus"
-	config "github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
+	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
