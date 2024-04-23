@@ -1,6 +1,7 @@
-package sidecar
+package config
 
 import (
+	"os"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestParseConfig(t *testing.T) {
-	c, err := ParseConfig("../../test/fixture/config/helper.conf")
+	c, err := ParseConfig("testdata/helper.conf")
 
 	assert.NoError(t, err)
 
@@ -293,8 +294,7 @@ func TestValidateConfig(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			log, hook := test.NewNullLogger()
-			tt.config.Log = log
-			err := ValidateConfig(tt.config)
+			err := ValidateConfig(tt.config, false, log)
 
 			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
@@ -306,6 +306,96 @@ func TestValidateConfig(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestDefaultAgentAddress(t *testing.T) {
+	for _, tt := range []struct {
+		name                 string
+		agentAddress         string
+		envAgentAddress      string
+		expectedAgentAddress string
+	}{
+		{
+			name:                 "Agent Address not set in config or env",
+			expectedAgentAddress: defaultAgentAddress,
+		},
+		{
+			name:                 "Agent Address set in config but not in env",
+			agentAddress:         "MY_ADDRESS",
+			expectedAgentAddress: "MY_ADDRESS",
+		},
+		{
+			name:                 "Agent Address not set in config but set in env",
+			envAgentAddress:      "MY_ENV_ADDRESS",
+			expectedAgentAddress: "MY_ENV_ADDRESS",
+		},
+		{
+			name:                 "Agent Address set in config and set in env",
+			agentAddress:         "MY_ADDRESS",
+			envAgentAddress:      "MY_ENV_ADDRESS",
+			expectedAgentAddress: "MY_ADDRESS",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("SPIRE_AGENT_ADDRESS", tt.envAgentAddress)
+			config := &Config{
+				AgentAddress:       tt.agentAddress,
+				SvidFileName:       "cert.pem",
+				SvidKeyFileName:    "key.pem",
+				SvidBundleFileName: "bundle.pem",
+			}
+			log, _ := test.NewNullLogger()
+			err := ValidateConfig(config, false, log)
+			require.NoError(t, err)
+			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
+		})
+	}
+}
+
+func TestNewSidecarConfig(t *testing.T) {
+	config := &Config{
+		AgentAddress:    "my-agent-address",
+		Cmd:             "my-cmd",
+		CertDir:         "my-cert-dir",
+		SvidKeyFileName: "my-key",
+		JwtSvids: []JwtConfig{
+			{
+				JWTAudience:     "my-audience",
+				JWTSvidFilename: "my-jwt-filename",
+			},
+		},
+	}
+
+	sidecarConfig := NewSidecarConfig(config, nil)
+
+	// Ensure fields were populated correctly
+	assert.Equal(t, config.AgentAddress, sidecarConfig.AgentAddress)
+	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
+	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
+	assert.Equal(t, config.SvidKeyFileName, sidecarConfig.SvidKeyFileName)
+
+	// Ensure JWT Config was populated correctly
+	require.Equal(t, len(config.JwtSvids), len(sidecarConfig.JwtSvids))
+	for i := 0; i < len(config.JwtSvids); i++ {
+		assert.Equal(t, config.JwtSvids[i].JWTAudience, sidecarConfig.JwtSvids[i].JWTAudience)
+		assert.Equal(t, config.JwtSvids[i].JWTSvidFilename, sidecarConfig.JwtSvids[i].JWTSvidFilename)
+	}
+
+	// Ensure empty fields were not populated
+	assert.Equal(t, "", sidecarConfig.SvidFileName)
+	assert.Equal(t, "", sidecarConfig.RenewSignal)
+}
+
+func TestExitOnWaitFlag(t *testing.T) {
+	config := &Config{
+		SvidFileName:       "cert.pem",
+		SvidKeyFileName:    "key.pem",
+		SvidBundleFileName: "bundle.pem",
+	}
+	log, _ := test.NewNullLogger()
+	err := ValidateConfig(config, true, log)
+	require.NoError(t, err)
+	assert.Equal(t, config.ExitWhenReady, true)
 }
 
 type shortEntry struct {

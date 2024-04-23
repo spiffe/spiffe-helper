@@ -8,6 +8,7 @@ import (
 	"os/signal"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
@@ -35,10 +36,16 @@ func startSidecar(configPath string, exitWhenReady bool, log logrus.FieldLogger)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	spiffeSidecar, err := sidecar.New(configPath, exitWhenReady, log)
+	hclConfig, err := config.ParseConfig(configPath)
 	if err != nil {
-		return fmt.Errorf("Failed to create sidecar: %w", err)
+		return fmt.Errorf("failed to parse %q: %w", configPath, err)
 	}
+	if err := config.ValidateConfig(hclConfig, exitWhenReady, log); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
+	spiffeSidecar := sidecar.New(sidecarConfig)
 
 	return spiffeSidecar.RunDaemon(ctx)
 }
