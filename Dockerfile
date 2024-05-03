@@ -9,7 +9,7 @@ COPY go.* ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 # Copy the go source
-COPY cmd/spiffe-helper/main.go cmd/spiffe-helper/main.go
+COPY cmd/spiffe-helper/ cmd/spiffe-helper/
 COPY pkg/ pkg/
 
 # xx is a helper for cross-compilation
