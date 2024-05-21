@@ -87,7 +87,7 @@ endif
 
 build_dir := $(DIR)/.build/$(os1)-$(arch1)
 
-go_version := $(shell cat .go-version)
+go_version := $(shell sed -En 's/^go[ ]+([0-9.]+).*/\1/p' go.mod)
 go_dir := $(build_dir)/go/$(go_version)
 ifeq ($(os1),windows)
 	go_bin_dir = $(go_dir)/go/bin
@@ -157,7 +157,7 @@ endif
 
 .PHONY: tidy tidy-check lint lint-code
 tidy: | go-check
-	$(E)$(go_path) mod tidy
+	$(E)$(go_path) go mod tidy
 
 tidy-check:
 ifneq ($(git_dirty),)
@@ -180,7 +180,7 @@ lint-code: $(golangci_lint_bin) | go-check
 .PHONY: build test clean distclean artifact tarball rpm docker-build container-builder load-images
 
 build: | go-check
-	CGO_ENABLED=0 go build -o spiffe-helper${exe} ./cmd/spiffe-helper
+	$(E)CGO_ENABLED=0 $(go_path) go build -o spiffe-helper${exe} ./cmd/spiffe-helper
 
 docker-build: $(addsuffix -image.tar, spiffe-helper) ## Build docker image with spiffe-helper.
 
