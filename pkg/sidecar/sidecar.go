@@ -23,6 +23,7 @@ import (
 // implements the interface Sidecar
 type Sidecar struct {
 	config         *Config
+	client         *workloadapi.Client
 	jwtSource      *workloadapi.JWTSource
 	processRunning int32
 	process        *os.Process
@@ -44,31 +45,40 @@ func New(config *Config) *Sidecar {
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	var wg sync.WaitGroup
 
-	s.config.Log.WithField("agent_address", s.config.AgentAddress).Info("Connecting to agent")
+	if s.x509Enabled() || s.jwtBundleEnabled() {
+		client, err := workloadapi.New(ctx, s.getWorkloadAPIAdress())
+		if err != nil {
+			return err
+		}
+		s.client = client
+		defer client.Close()
+	}
 
-	if s.config.SVIDFileName != "" && s.config.SVIDKeyFileName != "" && s.config.SVIDBundleFileName != "" {
+	if s.x509Enabled() {
+		s.config.Log.Info("Watching for X509 Context")
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := workloadapi.WatchX509Context(ctx, &x509Watcher{sidecar: s}, s.getWorkloadAPIAdress())
+			err := s.client.WatchX509Context(ctx, &x509Watcher{sidecar: s})
 			if err != nil && status.Code(err) != codes.Canceled {
 				s.config.Log.Fatalf("Error watching X.509 context: %v", err)
 			}
 		}()
 	}
 
-	if s.config.JWTBundleFilename != "" {
+	if s.jwtBundleEnabled() {
+		s.config.Log.Info("Watching for JWT Bundles")
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := workloadapi.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s}, s.getWorkloadAPIAdress())
+			err := s.client.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s})
 			if err != nil && status.Code(err) != codes.Canceled {
 				s.config.Log.Fatalf("Error watching JWT bundle updates: %v", err)
 			}
 		}()
 	}
 
-	if len(s.config.JWTSVIDs) > 0 {
+	if s.jwtSVIDsEnabled() {
 		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAdress()))
 		if err != nil {
 			s.config.Log.Fatalf("Error watching JWT svid updates: %v", err)
@@ -91,6 +101,35 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	return nil
 }
 
+func (s *Sidecar) Run(ctx context.Context) error {
+	if s.x509Enabled() {
+		s.config.Log.Debug("Fetching x509 certificates")
+		if err := s.fetchAndWriteX509Context(ctx); err != nil {
+			s.config.Log.WithError(err).Error("Error fetching x509 certificates")
+			return err
+		}
+		s.config.Log.Info("Successfully fetched x509 certificates")
+	}
+	if s.jwtBundleEnabled() {
+		s.config.Log.Debug("Fetching JWT Bundle")
+		if err := s.fetchAndWriteJWTBundle(ctx); err != nil {
+			s.config.Log.WithError(err).Error("Error fetching JWT bundle")
+			return err
+		}
+		s.config.Log.Info("Successfully fetched JWT bundle")
+	}
+	if s.jwtSVIDsEnabled() {
+		s.config.Log.Debug("Fetching JWT SVIDs")
+		if err := s.fetchAndWriteJWTSVIDs(ctx); err != nil {
+			s.config.Log.WithError(err).Error("Error fetching JWT SVIDs")
+			return err
+		}
+		s.config.Log.Info("Successfully fetched JWT SVIDs")
+	}
+
+	return nil
+}
+
 // CertReadyChan returns a channel to know when the certificates are ready
 func (s *Sidecar) CertReadyChan() <-chan struct{} {
 	return s.certReadyChan
@@ -109,10 +148,6 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		if err := s.signalProcess(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal process")
 		}
-	}
-
-	if s.config.ExitWhenReady {
-		os.Exit(0)
 	}
 
 	select {
@@ -251,6 +286,18 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtSVID
 			}
 		}
 	}
+}
+
+func (s *Sidecar) x509Enabled() bool {
+	return s.config.SVIDFileName != "" && s.config.SVIDKeyFileName != "" && s.config.SVIDBundleFileName != ""
+}
+
+func (s *Sidecar) jwtBundleEnabled() bool {
+	return s.config.JWTBundleFilename != ""
+}
+
+func (s *Sidecar) jwtSVIDsEnabled() bool {
+	return len(s.config.JWTSVIDs) > 0
 }
 
 // x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface

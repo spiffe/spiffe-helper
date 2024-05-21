@@ -388,7 +388,7 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, "", sidecarConfig.RenewSignal)
 }
 
-func TestExitOnWaitFlag(t *testing.T) {
+func TestDisableDaemonModeFlag(t *testing.T) {
 	config := &Config{
 		SVIDFileName:       "cert.pem",
 		SVIDKeyFileName:    "key.pem",
@@ -397,7 +397,8 @@ func TestExitOnWaitFlag(t *testing.T) {
 	log, _ := test.NewNullLogger()
 	err := ValidateConfig(config, true, log)
 	require.NoError(t, err)
-	assert.Equal(t, config.ExitWhenReady, true)
+	require.NotNil(t, config.DaemonMode)
+	assert.Equal(t, *config.DaemonMode, false)
 }
 
 type shortEntry struct {
