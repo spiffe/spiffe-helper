@@ -354,10 +354,11 @@ func TestDefaultAgentAddress(t *testing.T) {
 
 func TestNewSidecarConfig(t *testing.T) {
 	config := &Config{
-		AgentAddress:    "my-agent-address",
-		Cmd:             "my-cmd",
-		CertDir:         "my-cert-dir",
-		SvidKeyFileName: "my-key",
+		AgentAddress:            "my-agent-address",
+		Cmd:                     "my-cmd",
+		CertDir:                 "my-cert-dir",
+		SvidKeyFileName:         "my-key",
+		IncludeFederatedDomains: true,
 		JwtSvids: []JwtConfig{
 			{
 				JWTAudience:     "my-audience",
@@ -373,6 +374,7 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
 	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
 	assert.Equal(t, config.SvidKeyFileName, sidecarConfig.SvidKeyFileName)
+	assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
 
 	// Ensure JWT Config was populated correctly
 	require.Equal(t, len(config.JwtSvids), len(sidecarConfig.JwtSvids))

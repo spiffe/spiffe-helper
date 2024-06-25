@@ -163,6 +163,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		CmdArgs:                  config.CmdArgs,
 		CertDir:                  config.CertDir,
 		ExitWhenReady:            config.ExitWhenReady,
+		IncludeFederatedDomains:  config.IncludeFederatedDomains,
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,
 		RenewSignal:              config.RenewSignal,
