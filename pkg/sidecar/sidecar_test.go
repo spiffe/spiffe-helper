@@ -33,7 +33,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	domain2CA := spiffetest.NewCA(t)
 	domain2Bundle := domain2CA.Roots()
 
-	// Svid with intermediate
+	// SVID with intermediate
 	spiffeIDWithIntermediate, err := spiffeid.FromString("spiffe://example.test/workloadWithIntermediate")
 	require.NoError(t, err)
 	svidChainWithIntermediate, svidKeyWithIntermediate := domain1Inter.CreateX509SVID(spiffeIDWithIntermediate.String())
@@ -78,9 +78,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	config := &Config{
 		Cmd:                "echo",
 		CertDir:            tmpdir,
-		SvidFileName:       "svid.pem",
-		SvidKeyFileName:    "svid_key.pem",
-		SvidBundleFileName: "svid_bundle.pem",
+		SVIDFileName:       "svid.pem",
+		SVIDKeyFileName:    "svid_key.pem",
+		SVIDBundleFileName: "svid_bundle.pem",
 		Log:                log,
 	}
 
@@ -170,9 +170,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 	}
 
-	svidFile := path.Join(tmpdir, config.SvidFileName)
-	svidKeyFile := path.Join(tmpdir, config.SvidKeyFileName)
-	svidBundleFile := path.Join(tmpdir, config.SvidBundleFileName)
+	svidFile := path.Join(tmpdir, config.SVIDFileName)
+	svidKeyFile := path.Join(tmpdir, config.SVIDKeyFileName)
+	svidBundleFile := path.Join(tmpdir, config.SVIDBundleFileName)
 
 	w := x509Watcher{&sidecar}
 

@@ -28,7 +28,7 @@ type Config struct {
 	IncludeFederatedDomains bool
 
 	// An array with the audience and file name to store the JWT SVIDs. File is Base64-encoded string).
-	JwtSvids []JwtConfig
+	JWTSVIDs []JWTConfig
 
 	// File name to be used to store JWT Bundle in JSON format.
 	JWTBundleFilename string
@@ -40,22 +40,22 @@ type Config struct {
 	RenewSignal string
 
 	// File name to be used to store the X.509 SVID public certificate in PEM format.
-	SvidFileName string
+	SVIDFileName string
 
 	// File name to be used to store the X.509 SVID private key and public certificate in PEM format.
-	SvidKeyFileName string
+	SVIDKeyFileName string
 
 	// File name to be used to store the X.509 SVID Bundle in PEM format.
-	SvidBundleFileName string
+	SVIDBundleFileName string
 
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error
 }
 
-type JwtConfig struct {
+type JWTConfig struct {
 	// The audience for the JWT SVID to fetch
 	JWTAudience string
 
 	// The filename to save the JWT SVID to
-	JWTSvidFilename string
+	JWTSVIDFilename string
 }

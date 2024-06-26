@@ -29,21 +29,21 @@ type Config struct {
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
 
 	// x509 configuration
-	SvidFileName                 string `hcl:"svid_file_name"`
-	SvidFileNameDeprecated       string `hcl:"svidFileName"`
-	SvidKeyFileName              string `hcl:"svid_key_file_name"`
-	SvidKeyFileNameDeprecated    string `hcl:"svidKeyFileName"`
-	SvidBundleFileName           string `hcl:"svid_bundle_file_name"`
-	SvidBundleFileNameDeprecated string `hcl:"svidBundleFileName"`
+	SVIDFileName                 string `hcl:"svid_file_name"`
+	SVIDFileNameDeprecated       string `hcl:"svidFileName"`
+	SVIDKeyFileName              string `hcl:"svid_key_file_name"`
+	SVIDKeyFileNameDeprecated    string `hcl:"svidKeyFileName"`
+	SVIDBundleFileName           string `hcl:"svid_bundle_file_name"`
+	SVIDBundleFileNameDeprecated string `hcl:"svidBundleFileName"`
 
 	// JWT configuration
-	JwtSvids          []JwtConfig `hcl:"jwt_svids"`
+	JWTSVIDs          []JWTConfig `hcl:"jwt_svids"`
 	JWTBundleFilename string      `hcl:"jwt_bundle_file_name"`
 }
 
-type JwtConfig struct {
+type JWTConfig struct {
 	JWTAudience     string `hcl:"jwt_audience"`
-	JWTSvidFilename string `hcl:"jwt_svid_file_name"`
+	JWTSVIDFilename string `hcl:"jwt_svid_file_name"`
 }
 
 // ParseConfig parses the given HCL file into a Config struct
@@ -92,28 +92,28 @@ func ValidateConfig(c *Config, exitWhenReady bool, log logrus.FieldLogger) error
 		c.CertDir = c.CertDirDeprecated
 	}
 
-	if c.SvidFileNameDeprecated != "" {
-		if c.SvidFileName != "" {
+	if c.SVIDFileNameDeprecated != "" {
+		if c.SVIDFileName != "" {
 			return errors.New("use of svid_file_name and svidFileName found, use only svid_file_name")
 		}
 		log.Warn(getWarning("svidFileName", "svid_file_name"))
-		c.SvidFileName = c.SvidFileNameDeprecated
+		c.SVIDFileName = c.SVIDFileNameDeprecated
 	}
 
-	if c.SvidKeyFileNameDeprecated != "" {
-		if c.SvidKeyFileName != "" {
+	if c.SVIDKeyFileNameDeprecated != "" {
+		if c.SVIDKeyFileName != "" {
 			return errors.New("use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name")
 		}
 		log.Warn(getWarning("svidKeyFileName", "svid_key_file_name"))
-		c.SvidKeyFileName = c.SvidKeyFileNameDeprecated
+		c.SVIDKeyFileName = c.SVIDKeyFileNameDeprecated
 	}
 
-	if c.SvidBundleFileNameDeprecated != "" {
-		if c.SvidBundleFileName != "" {
+	if c.SVIDBundleFileNameDeprecated != "" {
+		if c.SVIDBundleFileName != "" {
 			return errors.New("use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name")
 		}
 		log.Warn(getWarning("svidBundleFileName", "svid_bundle_file_name"))
-		c.SvidBundleFileName = c.SvidBundleFileNameDeprecated
+		c.SVIDBundleFileName = c.SVIDBundleFileNameDeprecated
 	}
 
 	if c.RenewSignalDeprecated != "" {
@@ -124,8 +124,8 @@ func ValidateConfig(c *Config, exitWhenReady bool, log logrus.FieldLogger) error
 		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
-	for _, jwtConfig := range c.JwtSvids {
-		if jwtConfig.JWTSvidFilename == "" {
+	for _, jwtConfig := range c.JWTSVIDs {
+		if jwtConfig.JWTSVIDFilename == "" {
 			return errors.New("'jwt_file_name' is required in 'jwt_svids'")
 		}
 		if jwtConfig.JWTAudience == "" {
@@ -142,9 +142,9 @@ func ValidateConfig(c *Config, exitWhenReady bool, log logrus.FieldLogger) error
 
 	c.ExitWhenReady = c.ExitWhenReady || exitWhenReady
 
-	x509EmptyCount := countEmpty(c.SvidFileName, c.SvidBundleFileName, c.SvidKeyFileName)
-	jwtBundleEmptyCount := countEmpty(c.SvidBundleFileName)
-	if x509EmptyCount == 3 && len(c.JwtSvids) == 0 && jwtBundleEmptyCount == 1 {
+	x509EmptyCount := countEmpty(c.SVIDFileName, c.SVIDBundleFileName, c.SVIDKeyFileName)
+	jwtBundleEmptyCount := countEmpty(c.SVIDBundleFileName)
+	if x509EmptyCount == 3 && len(c.JWTSVIDs) == 0 && jwtBundleEmptyCount == 1 {
 		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
@@ -166,15 +166,15 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,
 		RenewSignal:              config.RenewSignal,
-		SvidFileName:             config.SvidFileName,
-		SvidKeyFileName:          config.SvidKeyFileName,
-		SvidBundleFileName:       config.SvidBundleFileName,
+		SVIDFileName:             config.SVIDFileName,
+		SVIDKeyFileName:          config.SVIDKeyFileName,
+		SVIDBundleFileName:       config.SVIDBundleFileName,
 	}
 
-	for _, jwtSvid := range config.JwtSvids {
-		sidecarConfig.JwtSvids = append(sidecarConfig.JwtSvids, sidecar.JwtConfig{
-			JWTAudience:     jwtSvid.JWTAudience,
-			JWTSvidFilename: jwtSvid.JWTSvidFilename,
+	for _, jwtSVID := range config.JWTSVIDs {
+		sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
+			JWTAudience:     jwtSVID.JWTAudience,
+			JWTSVIDFilename: jwtSVID.JWTSVIDFilename,
 		})
 	}
 
