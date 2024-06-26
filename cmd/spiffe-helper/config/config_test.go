@@ -20,9 +20,9 @@ func TestParseConfig(t *testing.T) {
 	expectedCmdArgs := "start_envoy.sh"
 	expectedCertDir := "certs"
 	expectedRenewSignal := "SIGHUP"
-	expectedSvidFileName := "svid.pem"
+	expectedSVIDFileName := "svid.pem"
 	expectedKeyFileName := "svid_key.pem"
-	expectedSvidBundleFileName := "svid_bundle.pem"
+	expectedSVIDBundleFileName := "svid_bundle.pem"
 	expectedJWTSVIDFileName := "jwt_svid.token"
 	expectedJWTBundleFileName := "jwt_bundle.json"
 	expectedJWTAudience := "your-audience"
@@ -32,12 +32,12 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedCmdArgs, c.CmdArgs)
 	assert.Equal(t, expectedCertDir, c.CertDir)
 	assert.Equal(t, expectedRenewSignal, c.RenewSignal)
-	assert.Equal(t, expectedSvidFileName, c.SvidFileName)
-	assert.Equal(t, expectedKeyFileName, c.SvidKeyFileName)
-	assert.Equal(t, expectedSvidBundleFileName, c.SvidBundleFileName)
-	assert.Equal(t, expectedJWTSVIDFileName, c.JwtSvids[0].JWTSvidFilename)
+	assert.Equal(t, expectedSVIDFileName, c.SVIDFileName)
+	assert.Equal(t, expectedKeyFileName, c.SVIDKeyFileName)
+	assert.Equal(t, expectedSVIDBundleFileName, c.SVIDBundleFileName)
+	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSVIDs[0].JWTSVIDFilename)
 	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFilename)
-	assert.Equal(t, expectedJWTAudience, c.JwtSvids[0].JWTAudience)
+	assert.Equal(t, expectedJWTAudience, c.JWTSVIDs[0].JWTAudience)
 	assert.True(t, c.AddIntermediatesToBundle)
 }
 
@@ -52,17 +52,17 @@ func TestValidateConfig(t *testing.T) {
 			name: "no error",
 			config: &Config{
 				AgentAddress:       "path",
-				SvidFileName:       "cert.pem",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 		},
 		{
 			name: "no error",
 			config: &Config{
 				AgentAddress: "path",
-				JwtSvids: []JwtConfig{{
-					JWTSvidFilename: "jwt.token",
+				JWTSVIDs: []JWTConfig{{
+					JWTSVIDFilename: "jwt.token",
 					JWTAudience:     "your-audience",
 				}},
 				JWTBundleFilename: "bundle.json",
@@ -79,7 +79,7 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing svid config",
 			config: &Config{
 				AgentAddress: "path",
-				SvidFileName: "cert.pem",
+				SVIDFileName: "cert.pem",
 			},
 			expectError: "all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified",
 		},
@@ -87,8 +87,8 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing jwt audience",
 			config: &Config{
 				AgentAddress: "path",
-				JwtSvids: []JwtConfig{{
-					JWTSvidFilename: "jwt.token",
+				JWTSVIDs: []JWTConfig{{
+					JWTSVIDFilename: "jwt.token",
 				}},
 			},
 			expectError: "'jwt_audience' is required in 'jwt_svids'",
@@ -97,7 +97,7 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing jwt path",
 			config: &Config{
 				AgentAddress: "path",
-				JwtSvids: []JwtConfig{{
+				JWTSVIDs: []JWTConfig{{
 					JWTAudience: "my-audience",
 				}},
 			},
@@ -109,9 +109,9 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress:           "path",
 				AgentAddressDeprecated: "path",
-				SvidFileName:           "cert.pem",
-				SvidKeyFileName:        "key.pem",
-				SvidBundleFileName:     "bundle.pem",
+				SVIDFileName:           "cert.pem",
+				SVIDKeyFileName:        "key.pem",
+				SVIDBundleFileName:     "bundle.pem",
 			},
 			expectError: "use of agent_address and agentAddress found, use only agent_address",
 		},
@@ -121,9 +121,9 @@ func TestValidateConfig(t *testing.T) {
 				AgentAddress:       "path",
 				CmdArgs:            "start_envoy.sh",
 				CmdArgsDeprecated:  "start_envoy.sh",
-				SvidFileName:       "cert.pem",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 			expectError: "use of cmd_args and cmdArgs found, use only cmd_args",
 		},
@@ -133,9 +133,9 @@ func TestValidateConfig(t *testing.T) {
 				AgentAddress:       "path",
 				CertDir:            "certs",
 				CertDirDeprecated:  "certs",
-				SvidFileName:       "cert.pem",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 			expectError: "use of cert_dir and certDir found, use only cert_dir",
 		},
@@ -143,10 +143,10 @@ func TestValidateConfig(t *testing.T) {
 			name: "Both svid_file_name & svidFileName in use",
 			config: &Config{
 				AgentAddress:           "path",
-				SvidFileName:           "cert.pem",
-				SvidFileNameDeprecated: "cert.pem",
-				SvidKeyFileName:        "key.pem",
-				SvidBundleFileName:     "bundle.pem",
+				SVIDFileName:           "cert.pem",
+				SVIDFileNameDeprecated: "cert.pem",
+				SVIDKeyFileName:        "key.pem",
+				SVIDBundleFileName:     "bundle.pem",
 			},
 			expectError: "use of svid_file_name and svidFileName found, use only svid_file_name",
 		},
@@ -154,10 +154,10 @@ func TestValidateConfig(t *testing.T) {
 			name: "Both svid_key_file_name & svidKeyFileName in use",
 			config: &Config{
 				AgentAddress:              "path",
-				SvidFileName:              "cert.pem",
-				SvidKeyFileName:           "key.pem",
-				SvidKeyFileNameDeprecated: "key.pem",
-				SvidBundleFileName:        "bundle.pem",
+				SVIDFileName:              "cert.pem",
+				SVIDKeyFileName:           "key.pem",
+				SVIDKeyFileNameDeprecated: "key.pem",
+				SVIDBundleFileName:        "bundle.pem",
 			},
 			expectError: "use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name",
 		},
@@ -165,10 +165,10 @@ func TestValidateConfig(t *testing.T) {
 			name: "Both svid_bundle_file_name & svidBundleFileName in use",
 			config: &Config{
 				AgentAddress:                 "path",
-				SvidFileName:                 "cert.pem",
-				SvidKeyFileName:              "key.pem",
-				SvidBundleFileName:           "bundle.pem",
-				SvidBundleFileNameDeprecated: "bundle.pem",
+				SVIDFileName:                 "cert.pem",
+				SVIDKeyFileName:              "key.pem",
+				SVIDBundleFileName:           "bundle.pem",
+				SVIDBundleFileNameDeprecated: "bundle.pem",
 			},
 			expectError: "use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name",
 		},
@@ -176,9 +176,9 @@ func TestValidateConfig(t *testing.T) {
 			name: "Both renew_signal & renewSignal in use",
 			config: &Config{
 				AgentAddress:          "path",
-				SvidFileName:          "cert.pem",
-				SvidKeyFileName:       "key.pem",
-				SvidBundleFileName:    "bundle.pem",
+				SVIDFileName:          "cert.pem",
+				SVIDKeyFileName:       "key.pem",
+				SVIDBundleFileName:    "bundle.pem",
 				RenewSignal:           "SIGHUP",
 				RenewSignalDeprecated: "SIGHUP",
 			},
@@ -189,9 +189,9 @@ func TestValidateConfig(t *testing.T) {
 			name: "Using AgentAddressDeprecated",
 			config: &Config{
 				AgentAddressDeprecated: "path",
-				SvidFileName:           "cert.pem",
-				SvidKeyFileName:        "key.pem",
-				SvidBundleFileName:     "bundle.pem",
+				SVIDFileName:           "cert.pem",
+				SVIDKeyFileName:        "key.pem",
+				SVIDBundleFileName:     "bundle.pem",
 			},
 			expectLogs: []shortEntry{
 				{
@@ -205,9 +205,9 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress:       "path",
 				CmdArgsDeprecated:  "start_envoy.sh",
-				SvidFileName:       "cert.pem",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 			expectLogs: []shortEntry{
 				{
@@ -221,9 +221,9 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress:       "path",
 				CertDirDeprecated:  "certs",
-				SvidFileName:       "cert.pem",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 			expectLogs: []shortEntry{
 				{
@@ -233,12 +233,12 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Using SvidFileNameDeprecated",
+			name: "Using SVIDFileNameDeprecated",
 			config: &Config{
 				AgentAddress:           "path",
-				SvidFileNameDeprecated: "cert.pem",
-				SvidKeyFileName:        "key.pem",
-				SvidBundleFileName:     "bundle.pem",
+				SVIDFileNameDeprecated: "cert.pem",
+				SVIDKeyFileName:        "key.pem",
+				SVIDBundleFileName:     "bundle.pem",
 			},
 			expectLogs: []shortEntry{
 				{
@@ -248,12 +248,12 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Using SvidKeyFileNameDeprecated",
+			name: "Using SVIDKeyFileNameDeprecated",
 			config: &Config{
 				AgentAddress:              "path",
-				SvidFileName:              "cert.pem",
-				SvidKeyFileNameDeprecated: "key.pem",
-				SvidBundleFileName:        "bundle.pem",
+				SVIDFileName:              "cert.pem",
+				SVIDKeyFileNameDeprecated: "key.pem",
+				SVIDBundleFileName:        "bundle.pem",
 			},
 			expectLogs: []shortEntry{
 				{
@@ -263,12 +263,12 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Using SvidBundleFileNameDeprecated",
+			name: "Using SVIDBundleFileNameDeprecated",
 			config: &Config{
 				AgentAddress:                 "path",
-				SvidFileName:                 "cert.pem",
-				SvidKeyFileName:              "key.pem",
-				SvidBundleFileNameDeprecated: "bundle.pem",
+				SVIDFileName:                 "cert.pem",
+				SVIDKeyFileName:              "key.pem",
+				SVIDBundleFileNameDeprecated: "bundle.pem",
 			},
 			expectLogs: []shortEntry{
 				{
@@ -281,9 +281,9 @@ func TestValidateConfig(t *testing.T) {
 			name: "Using RenewSignalDeprecated",
 			config: &Config{
 				AgentAddress:          "path",
-				SvidFileName:          "cert.pem",
-				SvidKeyFileName:       "key.pem",
-				SvidBundleFileName:    "bundle.pem",
+				SVIDFileName:          "cert.pem",
+				SVIDKeyFileName:       "key.pem",
+				SVIDBundleFileName:    "bundle.pem",
 				RenewSignalDeprecated: "SIGHUP",
 			},
 			expectLogs: []shortEntry{{
@@ -340,9 +340,9 @@ func TestDefaultAgentAddress(t *testing.T) {
 			os.Setenv("SPIRE_AGENT_ADDRESS", tt.envAgentAddress)
 			config := &Config{
 				AgentAddress:       tt.agentAddress,
-				SvidFileName:       "cert.pem",
-				SvidKeyFileName:    "key.pem",
-				SvidBundleFileName: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			}
 			log, _ := test.NewNullLogger()
 			err := ValidateConfig(config, false, log)
@@ -357,12 +357,12 @@ func TestNewSidecarConfig(t *testing.T) {
 		AgentAddress:            "my-agent-address",
 		Cmd:                     "my-cmd",
 		CertDir:                 "my-cert-dir",
-		SvidKeyFileName:         "my-key",
-		IncludeFederatedDomains: true,
-		JwtSvids: []JwtConfig{
+		SVIDKeyFileName:         "my-key",
+    IncludeFederatedDomains: true,
+		JWTSVIDs: []JWTConfig{
 			{
 				JWTAudience:     "my-audience",
-				JWTSvidFilename: "my-jwt-filename",
+				JWTSVIDFilename: "my-jwt-filename",
 			},
 		},
 	}
@@ -373,26 +373,26 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, config.AgentAddress, sidecarConfig.AgentAddress)
 	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
 	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
-	assert.Equal(t, config.SvidKeyFileName, sidecarConfig.SvidKeyFileName)
-	assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
+	assert.Equal(t, config.SVIDKeyFileName, sidecarConfig.SVIDKeyFileName)
+  assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
 
 	// Ensure JWT Config was populated correctly
-	require.Equal(t, len(config.JwtSvids), len(sidecarConfig.JwtSvids))
-	for i := 0; i < len(config.JwtSvids); i++ {
-		assert.Equal(t, config.JwtSvids[i].JWTAudience, sidecarConfig.JwtSvids[i].JWTAudience)
-		assert.Equal(t, config.JwtSvids[i].JWTSvidFilename, sidecarConfig.JwtSvids[i].JWTSvidFilename)
+	require.Equal(t, len(config.JWTSVIDs), len(sidecarConfig.JWTSVIDs))
+	for i := 0; i < len(config.JWTSVIDs); i++ {
+		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWTSVIDs[i].JWTAudience)
+		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFilename, sidecarConfig.JWTSVIDs[i].JWTSVIDFilename)
 	}
 
 	// Ensure empty fields were not populated
-	assert.Equal(t, "", sidecarConfig.SvidFileName)
+	assert.Equal(t, "", sidecarConfig.SVIDFileName)
 	assert.Equal(t, "", sidecarConfig.RenewSignal)
 }
 
 func TestExitOnWaitFlag(t *testing.T) {
 	config := &Config{
-		SvidFileName:       "cert.pem",
-		SvidKeyFileName:    "key.pem",
-		SvidBundleFileName: "bundle.pem",
+		SVIDFileName:       "cert.pem",
+		SVIDKeyFileName:    "key.pem",
+		SVIDBundleFileName: "bundle.pem",
 	}
 	log, _ := test.NewNullLogger()
 	err := ValidateConfig(config, true, log)
