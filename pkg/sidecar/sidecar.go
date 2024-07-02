@@ -102,6 +102,14 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 }
 
 func (s *Sidecar) Run(ctx context.Context) error {
+	if s.x509Enabled() || s.jwtBundleEnabled() {
+		client, err := workloadapi.New(ctx, s.getWorkloadAPIAdress())
+		if err != nil {
+			return err
+		}
+		s.client = client
+		defer client.Close()
+	}
 	if s.x509Enabled() {
 		s.config.Log.Debug("Fetching x509 certificates")
 		if err := s.fetchAndWriteX509Context(ctx); err != nil {

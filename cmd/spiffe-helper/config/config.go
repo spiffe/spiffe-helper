@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"flag"
 	"os"
 
 	"github.com/hashicorp/hcl"
@@ -11,6 +12,7 @@ import (
 
 const (
 	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
+	daemonModeFlagName  = "daemon_mode"
 )
 
 type Config struct {
@@ -46,6 +48,14 @@ type JWTConfig struct {
 	JWTSVIDFilename string `hcl:"jwt_svid_file_name"`
 }
 
+func ParseFlags() (string, bool) {
+	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
+	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Exit once the requested objects are retrieved")
+	flag.Parse()
+
+	return *configFile, *daemonModeFlag
+}
+
 // ParseConfig parses the given HCL file into a Config struct
 func ParseConfig(file string) (*Config, error) {
 	// Read HCL file
@@ -63,7 +73,7 @@ func ParseConfig(file string) (*Config, error) {
 	return config, nil
 }
 
-func ValidateConfig(c *Config, disableDaemonMode bool, log logrus.FieldLogger) error {
+func ValidateConfig(c *Config, daemonModeFlag bool, log logrus.FieldLogger) error {
 	if err := validateOSConfig(c); err != nil {
 		return err
 	}
@@ -151,14 +161,12 @@ func ValidateConfig(c *Config, disableDaemonMode bool, log logrus.FieldLogger) e
 		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
-	var daemonMode bool
-	if disableDaemonMode {
-		// If daemon mode is disabled by CLI this takes precedence
-		daemonMode = false
-		c.DaemonMode = &daemonMode
+	if isFlagPassed(daemonModeFlagName) {
+		// If daemon mode is set by CLI this takes precedence
+		c.DaemonMode = &daemonModeFlag
 	} else if c.DaemonMode == nil {
 		// If daemon mode is not set, then default to true
-		daemonMode = true
+		daemonMode := true
 		c.DaemonMode = &daemonMode
 	}
 
@@ -217,5 +225,17 @@ func countEmpty(configs ...string) int {
 			cnt++
 		}
 	}
+
 	return cnt
+}
+
+func isFlagPassed(name string) bool {
+	var found bool
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+
+	return found
 }
