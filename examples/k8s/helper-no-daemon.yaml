@@ -33,7 +33,6 @@ spec:
     metadata:
       labels:
         app: spiffe-helper
-        spiffe.io/spiffe-id: "true"
     spec:
       serviceAccountName: spiffe-helper
       containers:
