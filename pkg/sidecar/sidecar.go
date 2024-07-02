@@ -45,13 +45,14 @@ func New(config *Config) *Sidecar {
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	var wg sync.WaitGroup
 
-	if s.x509Enabled() || s.jwtBundleEnabled() {
-		client, err := workloadapi.New(ctx, s.getWorkloadAPIAdress())
-		if err != nil {
-			return err
-		}
-		s.client = client
-		defer client.Close()
+	if err := s.setupClients(ctx); err != nil {
+		return err
+	}
+	if s.client != nil {
+		defer s.client.Close()
+	}
+	if s.jwtSource != nil {
+		defer s.jwtSource.Close()
 	}
 
 	if s.x509Enabled() {
@@ -79,13 +80,6 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	}
 
 	if s.jwtSVIDsEnabled() {
-		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAdress()))
-		if err != nil {
-			s.config.Log.Fatalf("Error watching JWT svid updates: %v", err)
-		}
-		s.jwtSource = jwtSource
-		defer s.jwtSource.Close()
-
 		for _, jwtConfig := range s.config.JWTSVIDs {
 			jwtConfig := jwtConfig
 			wg.Add(1)
@@ -102,14 +96,16 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 }
 
 func (s *Sidecar) Run(ctx context.Context) error {
-	if s.x509Enabled() || s.jwtBundleEnabled() {
-		client, err := workloadapi.New(ctx, s.getWorkloadAPIAdress())
-		if err != nil {
-			return err
-		}
-		s.client = client
-		defer client.Close()
+	if err := s.setupClients(ctx); err != nil {
+		return err
 	}
+	if s.client != nil {
+		defer s.client.Close()
+	}
+	if s.jwtSource != nil {
+		defer s.jwtSource.Close()
+	}
+
 	if s.x509Enabled() {
 		s.config.Log.Debug("Fetching x509 certificates")
 		if err := s.fetchAndWriteX509Context(ctx); err != nil {
@@ -118,6 +114,7 @@ func (s *Sidecar) Run(ctx context.Context) error {
 		}
 		s.config.Log.Info("Successfully fetched x509 certificates")
 	}
+
 	if s.jwtBundleEnabled() {
 		s.config.Log.Debug("Fetching JWT Bundle")
 		if err := s.fetchAndWriteJWTBundle(ctx); err != nil {
@@ -126,6 +123,7 @@ func (s *Sidecar) Run(ctx context.Context) error {
 		}
 		s.config.Log.Info("Successfully fetched JWT bundle")
 	}
+
 	if s.jwtSVIDsEnabled() {
 		s.config.Log.Debug("Fetching JWT SVIDs")
 		if err := s.fetchAndWriteJWTSVIDs(ctx); err != nil {
@@ -141,6 +139,26 @@ func (s *Sidecar) Run(ctx context.Context) error {
 // CertReadyChan returns a channel to know when the certificates are ready
 func (s *Sidecar) CertReadyChan() <-chan struct{} {
 	return s.certReadyChan
+}
+
+func (s *Sidecar) setupClients(ctx context.Context) error {
+	if s.x509Enabled() || s.jwtBundleEnabled() {
+		client, err := workloadapi.New(ctx, s.getWorkloadAPIAdress())
+		if err != nil {
+			return err
+		}
+		s.client = client
+	}
+
+	if s.jwtSVIDsEnabled() {
+		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAdress()))
+		if err != nil {
+			return err
+		}
+		s.jwtSource = jwtSource
+	}
+
+	return nil
 }
 
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
