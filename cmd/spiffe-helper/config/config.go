@@ -12,7 +12,7 @@ import (
 
 const (
 	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
-	daemonModeFlagName  = "daemon_mode"
+	daemonModeFlagName  = "daemon-mode"
 )
 
 type Config struct {
