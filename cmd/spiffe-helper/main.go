@@ -36,7 +36,7 @@ func startSidecar(log logrus.FieldLogger) error {
 	}
 
 	if err := config.ValidateConfig(hclConfig, daemonModeFlag, log); err != nil {
-		return fmt.Errorf("Invalid configuration: %w", err)
+		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
