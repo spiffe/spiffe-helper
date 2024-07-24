@@ -50,7 +50,7 @@ type JWTConfig struct {
 
 func ParseFlags() (string, bool) {
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
-	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Exit once the requested objects are retrieved")
+	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
 	flag.Parse()
 
 	return *configFile, *daemonModeFlag
