@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"os"
 	"testing"
 
@@ -388,16 +389,22 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, "", sidecarConfig.RenewSignal)
 }
 
-func TestExitOnWaitFlag(t *testing.T) {
+func TestDaemonModeFlag(t *testing.T) {
 	config := &Config{
 		SVIDFileName:       "cert.pem",
 		SVIDKeyFileName:    "key.pem",
 		SVIDBundleFileName: "bundle.pem",
 	}
 	log, _ := test.NewNullLogger()
-	err := ValidateConfig(config, true, log)
+
+	_, _ = ParseFlags()
+	err := flag.Set(daemonModeFlagName, "false")
 	require.NoError(t, err)
-	assert.Equal(t, config.ExitWhenReady, true)
+
+	err = ValidateConfig(config, false, log)
+	require.NoError(t, err)
+	require.NotNil(t, config.DaemonMode)
+	assert.Equal(t, false, *config.DaemonMode)
 }
 
 type shortEntry struct {

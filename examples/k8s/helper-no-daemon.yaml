@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spiffe-helper
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spiffe-helper
+data:
+  helper.conf: |
+    cmd = ""
+    cmd_args = ""
+    cert_dir = ""
+    renew_signal = ""
+    svid_file_name = "tls.crt"
+    svid_key_file_name = "tls.key"
+    svid_bundle_file_name = "ca.pem"
+    jwt_bundle_file_name = "cert.jwt"
+    jwt_svids = [{jwt_audience="test", jwt_svid_file_name="jwt_svid.token"}]
+    daemon_mode = false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spiffe-helper
+  labels:
+    app: spiffe-helper
+spec:
+  selector:
+    matchLabels:
+      app: spiffe-helper
+  template:
+    metadata:
+      labels:
+        app: spiffe-helper
+    spec:
+      serviceAccountName: spiffe-helper
+      containers:
+        - name: spiffe-helper
+          image: ghcr.io/spiffe/spiffe-helper:devel
+          args: ["-config", "config/helper.conf"]
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /tmp/spire-agent/public/
+              readOnly: true
+            - name: helper-config
+              mountPath: /config
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/agent-sockets
+            type: Directory
+        - name: helper-config
+          configMap:
+            name: spiffe-helper

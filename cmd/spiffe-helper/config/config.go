@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"flag"
 	"os"
 
 	"github.com/hashicorp/hcl"
@@ -11,6 +12,7 @@ import (
 
 const (
 	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
+	daemonModeFlagName  = "daemon-mode"
 )
 
 type Config struct {
@@ -23,10 +25,10 @@ type Config struct {
 	CmdArgsDeprecated                  string `hcl:"cmdArgs"`
 	CertDir                            string `hcl:"cert_dir"`
 	CertDirDeprecated                  string `hcl:"certDir"`
-	ExitWhenReady                      bool   `hcl:"exit_when_ready"`
 	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
+	DaemonMode                         *bool  `hcl:"daemon_mode"`
 
 	// x509 configuration
 	SVIDFileName                 string `hcl:"svid_file_name"`
@@ -46,10 +48,16 @@ type JWTConfig struct {
 	JWTSVIDFilename string `hcl:"jwt_svid_file_name"`
 }
 
+func ParseFlags() (string, bool) {
+	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
+	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
+	flag.Parse()
+
+	return *configFile, *daemonModeFlag
+}
+
 // ParseConfig parses the given HCL file into a Config struct
 func ParseConfig(file string) (*Config, error) {
-	sidecarConfig := new(Config)
-
 	// Read HCL file
 	dat, err := os.ReadFile(file)
 	if err != nil {
@@ -57,17 +65,19 @@ func ParseConfig(file string) (*Config, error) {
 	}
 
 	// Parse HCL
-	if err := hcl.Decode(sidecarConfig, string(dat)); err != nil {
+	config := new(Config)
+	if err := hcl.Decode(config, string(dat)); err != nil {
 		return nil, err
 	}
 
-	return sidecarConfig, nil
+	return config, nil
 }
 
-func ValidateConfig(c *Config, exitWhenReady bool, log logrus.FieldLogger) error {
+func ValidateConfig(c *Config, daemonModeFlag bool, log logrus.FieldLogger) error {
 	if err := validateOSConfig(c); err != nil {
 		return err
 	}
+
 	if c.AgentAddressDeprecated != "" {
 		if c.AgentAddress != "" {
 			return errors.New("use of agent_address and agentAddress found, use only agent_address")
@@ -140,16 +150,24 @@ func ValidateConfig(c *Config, exitWhenReady bool, log logrus.FieldLogger) error
 		}
 	}
 
-	c.ExitWhenReady = c.ExitWhenReady || exitWhenReady
+	x509Enabled, err := validateX509Config(c)
+	if err != nil {
+		return err
+	}
 
-	x509EmptyCount := countEmpty(c.SVIDFileName, c.SVIDBundleFileName, c.SVIDKeyFileName)
-	jwtBundleEmptyCount := countEmpty(c.SVIDBundleFileName)
-	if x509EmptyCount == 3 && len(c.JWTSVIDs) == 0 && jwtBundleEmptyCount == 1 {
+	jwtBundleEnabled, jwtSVIDsEnabled := validateJWTConfig(c)
+
+	if !x509Enabled && !jwtBundleEnabled && !jwtSVIDsEnabled {
 		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
-	if x509EmptyCount != 0 && x509EmptyCount != 3 {
-		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
+	if isFlagPassed(daemonModeFlagName) {
+		// If daemon mode is set by CLI this takes precedence
+		c.DaemonMode = &daemonModeFlag
+	} else if c.DaemonMode == nil {
+		// If daemon mode is not set, then default to true
+		daemonMode := true
+		c.DaemonMode = &daemonMode
 	}
 
 	return nil
@@ -162,7 +180,6 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		Cmd:                      config.Cmd,
 		CmdArgs:                  config.CmdArgs,
 		CertDir:                  config.CertDir,
-		ExitWhenReady:            config.ExitWhenReady,
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,
@@ -182,6 +199,21 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	return sidecarConfig
 }
 
+func validateX509Config(c *Config) (bool, error) {
+	x509EmptyCount := countEmpty(c.SVIDFileName, c.SVIDBundleFileName, c.SVIDKeyFileName)
+	if x509EmptyCount != 0 && x509EmptyCount != 3 {
+		return false, errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
+	}
+
+	return x509EmptyCount == 0, nil
+}
+
+func validateJWTConfig(c *Config) (bool, bool) {
+	jwtBundleEmptyCount := countEmpty(c.SVIDBundleFileName)
+
+	return jwtBundleEmptyCount == 0, len(c.JWTSVIDs) > 0
+}
+
 func getWarning(s1 string, s2 string) string {
 	return s1 + " will be deprecated, should be used as " + s2
 }
@@ -193,5 +225,17 @@ func countEmpty(configs ...string) int {
 			cnt++
 		}
 	}
+
 	return cnt
+}
+
+func isFlagPassed(name string) bool {
+	var found bool
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+
+	return found
 }
