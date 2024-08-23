@@ -5,6 +5,7 @@ import (
 )
 
 type Config struct {
+	// If true, merge intermediate certificates into Bundle file instead of SVID file.
 	// This is the exptected format for MySQL and some other applications.
 	AddIntermediatesToBundle bool
 
