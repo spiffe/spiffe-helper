@@ -12,7 +12,6 @@ import (
 
 const (
 	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
-	daemonModeFlagName  = "daemon-mode"
 )
 
 type Config struct {
@@ -48,14 +47,6 @@ type JWTConfig struct {
 	JWTSVIDFilename string `hcl:"jwt_svid_file_name"`
 }
 
-func ParseFlags() (string, bool) {
-	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
-	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
-	flag.Parse()
-
-	return *configFile, *daemonModeFlag
-}
-
 // ParseConfig parses the given HCL file into a Config struct
 func ParseConfig(file string) (*Config, error) {
 	// Read HCL file
@@ -73,7 +64,19 @@ func ParseConfig(file string) (*Config, error) {
 	return config, nil
 }
 
-func ValidateConfig(c *Config, daemonModeFlag bool, log logrus.FieldLogger) error {
+// ParseConfigFlagOverrides handles command line arguments that override config file settings
+func ParseConfigFlagOverrides(c *Config, daemonModeFlag bool, daemonModeFlagName string) {
+	if isFlagPassed(daemonModeFlagName) {
+		// If daemon mode is set by CLI this takes precedence
+		c.DaemonMode = &daemonModeFlag
+	} else if c.DaemonMode == nil {
+		// If daemon mode is not set, then default to true
+		daemonMode := true
+		c.DaemonMode = &daemonMode
+	}
+}
+
+func ValidateConfig(c *Config, log logrus.FieldLogger) error {
 	if err := validateOSConfig(c); err != nil {
 		return err
 	}
@@ -161,15 +164,6 @@ func ValidateConfig(c *Config, daemonModeFlag bool, log logrus.FieldLogger) erro
 		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
-	if isFlagPassed(daemonModeFlagName) {
-		// If daemon mode is set by CLI this takes precedence
-		c.DaemonMode = &daemonModeFlag
-	} else if c.DaemonMode == nil {
-		// If daemon mode is not set, then default to true
-		daemonMode := true
-		c.DaemonMode = &daemonMode
-	}
-
 	return nil
 }
 
@@ -229,6 +223,7 @@ func countEmpty(configs ...string) int {
 	return cnt
 }
 
+// isFlagPassed tests to see if a command line argument was set at all or left empty
 func isFlagPassed(name string) bool {
 	var found bool
 	flag.Visit(func(f *flag.Flag) {

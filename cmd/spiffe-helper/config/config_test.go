@@ -11,6 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	daemonModeFlagName = "daemon-mode"
+)
+
 func TestParseConfig(t *testing.T) {
 	c, err := ParseConfig("testdata/helper.conf")
 
@@ -295,7 +299,7 @@ func TestValidateConfig(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			log, hook := test.NewNullLogger()
-			err := ValidateConfig(tt.config, false, log)
+			err := ValidateConfig(tt.config, log)
 
 			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
@@ -346,7 +350,7 @@ func TestDefaultAgentAddress(t *testing.T) {
 				SVIDBundleFileName: "bundle.pem",
 			}
 			log, _ := test.NewNullLogger()
-			err := ValidateConfig(config, false, log)
+			err := ValidateConfig(config, log)
 			require.NoError(t, err)
 			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
 		})
@@ -395,14 +399,14 @@ func TestDaemonModeFlag(t *testing.T) {
 		SVIDKeyFileName:    "key.pem",
 		SVIDBundleFileName: "bundle.pem",
 	}
-	log, _ := test.NewNullLogger()
 
-	_, _ = ParseFlags()
+	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
+	flag.Parse()
+
 	err := flag.Set(daemonModeFlagName, "false")
 	require.NoError(t, err)
 
-	err = ValidateConfig(config, false, log)
-	require.NoError(t, err)
+	ParseConfigFlagOverrides(config, *daemonModeFlag, daemonModeFlagName)
 	require.NotNil(t, config.DaemonMode)
 	assert.Equal(t, false, *config.DaemonMode)
 }
