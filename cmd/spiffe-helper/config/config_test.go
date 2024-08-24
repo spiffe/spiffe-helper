@@ -299,7 +299,7 @@ func TestValidateConfig(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			log, hook := test.NewNullLogger()
-			err := ValidateConfig(tt.config, log)
+			err := tt.config.ValidateConfig(log)
 
 			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
@@ -350,7 +350,7 @@ func TestDefaultAgentAddress(t *testing.T) {
 				SVIDBundleFileName: "bundle.pem",
 			}
 			log, _ := test.NewNullLogger()
-			err := ValidateConfig(config, log)
+			err := config.ValidateConfig(log)
 			require.NoError(t, err)
 			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
 		})
@@ -406,7 +406,7 @@ func TestDaemonModeFlag(t *testing.T) {
 	err := flag.Set(daemonModeFlagName, "false")
 	require.NoError(t, err)
 
-	ParseConfigFlagOverrides(config, *daemonModeFlag, daemonModeFlagName)
+	config.ParseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
 	require.NotNil(t, config.DaemonMode)
 	assert.Equal(t, false, *config.DaemonMode)
 }

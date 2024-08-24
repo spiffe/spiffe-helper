@@ -65,7 +65,7 @@ func ParseConfig(file string) (*Config, error) {
 }
 
 // ParseConfigFlagOverrides handles command line arguments that override config file settings
-func ParseConfigFlagOverrides(c *Config, daemonModeFlag bool, daemonModeFlagName string) {
+func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
 	if isFlagPassed(daemonModeFlagName) {
 		// If daemon mode is set by CLI this takes precedence
 		c.DaemonMode = &daemonModeFlag
@@ -76,7 +76,7 @@ func ParseConfigFlagOverrides(c *Config, daemonModeFlag bool, daemonModeFlagName
 	}
 }
 
-func ValidateConfig(c *Config, log logrus.FieldLogger) error {
+func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	if err := validateOSConfig(c); err != nil {
 		return err
 	}

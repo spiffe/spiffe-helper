@@ -40,9 +40,9 @@ func startSidecar(configFile string, daemonModeFlag bool, log logrus.FieldLogger
 	if err != nil {
 		return fmt.Errorf("failed to parse %q: %w", configFile, err)
 	}
-	config.ParseConfigFlagOverrides(hclConfig, daemonModeFlag, daemonModeFlagName)
+	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
 
-	if err := config.ValidateConfig(hclConfig, log); err != nil {
+	if err := hclConfig.ValidateConfig(log); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
