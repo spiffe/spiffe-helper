@@ -36,7 +36,7 @@ func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename stri
 func WriteJWTSVID(jwtSVID *jwtsvid.SVID, dir, jwtSVIDFilename string) error {
 	filePath := path.Join(dir, jwtSVIDFilename)
 
-	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), os.ModePerm)
+	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), 0600)
 }
 
 func writeJSON(certs map[string]any, dir, filename string) error {
@@ -47,5 +47,5 @@ func writeJSON(certs map[string]any, dir, filename string) error {
 
 	filePath := path.Join(dir, filename)
 
-	return os.WriteFile(filePath, file, os.ModePerm)
+	return os.WriteFile(filePath, file, 0600)
 }
