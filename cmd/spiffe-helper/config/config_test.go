@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"os"
 	"testing"
 
@@ -8,6 +9,10 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	daemonModeFlagName = "daemon-mode"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -294,7 +299,7 @@ func TestValidateConfig(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			log, hook := test.NewNullLogger()
-			err := ValidateConfig(tt.config, false, log)
+			err := tt.config.ValidateConfig(log)
 
 			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
@@ -345,7 +350,7 @@ func TestDefaultAgentAddress(t *testing.T) {
 				SVIDBundleFileName: "bundle.pem",
 			}
 			log, _ := test.NewNullLogger()
-			err := ValidateConfig(config, false, log)
+			err := config.ValidateConfig(log)
 			require.NoError(t, err)
 			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
 		})
@@ -388,16 +393,22 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, "", sidecarConfig.RenewSignal)
 }
 
-func TestExitOnWaitFlag(t *testing.T) {
+func TestDaemonModeFlag(t *testing.T) {
 	config := &Config{
 		SVIDFileName:       "cert.pem",
 		SVIDKeyFileName:    "key.pem",
 		SVIDBundleFileName: "bundle.pem",
 	}
-	log, _ := test.NewNullLogger()
-	err := ValidateConfig(config, true, log)
+
+	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
+	flag.Parse()
+
+	err := flag.Set(daemonModeFlagName, "false")
 	require.NoError(t, err)
-	assert.Equal(t, config.ExitWhenReady, true)
+
+	config.ParseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
+	require.NotNil(t, config.DaemonMode)
+	assert.Equal(t, false, *config.DaemonMode)
 }
 
 type shortEntry struct {
