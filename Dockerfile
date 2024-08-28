@@ -1,6 +1,6 @@
 # Build the spiffe-helper binary
-ARG go_version
-FROM --platform=$BUILDPLATFORM golang:${go_version}-alpine as base
+ARG go_version=1.22.3
+FROM --platform=$BUILDPLATFORM golang:${go_version}-alpine AS base
 WORKDIR /workspace
 
 # Cache deps before building and copying source so that we don't need to re-download as much
@@ -18,7 +18,7 @@ COPY pkg/ pkg/
 # crane digest tonistiigi/xx:1.3.0
 FROM --platform=${BUILDPLATFORM} tonistiigi/xx@sha256:904fe94f236d36d65aeb5a2462f88f2c537b8360475f6342e7599194f291fb7e AS xx
 
-FROM --platform=${BUILDPLATFORM} base as builder
+FROM --platform=${BUILDPLATFORM} base AS builder
 ARG TARGETPLATFORM
 ARG TARGETARCH
 
