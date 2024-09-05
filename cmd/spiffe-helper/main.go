@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
@@ -32,7 +33,7 @@ func main() {
 }
 
 func startSidecar(configFile string, daemonModeFlag bool, log logrus.FieldLogger) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	log.Infof("Using configuration file: %q", configFile)
