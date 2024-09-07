@@ -1,5 +1,5 @@
 # Build the spiffe-helper binary
-ARG go_version=1.22.3
+ARG go_version
 FROM --platform=$BUILDPLATFORM golang:${go_version}-alpine AS base
 WORKDIR /workspace
 
