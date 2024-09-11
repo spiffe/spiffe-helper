@@ -1,6 +1,5 @@
 run:
-  # timeout for analysis, e.g. 30s, 5m, default is 1m
-  deadline: 10m
+  timeout: 10m
 
 issues:
   exclude-dirs:
@@ -31,4 +30,4 @@ linters:
 linters-settings:
   revive:
     # minimal confidence for issues, default is 0.8
-    min-confidence: 0.0
+    confidence: 0.0
