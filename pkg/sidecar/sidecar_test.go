@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -82,6 +83,10 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		SVIDKeyFileName:    "svid_key.pem",
 		SVIDBundleFileName: "svid_bundle.pem",
 		Log:                log,
+		CertFileMode:       os.FileMode(0644),
+		KeyFileMode:        os.FileMode(0600),
+		JwtBundleFileMode:  os.FileMode(0600),
+		JwtSvidFileMode:    os.FileMode(0600),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)

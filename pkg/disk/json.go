@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 
@@ -13,7 +14,7 @@ import (
 )
 
 // WriteJWTBundleSet write the given JWT bundles to disk
-func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename string) error {
+func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename string, jwtBundleFileMode fs.FileMode) error {
 	var errs []error
 	bundles := make(map[string]interface{})
 	for _, bundle := range jwkSet.Bundles() {
@@ -25,7 +26,7 @@ func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename stri
 		bundles[bundle.TrustDomain().Name()] = base64.StdEncoding.EncodeToString(bytes)
 	}
 
-	if err := writeJSON(bundles, dir, jwtBundleFilename); err != nil {
+	if err := writeJSON(bundles, dir, jwtBundleFilename, jwtBundleFileMode); err != nil {
 		errs = append(errs, fmt.Errorf("unable to write JSON file: %w", err))
 	}
 
@@ -33,13 +34,13 @@ func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename stri
 }
 
 // WriteJWTBundle write the given JWT SVID to disk
-func WriteJWTSVID(jwtSVID *jwtsvid.SVID, dir, jwtSVIDFilename string) error {
+func WriteJWTSVID(jwtSVID *jwtsvid.SVID, dir, jwtSVIDFilename string, jwtSvidFileMode fs.FileMode) error {
 	filePath := path.Join(dir, jwtSVIDFilename)
 
-	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), 0600)
+	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), jwtSvidFileMode)
 }
 
-func writeJSON(certs map[string]any, dir, filename string) error {
+func writeJSON(certs map[string]any, dir, filename string, fileMode fs.FileMode) error {
 	file, err := json.Marshal(certs)
 	if err != nil {
 		return err
@@ -47,5 +48,5 @@ func writeJSON(certs map[string]any, dir, filename string) error {
 
 	filePath := path.Join(dir, filename)
 
-	return os.WriteFile(filePath, file, 0600)
+	return os.WriteFile(filePath, file, fileMode)
 }

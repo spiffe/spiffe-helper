@@ -33,7 +33,10 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  | `jwt_svids`                   | An array with the audience and file name to store the JWT SVIDs. File is Base64-encoded string).               | `[{jwt_audience="your-audience", jwt_svid_file_name="jwt_svid.token"}]`                                                                                              |
  | `jwt_bundle_file_name`        | File name to be used to store JWT Bundle in JSON format.                                                       | `"jwt_bundle.json"`                                                                                                                                                  |
  | `include_federated_domains`   | Include trust domains from federated servers in the CA bundle.                                                 | `true`                                                                                                                                                               |
- 
+| `cert_file_mode`              | The octal file mode to use when saving the X.509 public certificate file.                                      | "0644"                                                                                                                                                               |
+| `key_file_mode`               | The octal file mode to use when saving the X.509 private key file                                              | "0600"                                                                                                                                                               |
+| `jwt_bundle_file_mode`        | The octal file mode to use when saving a JWT Bundle file.                                                      | "0600"                                                                                                                                                               |
+| `jwt_svid_file_mode`          | The octal file mode to use when saving a JWT SVID file.                                                        | "0600"                                                                                                                                                               |
 
 ### Configuration example
 ```
@@ -47,6 +50,10 @@ svid_key_file_name = "svid_key.pem"
 svid_bundle_file_name = "svid_bundle.pem"
 jwt_svids = [{jwt_audience="your-audience", jwt_svid_file_name="jwt_svid.token"}]
 jwt_bundle_file_name = "bundle.json"
+cert_file_mode = "0444"
+key_file_mode = "0444"
+jwt_bundle_file_mode = "0444"
+jwt_svid_file_mode = "0444"
 ```
 
 ### Windows example

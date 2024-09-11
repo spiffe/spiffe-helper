@@ -31,6 +31,10 @@ func TestParseConfig(t *testing.T) {
 	expectedJWTSVIDFileName := "jwt_svid.token"
 	expectedJWTBundleFileName := "jwt_bundle.json"
 	expectedJWTAudience := "your-audience"
+	expectedCertFileMode := "0444"
+	expectedKeyFileMode := "0444"
+	expectedJwtBundleFileMode := "0444"
+	expectedJwtSvidFileMode := "0444"
 
 	assert.Equal(t, expectedAgentAddress, c.AgentAddress)
 	assert.Equal(t, expectedCmd, c.Cmd)
@@ -44,6 +48,10 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFilename)
 	assert.Equal(t, expectedJWTAudience, c.JWTSVIDs[0].JWTAudience)
 	assert.True(t, c.AddIntermediatesToBundle)
+	assert.Equal(t, expectedCertFileMode, c.CertFileMode)
+	assert.Equal(t, expectedKeyFileMode, c.KeyFileMode)
+	assert.Equal(t, expectedJwtBundleFileMode, c.JwtBundleFileMode)
+	assert.Equal(t, expectedJwtSvidFileMode, c.JwtSvidFileMode)
 }
 
 func TestValidateConfig(t *testing.T) {

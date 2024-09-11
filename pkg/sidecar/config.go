@@ -1,6 +1,8 @@
 package sidecar
 
 import (
+	"io/fs"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -23,6 +25,14 @@ type Config struct {
 
 	// If true, fetche x509 certificate and then exit(0).
 	ExitWhenReady bool
+
+	CertFileMode fs.FileMode
+
+	KeyFileMode fs.FileMode
+
+	JwtBundleFileMode fs.FileMode
+
+	JwtSvidFileMode fs.FileMode
 
 	// If true, includes trust domains from federated servers in the CA bundle.
 	IncludeFederatedDomains bool
