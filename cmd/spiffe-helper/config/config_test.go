@@ -31,10 +31,14 @@ func TestParseConfig(t *testing.T) {
 	expectedJWTSVIDFileName := "jwt_svid.token"
 	expectedJWTBundleFileName := "jwt_bundle.json"
 	expectedJWTAudience := "your-audience"
-	expectedCertFileMode := "0444"
-	expectedKeyFileMode := "0444"
-	expectedJwtBundleFileMode := "0444"
-	expectedJwtSvidFileMode := "0444"
+	certFileMode := 444
+	expectedCertFileMode := &certFileMode
+	keyFileMode := 444
+	expectedKeyFileMode := &keyFileMode
+	jwtBundleFileMode := 444
+	expectedJwtBundleFileMode := &jwtBundleFileMode
+	jwtSvidFileMode := 444
+	expectedJwtSvidFileMode := &jwtSvidFileMode
 
 	assert.Equal(t, expectedAgentAddress, c.AgentAddress)
 	assert.Equal(t, expectedCmd, c.Cmd)

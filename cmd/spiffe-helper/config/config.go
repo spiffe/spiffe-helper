@@ -3,9 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
-	"math"
 	"os"
-	"strconv"
 
 	"github.com/hashicorp/hcl"
 	"github.com/sirupsen/logrus"
@@ -30,10 +28,10 @@ type Config struct {
 	CmdArgsDeprecated                  string `hcl:"cmdArgs"`
 	CertDir                            string `hcl:"cert_dir"`
 	CertDirDeprecated                  string `hcl:"certDir"`
-	CertFileMode                       string `hcl:"cert_file_mode"`
-	KeyFileMode                        string `hcl:"key_file_mode"`
-	JwtBundleFileMode                  string `hcl:"jwt_bundle_file_mode"`
-	JwtSvidFileMode                    string `hcl:"jwt_svid_file_mode"`
+	CertFileMode                       *int   `hcl:"cert_file_mode"`
+	KeyFileMode                        *int   `hcl:"key_file_mode"`
+	JwtBundleFileMode                  *int   `hcl:"jwt_bundle_file_mode"`
+	JwtSvidFileMode                    *int   `hcl:"jwt_svid_file_mode"`
 	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
@@ -179,40 +177,20 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	certFileMode := defaultCertFileMode
-	if config.CertFileMode != "" {
-		parsedCertFileMode, err := strconv.ParseUint(config.CertFileMode, 8, 32)
-		if err != nil || parsedCertFileMode > math.MaxUint32 {
-			log.WithError(err).Error("failed to parse file mode, using default")
-		} else {
-			certFileMode = os.FileMode(parsedCertFileMode) //nolint:gosec,G115
-		}
+	if config.CertFileMode != nil && *config.CertFileMode > 0 {
+		certFileMode = os.FileMode(*config.CertFileMode) //nolint:gosec,G115
 	}
 	keyFileMode := defaultKeyFileMode
-	if config.KeyFileMode != "" {
-		parsedKeyFileMode, err := strconv.ParseUint(config.KeyFileMode, 8, 32)
-		if err != nil || parsedKeyFileMode > math.MaxUint32 {
-			log.WithError(err).Error("failed to parse file mode, using default")
-		} else {
-			certFileMode = os.FileMode(parsedKeyFileMode) //nolint:gosec,G115
-		}
+	if config.KeyFileMode != nil && *config.KeyFileMode > 0 {
+		certFileMode = os.FileMode(*config.KeyFileMode) //nolint:gosec,G115
 	}
 	jwtBundleFileMode := defaultJwtBundleFileMode
-	if config.JwtBundleFileMode != "" {
-		parsedJwtBundleFileMode, err := strconv.ParseUint(config.JwtBundleFileMode, 8, 32)
-		if err != nil || parsedJwtBundleFileMode > math.MaxUint32 {
-			log.WithError(err).Error("failed to parse file mode, using default")
-		} else {
-			certFileMode = os.FileMode(parsedJwtBundleFileMode) //nolint:gosec,G115
-		}
+	if config.JwtBundleFileMode != nil && *config.JwtBundleFileMode > 0 {
+		certFileMode = os.FileMode(*config.JwtBundleFileMode) //nolint:gosec,G115
 	}
 	jwtSvidFileMode := defaultJwtSvidFileMode
-	if config.JwtSvidFileMode != "" {
-		parsedJwtSvidFileMode, err := strconv.ParseUint(config.JwtSvidFileMode, 8, 32)
-		if err != nil || parsedJwtSvidFileMode > math.MaxUint32 {
-			log.WithError(err).Error("failed to parse file mode, using default")
-		} else {
-			certFileMode = os.FileMode(parsedJwtSvidFileMode) //nolint:gosec,G115
-		}
+	if config.JwtSvidFileMode != nil && *config.JwtSvidFileMode > 0 {
+		certFileMode = os.FileMode(*config.JwtSvidFileMode) //nolint:gosec,G115
 	}
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
