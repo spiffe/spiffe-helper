@@ -31,7 +31,7 @@ type Config struct {
 	CertFileMode                       *int   `hcl:"cert_file_mode"`
 	KeyFileMode                        *int   `hcl:"key_file_mode"`
 	JwtBundleFileMode                  *int   `hcl:"jwt_bundle_file_mode"`
-	JwtSvidFileMode                    *int   `hcl:"jwt_svid_file_mode"`
+	JwtSVIDFileMode                    *int   `hcl:"jwt_svid_file_mode"`
 	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
