@@ -67,7 +67,7 @@ func TestWriteJWTSVID(t *testing.T) {
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVID, tempDir, jwtSVIDFilename, jwtSvidFileMode)
+	err = WriteJWTSVID(jwtSVID, tempDir, jwtSVIDFilename, jwtSVIDFileMode)
 	require.NoError(t, err)
 
 	// Read back and check its the same

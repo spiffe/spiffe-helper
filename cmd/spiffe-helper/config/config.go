@@ -188,9 +188,9 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	if config.JwtBundleFileMode != nil && *config.JwtBundleFileMode > 0 {
 		certFileMode = os.FileMode(*config.JwtBundleFileMode) //nolint:gosec,G115
 	}
-	jwtSvidFileMode := defaultJWTSVIDFileMode
-	if config.JwtSvidFileMode != nil && *config.JwtSvidFileMode > 0 {
-		certFileMode = os.FileMode(*config.JwtSvidFileMode) //nolint:gosec,G115
+	jwtSVIDFileMode := defaultJWTSVIDFileMode
+	if config.JwtSVIDFileMode != nil && *config.JwtSVIDFileMode > 0 {
+		certFileMode = os.FileMode(*config.JwtSVIDFileMode) //nolint:gosec,G115
 	}
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
@@ -201,7 +201,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		CertFileMode:             certFileMode,
 		KeyFileMode:              keyFileMode,
 		JwtBundleFileMode:        jwtBundleFileMode,
-		JwtSvidFileMode:          jwtSvidFileMode,
+		JwtSVIDFileMode:          jwtSVIDFileMode,
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,

@@ -37,8 +37,8 @@ func TestParseConfig(t *testing.T) {
 	expectedKeyFileMode := &keyFileMode
 	jwtBundleFileMode := 444
 	expectedJwtBundleFileMode := &jwtBundleFileMode
-	jwtSvidFileMode := 444
-	expectedJwtSvidFileMode := &jwtSvidFileMode
+	jwtSVIDFileMode := 444
+	expectedJwtSVIDFileMode := &jwtSVIDFileMode
 
 	assert.Equal(t, expectedAgentAddress, c.AgentAddress)
 	assert.Equal(t, expectedCmd, c.Cmd)
@@ -55,7 +55,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedCertFileMode, c.CertFileMode)
 	assert.Equal(t, expectedKeyFileMode, c.KeyFileMode)
 	assert.Equal(t, expectedJwtBundleFileMode, c.JwtBundleFileMode)
-	assert.Equal(t, expectedJwtSvidFileMode, c.JwtSvidFileMode)
+	assert.Equal(t, expectedJwtSVIDFileMode, c.JwtSvidFileMode)
 }
 
 func TestValidateConfig(t *testing.T) {

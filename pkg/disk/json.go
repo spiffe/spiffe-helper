@@ -34,10 +34,10 @@ func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename stri
 }
 
 // WriteJWTBundle write the given JWT SVID to disk
-func WriteJWTSVID(jwtSVID *jwtsvid.SVID, dir, jwtSVIDFilename string, jwtSvidFileMode fs.FileMode) error {
+func WriteJWTSVID(jwtSVID *jwtsvid.SVID, dir, jwtSVIDFilename string, jwtSVIDFileMode fs.FileMode) error {
 	filePath := path.Join(dir, jwtSVIDFilename)
 
-	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), jwtSvidFileMode)
+	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), jwtSVIDFileMode)
 }
 
 func writeJSON(certs map[string]any, dir, filename string, fileMode fs.FileMode) error {

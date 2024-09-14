@@ -32,7 +32,7 @@ type Config struct {
 
 	JwtBundleFileMode fs.FileMode
 
-	JwtSvidFileMode fs.FileMode
+	JwtSVIDFileMode fs.FileMode
 
 	// If true, includes trust domains from federated servers in the CA bundle.
 	IncludeFederatedDomains bool
