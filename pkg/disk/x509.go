@@ -77,7 +77,7 @@ func writeCerts(file string, certs []*x509.Certificate, certFileMode fs.FileMode
 		pemData = append(pemData, pem.EncodeToMemory(b)...)
 	}
 
-	return os.WriteFile(file, pemData, certsFileMode)
+	return os.WriteFile(file, pemData, certFileMode)
 }
 
 // writeKey takes a private key as a slice of bytes,
