@@ -14,8 +14,8 @@ const (
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
 	defaultCertFileMode      = os.FileMode(0644)
 	defaultKeyFileMode       = os.FileMode(0600)
-	defaultJwtBundleFileMode = os.FileMode(0600)
-	defaultJwtSvidFileMode   = os.FileMode(0600)
+	defaultJWTBundleFileMode = os.FileMode(0600)
+	defaultJWTSVIDFileMode   = os.FileMode(0600)
 )
 
 type Config struct {
