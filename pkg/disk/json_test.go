@@ -26,7 +26,7 @@ const (
 	jwtBundleFilename = "jwt_bundle.json"
 	jwtSVIDFilename   = "jwt.json"
 	jwtBundleFileMode = fs.FileMode(0600)
-	jwtSvidFileMode   = fs.FileMode(0600)
+	jwtSVIDFileMode   = fs.FileMode(0600)
 )
 
 func TestWriteJWTBundleSet(t *testing.T) {
