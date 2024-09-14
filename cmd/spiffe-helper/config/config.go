@@ -184,11 +184,11 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	if config.KeyFileMode != nil && *config.KeyFileMode > 0 {
 		certFileMode = os.FileMode(*config.KeyFileMode) //nolint:gosec,G115
 	}
-	jwtBundleFileMode := defaultJwtBundleFileMode
+	jwtBundleFileMode := defaultJWTBundleFileMode
 	if config.JwtBundleFileMode != nil && *config.JwtBundleFileMode > 0 {
 		certFileMode = os.FileMode(*config.JwtBundleFileMode) //nolint:gosec,G115
 	}
-	jwtSvidFileMode := defaultJwtSvidFileMode
+	jwtSvidFileMode := defaultJWTSVIDFileMode
 	if config.JwtSvidFileMode != nil && *config.JwtSvidFileMode > 0 {
 		certFileMode = os.FileMode(*config.JwtSvidFileMode) //nolint:gosec,G115
 	}
