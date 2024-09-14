@@ -67,7 +67,7 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 
 // writeCerts takes an array of certificates,
 // and encodes them as PEM blocks, writing them to file
-func writeCerts(file string, certs []*x509.Certificate, certsFileMode fs.FileMode) error {
+func writeCerts(file string, certs []*x509.Certificate, certFileMode fs.FileMode) error {
 	var pemData []byte
 	for _, cert := range certs {
 		b := &pem.Block{
