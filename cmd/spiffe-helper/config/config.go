@@ -28,10 +28,10 @@ type Config struct {
 	CmdArgsDeprecated                  string `hcl:"cmdArgs"`
 	CertDir                            string `hcl:"cert_dir"`
 	CertDirDeprecated                  string `hcl:"certDir"`
-	CertFileMode                       *int   `hcl:"cert_file_mode"`
-	KeyFileMode                        *int   `hcl:"key_file_mode"`
-	JwtBundleFileMode                  *int   `hcl:"jwt_bundle_file_mode"`
-	JwtSVIDFileMode                    *int   `hcl:"jwt_svid_file_mode"`
+	CertFileMode                       int    `hcl:"cert_file_mode"`
+	KeyFileMode                        int    `hcl:"key_file_mode"`
+	JwtBundleFileMode                  int    `hcl:"jwt_bundle_file_mode"`
+	JwtSVIDFileMode                    int    `hcl:"jwt_svid_file_mode"`
 	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
@@ -172,25 +172,38 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
+	if c.CertFileMode < 0 {
+		return errors.New("cert file mode must be positive")
+	}
+	if c.KeyFileMode < 0 {
+		return errors.New("key file mode must be positive")
+	}
+	if c.JwtSVIDFileMode < 0 {
+		return errors.New("jwt bundle file mode must be positive")
+	}
+	if c.JwtSVIDFileMode < 0 {
+		return errors.New("jwt svid file mode must be positive")
+	}
+
 	return nil
 }
 
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	certFileMode := defaultCertFileMode
-	if config.CertFileMode != nil && *config.CertFileMode > 0 {
-		certFileMode = os.FileMode(*config.CertFileMode) //nolint:gosec,G115
+	if config.CertFileMode > 0 {
+		certFileMode = os.FileMode(config.CertFileMode) //nolint:gosec,G115
 	}
 	keyFileMode := defaultKeyFileMode
-	if config.KeyFileMode != nil && *config.KeyFileMode > 0 {
-		certFileMode = os.FileMode(*config.KeyFileMode) //nolint:gosec,G115
+	if config.KeyFileMode > 0 {
+		certFileMode = os.FileMode(config.KeyFileMode) //nolint:gosec,G115
 	}
 	jwtBundleFileMode := defaultJWTBundleFileMode
-	if config.JwtBundleFileMode != nil && *config.JwtBundleFileMode > 0 {
-		certFileMode = os.FileMode(*config.JwtBundleFileMode) //nolint:gosec,G115
+	if config.JwtBundleFileMode > 0 {
+		certFileMode = os.FileMode(config.JwtBundleFileMode) //nolint:gosec,G115
 	}
 	jwtSVIDFileMode := defaultJWTSVIDFileMode
-	if config.JwtSVIDFileMode != nil && *config.JwtSVIDFileMode > 0 {
-		certFileMode = os.FileMode(*config.JwtSVIDFileMode) //nolint:gosec,G115
+	if config.JwtSVIDFileMode > 0 {
+		certFileMode = os.FileMode(config.JwtSVIDFileMode) //nolint:gosec,G115
 	}
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
