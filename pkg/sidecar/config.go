@@ -26,16 +26,16 @@ type Config struct {
 	// If true, fetche x509 certificate and then exit(0).
 	ExitWhenReady bool
 
-        // Permissions to use when writing x509 SVID to disk
+	// Permissions to use when writing x509 SVID to disk
 	CertFileMode fs.FileMode
 
-        // Permissions to use when writing x509 SVID Key to disk
+	// Permissions to use when writing x509 SVID Key to disk
 	KeyFileMode fs.FileMode
 
-        // Permissions to use when writing JWT Bundle to disk
+	// Permissions to use when writing JWT Bundle to disk
 	JWTBundleFileMode fs.FileMode
 
-        // Permissions to use when writing JWT SVIDs to disk
+	// Permissions to use when writing JWT SVIDs to disk
 	JWTSVIDFileMode fs.FileMode
 
 	// If true, includes trust domains from federated servers in the CA bundle.
