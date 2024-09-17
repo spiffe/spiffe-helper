@@ -56,7 +56,7 @@ func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteJWTBundleSet(jwtBundleSet, s.config.CertDir, s.config.JWTBundleFilename, s.config.JwtBundleFileMode)
+	return disk.WriteJWTBundleSet(jwtBundleSet, s.config.CertDir, s.config.JWTBundleFilename, s.config.JWTBundleFileMode)
 }
 
 func (s *Sidecar) fetchAndWriteJWTSVIDs(ctx context.Context) error {
