@@ -85,8 +85,8 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		Log:                log,
 		CertFileMode:       os.FileMode(0644),
 		KeyFileMode:        os.FileMode(0600),
-		JwtBundleFileMode:  os.FileMode(0600),
-		JwtSVIDFileMode:    os.FileMode(0600),
+		JWTBundleFileMode:  os.FileMode(0600),
+		JWTSVIDFileMode:    os.FileMode(0600),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
