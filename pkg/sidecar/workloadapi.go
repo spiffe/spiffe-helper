@@ -84,5 +84,5 @@ func (s *Sidecar) fetchAndWriteJWTSVID(ctx context.Context, audience, jwtSVIDFil
 		return err
 	}
 
-	return disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSVIDFilename, s.config.JwtSVIDFileMode)
+	return disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode)
 }
