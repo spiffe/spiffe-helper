@@ -198,12 +198,12 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		certFileMode = os.FileMode(config.KeyFileMode) //nolint:gosec,G115
 	}
 	jwtBundleFileMode := defaultJWTBundleFileMode
-	if config.JwtBundleFileMode > 0 {
-		certFileMode = os.FileMode(config.JwtBundleFileMode) //nolint:gosec,G115
+	if config.JWTBundleFileMode > 0 {
+		certFileMode = os.FileMode(config.JWTBundleFileMode) //nolint:gosec,G115
 	}
 	jwtSVIDFileMode := defaultJWTSVIDFileMode
-	if config.JwtSVIDFileMode > 0 {
-		certFileMode = os.FileMode(config.JwtSVIDFileMode) //nolint:gosec,G115
+	if config.JWTSVIDFileMode > 0 {
+		certFileMode = os.FileMode(config.JWTSVIDFileMode) //nolint:gosec,G115
 	}
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
@@ -213,8 +213,8 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		CertDir:                  config.CertDir,
 		CertFileMode:             certFileMode,
 		KeyFileMode:              keyFileMode,
-		JwtBundleFileMode:        jwtBundleFileMode,
-		JwtSVIDFileMode:          jwtSVIDFileMode,
+		JWTBundleFileMode:        jwtBundleFileMode,
+		JWTSVIDFileMode:          jwtSVIDFileMode,
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,

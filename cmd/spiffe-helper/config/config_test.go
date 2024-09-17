@@ -46,8 +46,8 @@ func TestParseConfig(t *testing.T) {
 	assert.True(t, c.AddIntermediatesToBundle)
 	assert.Equal(t, 444, c.CertFileMode)
 	assert.Equal(t, 444, c.KeyFileMode)
-	assert.Equal(t, 444, c.JwtBundleFileMode)
-	assert.Equal(t, 444, c.JwtSVIDFileMode)
+	assert.Equal(t, 444, c.JWTBundleFileMode)
+	assert.Equal(t, 444, c.JWTSVIDFileMode)
 }
 
 func TestValidateConfig(t *testing.T) {
