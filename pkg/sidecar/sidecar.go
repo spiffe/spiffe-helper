@@ -372,7 +372,7 @@ type JWTBundlesWatcher struct {
 // OnJWTBundlesUpdate is ran every time a bundle is updated
 func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	w.sidecar.config.Log.Debug("Updating JWT bundle")
-	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename, w.sidecar.config.JwtBundleFileMode); err != nil {
+	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename, w.sidecar.config.JWTBundleFileMode); err != nil {
 		w.sidecar.config.Log.Errorf("Error writing JWT Bundle to disk: %v", err)
 		return
 	}
