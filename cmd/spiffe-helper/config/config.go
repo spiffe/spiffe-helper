@@ -178,10 +178,10 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	if c.KeyFileMode < 0 {
 		return errors.New("key file mode must be positive")
 	}
-	if c.JwtSVIDFileMode < 0 {
+	if c.JWTSVIDFileMode < 0 {
 		return errors.New("jwt bundle file mode must be positive")
 	}
-	if c.JwtSVIDFileMode < 0 {
+	if c.JWTSVIDFileMode < 0 {
 		return errors.New("jwt svid file mode must be positive")
 	}
 
