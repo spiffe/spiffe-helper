@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"io/fs"
 	"os"
 
 	"github.com/hashicorp/hcl"
@@ -12,10 +13,10 @@ import (
 
 const (
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
-	defaultCertFileMode      = os.FileMode(0644)
-	defaultKeyFileMode       = os.FileMode(0600)
-	defaultJWTBundleFileMode = os.FileMode(0600)
-	defaultJWTSVIDFileMode   = os.FileMode(0600)
+	defaultCertFileMode      = 0644
+	defaultKeyFileMode       = 0600
+	defaultJWTBundleFileMode = 0600
+	defaultJWTSVIDFileMode   = 0600
 )
 
 type Config struct {
@@ -174,47 +175,39 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 
 	if c.CertFileMode < 0 {
 		return errors.New("cert file mode must be positive")
+	} else if c.CertFileMode == 0 {
+		c.CertFileMode = defaultCertFileMode
 	}
 	if c.KeyFileMode < 0 {
 		return errors.New("key file mode must be positive")
+	} else if c.KeyFileMode == 0 {
+		c.KeyFileMode = defaultKeyFileMode
 	}
-	if c.JWTSVIDFileMode < 0 {
+	if c.JWTBundleFileMode < 0 {
 		return errors.New("jwt bundle file mode must be positive")
+	} else if c.JWTBundleFileMode == 0 {
+		c.JWTBundleFileMode = defaultJWTBundleFileMode
 	}
 	if c.JWTSVIDFileMode < 0 {
 		return errors.New("jwt svid file mode must be positive")
+	} else if c.JWTSVIDFileMode == 0 {
+		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
 	}
 
 	return nil
 }
 
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
-	certFileMode := defaultCertFileMode
-	if config.CertFileMode > 0 {
-		certFileMode = os.FileMode(config.CertFileMode) //nolint:gosec,G115
-	}
-	keyFileMode := defaultKeyFileMode
-	if config.KeyFileMode > 0 {
-		certFileMode = os.FileMode(config.KeyFileMode) //nolint:gosec,G115
-	}
-	jwtBundleFileMode := defaultJWTBundleFileMode
-	if config.JWTBundleFileMode > 0 {
-		certFileMode = os.FileMode(config.JWTBundleFileMode) //nolint:gosec,G115
-	}
-	jwtSVIDFileMode := defaultJWTSVIDFileMode
-	if config.JWTSVIDFileMode > 0 {
-		certFileMode = os.FileMode(config.JWTSVIDFileMode) //nolint:gosec,G115
-	}
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
 		AgentAddress:             config.AgentAddress,
 		Cmd:                      config.Cmd,
 		CmdArgs:                  config.CmdArgs,
 		CertDir:                  config.CertDir,
-		CertFileMode:             certFileMode,
-		KeyFileMode:              keyFileMode,
-		JWTBundleFileMode:        jwtBundleFileMode,
-		JWTSVIDFileMode:          jwtSVIDFileMode,
+		CertFileMode:             fs.FileMode(config.CertFileMode),
+		KeyFileMode:              fs.FileMode(config.KeyFileMode),
+		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode),
+		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,
