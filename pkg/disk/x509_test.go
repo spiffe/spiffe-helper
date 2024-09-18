@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"io/fs"
 	"path"
 	"testing"
 
@@ -17,6 +18,8 @@ const (
 	svidFilename       = "svid.pem"
 	svidKeyFilename    = "svid_key.pem"
 	svidBundleFilename = "svid_bundle.pem"
+	certFileMode       = fs.FileMode(0600)
+	keyFileMode        = fs.FileMode(0600)
 )
 
 func TestWriteX509Context(t *testing.T) {
@@ -131,7 +134,7 @@ func TestWriteX509Context(t *testing.T) {
 				}
 			}
 
-			err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename)
+			err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename, certFileMode, keyFileMode)
 			require.NoError(t, err)
 
 			// Load certificates from disk and validate it is expected

@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"testing"
@@ -24,6 +25,8 @@ import (
 const (
 	jwtBundleFilename = "jwt_bundle.json"
 	jwtSVIDFilename   = "jwt.json"
+	jwtBundleFileMode = fs.FileMode(0600)
+	jwtSVIDFileMode   = fs.FileMode(0600)
 )
 
 func TestWriteJWTBundleSet(t *testing.T) {
@@ -34,7 +37,7 @@ func TestWriteJWTBundleSet(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	err := WriteJWTBundleSet(jwtBundleSet, tempDir, jwtBundleFilename)
+	err := WriteJWTBundleSet(jwtBundleSet, tempDir, jwtBundleFilename, jwtBundleFileMode)
 	require.NoError(t, err)
 
 	actualJWTBundle, err := jwtbundle.Load(td, path.Join(tempDir, jwtBundleFilename))
@@ -64,7 +67,7 @@ func TestWriteJWTSVID(t *testing.T) {
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVID, tempDir, jwtSVIDFilename)
+	err = WriteJWTSVID(jwtSVID, tempDir, jwtSVIDFilename, jwtSVIDFileMode)
 	require.NoError(t, err)
 
 	// Read back and check its the same

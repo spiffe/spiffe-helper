@@ -39,7 +39,7 @@ func (s *Sidecar) fetchAndWriteX509Context(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteX509Context(x509Context, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName)
+	return disk.WriteX509Context(x509Context, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode)
 }
 
 func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
@@ -56,7 +56,7 @@ func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteJWTBundleSet(jwtBundleSet, s.config.CertDir, s.config.JWTBundleFilename)
+	return disk.WriteJWTBundleSet(jwtBundleSet, s.config.CertDir, s.config.JWTBundleFilename, s.config.JWTBundleFileMode)
 }
 
 func (s *Sidecar) fetchAndWriteJWTSVIDs(ctx context.Context) error {
@@ -84,5 +84,5 @@ func (s *Sidecar) fetchAndWriteJWTSVID(ctx context.Context, audience, jwtSVIDFil
 		return err
 	}
 
-	return disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSVIDFilename)
+	return disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode)
 }

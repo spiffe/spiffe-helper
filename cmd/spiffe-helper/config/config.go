@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"io/fs"
 	"os"
 
 	"github.com/hashicorp/hcl"
@@ -11,7 +12,11 @@ import (
 )
 
 const (
-	defaultAgentAddress = "/tmp/spire-agent/public/api.sock"
+	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
+	defaultCertFileMode      = 0644
+	defaultKeyFileMode       = 0600
+	defaultJWTBundleFileMode = 0600
+	defaultJWTSVIDFileMode   = 0600
 )
 
 type Config struct {
@@ -24,6 +29,10 @@ type Config struct {
 	CmdArgsDeprecated                  string `hcl:"cmdArgs"`
 	CertDir                            string `hcl:"cert_dir"`
 	CertDirDeprecated                  string `hcl:"certDir"`
+	CertFileMode                       int    `hcl:"cert_file_mode"`
+	KeyFileMode                        int    `hcl:"key_file_mode"`
+	JWTBundleFileMode                  int    `hcl:"jwt_bundle_file_mode"`
+	JWTSVIDFileMode                    int    `hcl:"jwt_svid_file_mode"`
 	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
 	RenewSignal                        string `hcl:"renew_signal"`
 	RenewSignalDeprecated              string `hcl:"renewSignal"`
@@ -164,6 +173,27 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
+	if c.CertFileMode < 0 {
+		return errors.New("cert file mode must be positive")
+	} else if c.CertFileMode == 0 {
+		c.CertFileMode = defaultCertFileMode
+	}
+	if c.KeyFileMode < 0 {
+		return errors.New("key file mode must be positive")
+	} else if c.KeyFileMode == 0 {
+		c.KeyFileMode = defaultKeyFileMode
+	}
+	if c.JWTBundleFileMode < 0 {
+		return errors.New("jwt bundle file mode must be positive")
+	} else if c.JWTBundleFileMode == 0 {
+		c.JWTBundleFileMode = defaultJWTBundleFileMode
+	}
+	if c.JWTSVIDFileMode < 0 {
+		return errors.New("jwt svid file mode must be positive")
+	} else if c.JWTSVIDFileMode == 0 {
+		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
+	}
+
 	return nil
 }
 
@@ -174,6 +204,10 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		Cmd:                      config.Cmd,
 		CmdArgs:                  config.CmdArgs,
 		CertDir:                  config.CertDir,
+		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec,G115
+		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec,G115
+		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec,G115
+		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec,G115
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,
