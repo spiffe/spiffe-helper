@@ -204,10 +204,10 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		Cmd:                      config.Cmd,
 		CmdArgs:                  config.CmdArgs,
 		CertDir:                  config.CertDir,
-		CertFileMode:             fs.FileMode(config.CertFileMode),
-		KeyFileMode:              fs.FileMode(config.KeyFileMode),
-		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode),
-		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),
+		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec,G115
+		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec,G115
+		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec,G115
+		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec,G115
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,
