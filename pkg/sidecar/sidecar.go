@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -175,10 +174,6 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 
 	if err := s.signalProcess(); err != nil {
 		s.config.Log.WithError(err).Error("Unable to signal process")
-	}
-
-	if s.config.ExitWhenReady {
-		os.Exit(0)
 	}
 
 	select {
