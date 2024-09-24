@@ -20,7 +20,7 @@ type Config struct {
 	// The arguments of the process to launch.
 	CmdArgs string
 
-	// Signal extral process via PID file
+	// Signal external process via PID file
 	PidFileName string
 
 	// The directory name to store the x509s and/or JWTs.

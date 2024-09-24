@@ -204,6 +204,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		AgentAddress:             config.AgentAddress,
 		Cmd:                      config.Cmd,
 		CmdArgs:                  config.CmdArgs,
+		PidFileName:              config.PidFileName,
 		CertDir:                  config.CertDir,
 		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec,G115
 		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec,G115
