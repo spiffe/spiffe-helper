@@ -70,7 +70,7 @@ func TestWriteJWTSVID(t *testing.T) {
 	err = WriteJWTSVID(jwtSVID, tempDir, jwtSVIDFilename, jwtSVIDFileMode)
 	require.NoError(t, err)
 
-	// Read back and check its the same
+	// Read back and check it's the same
 	actualToken, err := os.ReadFile(path.Join(tempDir, jwtSVIDFilename))
 	require.NoError(t, err)
 	require.Equal(t, token, string(actualToken))

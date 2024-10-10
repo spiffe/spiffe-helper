@@ -41,6 +41,6 @@ elif ((TEST_FAILED > 1)); then
     echo -e "${RED}❌ ${TEST_FAILED} tests failed.${RESET}"
     exit 1
 else 
-    echo -e "${GREEN}✔️ All tests succeded.${RESET}"
+    echo -e "${GREEN}✔️ All tests succeeded.${RESET}"
     exit 0
 fi

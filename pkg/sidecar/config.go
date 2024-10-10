@@ -8,7 +8,7 @@ import (
 
 type Config struct {
 	// If true, merge intermediate certificates into Bundle file instead of SVID file.
-	// This is the exptected format for MySQL and some other applications.
+	// This is the expected format for MySQL and some other applications.
 	AddIntermediatesToBundle bool
 
 	// The address of the Agent Workload API.
@@ -23,7 +23,7 @@ type Config struct {
 	// The directory name to store the x509s and/or JWTs.
 	CertDir string
 
-	// If true, fetche x509 certificate and then exit(0).
+	// If true, fetches x509 certificate and then exit(0).
 	ExitWhenReady bool
 
 	// Permissions to use when writing x509 SVID to disk
@@ -41,7 +41,7 @@ type Config struct {
 	// If true, includes trust domains from federated servers in the CA bundle.
 	IncludeFederatedDomains bool
 
-	// An array with the audience and file name to store the JWT SVIDs. File is Base64-encoded string).
+	// An array with the audience and file name to store the JWT SVIDs. File is Base64-encoded string.
 	JWTSVIDs []JWTConfig
 
 	// File name to be used to store JWT Bundle in JSON format.

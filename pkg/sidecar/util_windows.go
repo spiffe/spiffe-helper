@@ -9,7 +9,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 )
 
-func (s *Sidecar) getWorkloadAPIAdress() workloadapi.ClientOption {
+func (s *Sidecar) getWorkloadAPIAddress() workloadapi.ClientOption {
 	return workloadapi.WithNamedPipeName(s.config.AgentAddress)
 }
 

@@ -2,7 +2,7 @@
 
 This is an example of how **spiffe-helper** can be used to authenticate users to a **PostgreSQL** database using x509 SVIDs.
 
-Postgres provides a feature that allows users to authenticate using [certificate authentication](https://www.postgresql.org/docs/9.5/auth-methods.html#AUTH-CERT). The server validates that the CN (Common Name) attribute of the certificate presented by the client matches the database user name or a [mapped](https://www.postgresql.org/docs/9.5/auth-username-maps.html) value.
+Postgres provides a feature that allows users to authenticate using [certificate authentication](https://www.postgresql.org/docs/9.5/auth-methods.html#AUTH-CERT). The server validates that the CN (Common Name) attribute of the certificate presented by the client matches the database username or a [mapped](https://www.postgresql.org/docs/9.5/auth-username-maps.html) value.
 
 This guide sets up the authentication configuration for the username: `postgres-user`.
 
@@ -15,8 +15,8 @@ The following assumptions are made:
 
 + At least one SPIRE server and one agent are deployed with trust domain `example.org`.
 
-### 1. Install PosgreSQL
-Install [PosgreSQL](https://www.postgresql.org/docs/12/tutorial-install.html) and make sure the service is up running.
+### 1. Install PostgreSQL
+Install [PostgreSQL](https://www.postgresql.org/docs/12/tutorial-install.html) and make sure the service is up running.
 ```
 systemctl status postgresql@12-main
 ```
@@ -28,7 +28,7 @@ It creates a test database (`testdb`) and grants privileges to it.
 sudo -u postgres psql -f create_user.sql
 ```
 
-### 3. Configure PosgreSQL SSL settings
+### 3. Configure PostgreSQL SSL settings
 Make PostgreSQL server to use the certificates and key provided by SPIRE by setting the following SSL configurables in the PostgreSQL configuration file (`postgresql.conf`).
 ```bash
 ssl = on
@@ -91,7 +91,7 @@ useradd postgresql-client
 ### 8. Create the registration entries
 Create the following registration entries:
 
-+ For the PostgreSQL client, the DNS name must match the database user name. The selector used for this entry is the user name: `postgresql-client`.
++ For the PostgreSQL client, the DNS name must match the database username. The selector used for this entry is the username: `postgresql-client`.
 ```bash
 ./spire-server entry create \
     -spiffeID spiffe://example.org/psql-client \
@@ -101,7 +101,7 @@ Create the following registration entries:
     -dns postgres-user
 ```
 
-+ For the PostgreSQL server, we use the postgres user name as selector:
++ For the PostgreSQL server, we use the postgres username as selector:
 ```bash
 ./spire-server entry create \
     -spiffeID spiffe://example.org/postgresql-server \
@@ -130,7 +130,7 @@ mkdir examples/postgresql/svids
 sudo chown postgresql-client:postgresql-client examples/postgresql/svids
 ```
 
-Connect to posgresql running the provided script with the `postgresql-client` user.
+Connect to PostgreSQL running the provided script with the `postgresql-client` user.
 ```
 sudo -u postgresql-client examples/postgresql/connect.sh
 ```

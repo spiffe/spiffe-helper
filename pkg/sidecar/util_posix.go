@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (s *Sidecar) getWorkloadAPIAdress() workloadapi.ClientOption {
+func (s *Sidecar) getWorkloadAPIAddress() workloadapi.ClientOption {
 	return workloadapi.WithAddr("unix://" + s.config.AgentAddress)
 }
 

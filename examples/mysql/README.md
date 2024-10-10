@@ -85,7 +85,7 @@ useradd mysql-client
 ### 7. Create the registration entries
 Create the following registration entries:
 
-+ For the MySQL client workload, the DNS name must match the database user name. The selector used for this entry is the user name: `mysql-client`.
++ For the MySQL client workload, the DNS name must match the database username. The selector used for this entry is the username: `mysql-client`.
 ```bash
 ./spire-server entry create \
     -spiffeID spiffe://example.org/mysql-client \
@@ -95,7 +95,7 @@ Create the following registration entries:
     -dns mysql-user
 ```
 
-+ For the MySQL server, we use the root user name as selector:
++ For the MySQL server, we use the root username as selector:
 ```bash
 ./spire-server entry create \
     -spiffeID spiffe://example.org/mysql-server \
