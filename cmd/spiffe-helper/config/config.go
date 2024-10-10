@@ -26,6 +26,7 @@ type Config struct {
 	AgentAddressDeprecated             string `hcl:"agentAddress"`
 	Cmd                                string `hcl:"cmd"`
 	CmdArgs                            string `hcl:"cmd_args"`
+	PidFileName                        string `hcl:"pid_file_name"`
 	CmdArgsDeprecated                  string `hcl:"cmdArgs"`
 	CertDir                            string `hcl:"cert_dir"`
 	CertDirDeprecated                  string `hcl:"certDir"`
@@ -203,6 +204,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		AgentAddress:             config.AgentAddress,
 		Cmd:                      config.Cmd,
 		CmdArgs:                  config.CmdArgs,
+		PidFileName:              config.PidFileName,
 		CertDir:                  config.CertDir,
 		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec,G115
 		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec,G115
