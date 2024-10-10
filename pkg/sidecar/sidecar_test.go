@@ -40,7 +40,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	svidChainWithIntermediate, svidKeyWithIntermediate := domain1Inter.CreateX509SVID(spiffeIDWithIntermediate.String())
 	require.Len(t, svidChainWithIntermediate, 2)
 
-	// Add cert with intermediate into an svid
+	// Add cert with intermediate into a svid
 	svidWithIntermediate := []*x509svid.SVID{
 		{
 			ID:           spiffeIDWithIntermediate,

@@ -143,7 +143,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 
 func (s *Sidecar) setupClients(ctx context.Context) error {
 	if s.x509Enabled() || s.jwtBundleEnabled() {
-		client, err := workloadapi.New(ctx, s.getWorkloadAPIAdress())
+		client, err := workloadapi.New(ctx, s.getWorkloadAPIAddress())
 		if err != nil {
 			return err
 		}
@@ -151,7 +151,7 @@ func (s *Sidecar) setupClients(ctx context.Context) error {
 	}
 
 	if s.jwtSVIDsEnabled() {
-		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAdress()))
+		jwtSource, err := workloadapi.NewJWTSource(ctx, workloadapi.WithClientOptions(s.getWorkloadAPIAddress()))
 		if err != nil {
 			return err
 		}
@@ -364,12 +364,12 @@ func getCmdArgs(args string) ([]string, error) {
 	return cmdArgs, nil
 }
 
-// JWTBundleWatcher is an implementation of workload.JWTBundleWatcher interface
+// JWTBundlesWatcher is an implementation of workload.JWTBundleWatcher interface
 type JWTBundlesWatcher struct {
 	sidecar *Sidecar
 }
 
-// OnJWTBundlesUpdate is ran every time a bundle is updated
+// OnJWTBundlesUpdate is run every time a bundle is updated
 func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	w.sidecar.config.Log.Debug("Updating JWT bundle")
 	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename, w.sidecar.config.JWTBundleFileMode); err != nil {
@@ -380,7 +380,7 @@ func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	w.sidecar.config.Log.Info("JWT bundle updated")
 }
 
-// OnJWTBundlesWatchError is ran when the client runs into an error
+// OnJWTBundlesWatchError is run when the client runs into an error
 func (w JWTBundlesWatcher) OnJWTBundlesWatchError(err error) {
 	if status.Code(err) != codes.Canceled {
 		w.sidecar.config.Log.Errorf("Error while watching JWT bundles: %v", err)
