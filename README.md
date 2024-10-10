@@ -50,10 +50,10 @@ svid_key_file_name = "svid_key.pem"
 svid_bundle_file_name = "svid_bundle.pem"
 jwt_svids = [{jwt_audience="your-audience", jwt_svid_file_name="jwt_svid.token"}]
 jwt_bundle_file_name = "bundle.json"
-cert_file_mode = "0444"
-key_file_mode = "0444"
-jwt_bundle_file_mode = "0444"
-jwt_svid_file_mode = "0444"
+cert_file_mode = 0444
+key_file_mode = 0444
+jwt_bundle_file_mode = 0444
+jwt_svid_file_mode = 0444
 ```
 
 ### Windows example
