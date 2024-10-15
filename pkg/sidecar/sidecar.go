@@ -185,14 +185,14 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 // signalProcess sends the configured Renew signal to the process running the proxy
 // to reload itself so that the proxy uses the new SVID
 func (s *Sidecar) signalProcess() (err error) {
-	if s.config.PidFileName != "" {
-		byts, err := os.ReadFile(s.config.PidFileName)
+	if s.config.PIDFileName != "" {
+		byts, err := os.ReadFile(s.config.PIDFileName)
 		if err != nil {
-			return fmt.Errorf("failed to read pid file: %s\n%w", s.config.PidFileName, err)
+			return fmt.Errorf("failed to read pid file: %s\n%w", s.config.PIDFileName, err)
 		}
 		pid, err := strconv.Atoi(string(bytes.TrimSpace(byts)))
 		if err != nil {
-			return fmt.Errorf("failed to parse pid file: %s\n%w", s.config.PidFileName, err)
+			return fmt.Errorf("failed to parse pid file: %s\n%w", s.config.PIDFileName, err)
 		}
 		s.process, err = os.FindProcess(pid)
 		if err != nil {

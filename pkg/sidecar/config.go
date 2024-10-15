@@ -21,7 +21,7 @@ type Config struct {
 	CmdArgs string
 
 	// Signal external process via PID file
-	PidFileName string
+	PIDFileName string
 
 	// The directory name to store the x509s and/or JWTs.
 	CertDir string
