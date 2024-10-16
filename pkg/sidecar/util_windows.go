@@ -13,7 +13,7 @@ func (s *Sidecar) getWorkloadAPIAddress() workloadapi.ClientOption {
 	return workloadapi.WithNamedPipeName(s.config.AgentAddress)
 }
 
-func (s *Sidecar) SignalProcess() error {
+func SignalProcess(_ *os.Process, _ string) error {
 	// Signal to reload certs
 	// TODO: it is not possible to get signal by name on windows,
 	// we must provide int here

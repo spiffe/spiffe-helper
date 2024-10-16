@@ -5,6 +5,7 @@ package sidecar
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"golang.org/x/sys/unix"
@@ -14,20 +15,14 @@ func (s *Sidecar) getWorkloadAPIAddress() workloadapi.ClientOption {
 	return workloadapi.WithAddr("unix://" + s.config.AgentAddress)
 }
 
-func (s *Sidecar) SignalProcess() error {
-	// Signal to reload certs
-	if s.config.RenewSignal == "" {
-		// no signal provided
-		return nil
-	}
-	sig := unix.SignalNum(s.config.RenewSignal)
+func SignalProcess(process *os.Process, renewSignal string) error {
+	sig := unix.SignalNum(renewSignal)
 	if sig == 0 {
-		return fmt.Errorf("error getting signal: %v", s.config.RenewSignal)
+		return fmt.Errorf("error getting signal: %v", renewSignal)
 	}
 
-	err := s.process.Signal(sig)
-	if err != nil {
-		return fmt.Errorf("error signaling process with signal: %v\n%w", sig, err)
+	if err := process.Signal(sig); err != nil {
+		return fmt.Errorf("error signaling process with signal num %v: %w", sig, err)
 	}
 
 	return nil
