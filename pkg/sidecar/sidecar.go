@@ -172,8 +172,23 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 	s.config.Log.Info("X.509 certificates updated")
 
-	if err := s.signalProcess(); err != nil {
-		s.config.Log.WithError(err).Error("Unable to signal process")
+	if s.config.PIDFileName != "" {
+		if err := s.signalPID(); err != nil {
+			s.config.Log.WithError(err).Error("Unable to signal PID file")
+		}
+	}
+
+	if s.config.Cmd != "" {
+		if err := s.signalProcess(); err != nil {
+			s.config.Log.WithError(err).Error("Unable to signal process")
+		}
+	}
+
+	// TODO: is ReloadExternalProcess still used?
+	if s.config.ReloadExternalProcess != nil {
+		if err := s.config.ReloadExternalProcess(); err != nil {
+			s.config.Log.WithError(err).Error("Unable to reload external process")
+		}
 	}
 
 	select {
@@ -182,55 +197,43 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 }
 
-// signalProcess sends the configured Renew signal to the process running the proxy
-// to reload itself so that the proxy uses the new SVID
-func (s *Sidecar) signalProcess() (err error) {
-	if s.config.PIDFileName != "" {
-		byts, err := os.ReadFile(s.config.PIDFileName)
-		if err != nil {
-			return fmt.Errorf("failed to read pid file: %s\n%w", s.config.PIDFileName, err)
-		}
-		pid, err := strconv.Atoi(string(bytes.TrimSpace(byts)))
-		if err != nil {
-			return fmt.Errorf("failed to parse pid file: %s\n%w", s.config.PIDFileName, err)
-		}
-		s.process, err = os.FindProcess(pid)
-		if err != nil {
-			return fmt.Errorf("failed to find process: %d\n%w", pid, err)
-		}
-		if err := s.SignalProcess(); err != nil {
-			return err
-		}
+// signalPID sends the renew signal to the PID file
+func (s *Sidecar) signalPID() error {
+	fileBytes, err := os.ReadFile(s.config.PIDFileName)
+	if err != nil {
+		return fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
 	}
-	// TODO: is ReloadExternalProcess still used?
-	switch s.config.ReloadExternalProcess {
-	case nil:
-		if s.config.Cmd != "" {
-			if atomic.LoadInt32(&s.processRunning) == 0 {
-				cmdArgs, err := getCmdArgs(s.config.CmdArgs)
-				if err != nil {
-					return fmt.Errorf("error parsing cmd arguments: %w", err)
-				}
+	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
+	if err != nil {
+		return fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
+	}
+	pidProcess, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("failed to find process id %d: %w", pid, err)
+	}
 
-				cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				err = cmd.Start()
-				if err != nil {
-					return fmt.Errorf("error executing process: %v\n%w", s.config.Cmd, err)
-				}
-				s.process = cmd.Process
-				go s.checkProcessExit()
-			} else {
-				if err := s.SignalProcess(); err != nil {
-					return err
-				}
-			}
+	return SignalProcess(pidProcess, s.config.RenewSignal)
+}
+
+// signalProcessCMD sends the renew signal to the process or starts it if its first time
+func (s *Sidecar) signalProcess() error {
+	if atomic.LoadInt32(&s.processRunning) == 0 {
+		cmdArgs, err := getCmdArgs(s.config.CmdArgs)
+		if err != nil {
+			return fmt.Errorf("error parsing cmd arguments: %w", err)
 		}
 
-	default:
-		if err = s.config.ReloadExternalProcess(); err != nil {
-			return fmt.Errorf("error reloading external process: %w", err)
+		cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("error executing process \"%v\": %w", s.config.Cmd, err)
+		}
+		s.process = cmd.Process
+		go s.checkProcessExit()
+	} else {
+		if err := SignalProcess(s.process, s.config.RenewSignal); err != nil {
+			return err
 		}
 	}
 
