@@ -143,6 +143,7 @@ func (s *Sidecar) CertReadyChan() <-chan struct{} {
 	return s.certReadyChan
 }
 
+// setupClients create the necessary workloadapi clients
 func (s *Sidecar) setupClients(ctx context.Context) error {
 	if s.x509Enabled() || s.jwtBundleEnabled() {
 		client, err := workloadapi.New(ctx, s.getWorkloadAPIAddress())
@@ -172,15 +173,15 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 	s.config.Log.Info("X.509 certificates updated")
 
-	if s.config.PIDFileName != "" {
-		if err := s.signalPID(); err != nil {
-			s.config.Log.WithError(err).Error("Unable to signal PID file")
-		}
-	}
-
 	if s.config.Cmd != "" {
 		if err := s.signalProcess(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal process")
+		}
+	}
+
+	if s.config.PIDFileName != "" {
+		if err := s.signalPID(); err != nil {
+			s.config.Log.WithError(err).Error("Unable to signal PID file")
 		}
 	}
 
@@ -195,24 +196,6 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	case s.certReadyChan <- struct{}{}:
 	default:
 	}
-}
-
-// signalPID sends the renew signal to the PID file
-func (s *Sidecar) signalPID() error {
-	fileBytes, err := os.ReadFile(s.config.PIDFileName)
-	if err != nil {
-		return fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
-	}
-	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
-	if err != nil {
-		return fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
-	}
-	pidProcess, err := os.FindProcess(pid)
-	if err != nil {
-		return fmt.Errorf("failed to find process id %d: %w", pid, err)
-	}
-
-	return SignalProcess(pidProcess, s.config.RenewSignal)
 }
 
 // signalProcessCMD sends the renew signal to the process or starts it if its first time
@@ -238,6 +221,24 @@ func (s *Sidecar) signalProcess() error {
 	}
 
 	return nil
+}
+
+// signalPID sends the renew signal to the PID file
+func (s *Sidecar) signalPID() error {
+	fileBytes, err := os.ReadFile(s.config.PIDFileName)
+	if err != nil {
+		return fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
+	}
+	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
+	if err != nil {
+		return fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
+	}
+	pidProcess, err := os.FindProcess(pid)
+	if err != nil {
+		return fmt.Errorf("failed to find process id %d: %w", pid, err)
+	}
+
+	return SignalProcess(pidProcess, s.config.RenewSignal)
 }
 
 func (s *Sidecar) checkProcessExit() {
