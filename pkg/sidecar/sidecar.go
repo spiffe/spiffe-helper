@@ -229,10 +229,12 @@ func (s *Sidecar) signalPID() error {
 	if err != nil {
 		return fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
 	}
+
 	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
 	if err != nil {
 		return fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
 	}
+
 	pidProcess, err := os.FindProcess(pid)
 	if err != nil {
 		return fmt.Errorf("failed to find process id %d: %w", pid, err)
