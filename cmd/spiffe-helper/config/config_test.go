@@ -317,6 +317,74 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
+func TestDetectsUnknownConfig(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		config      string
+		expectError string
+	}{
+		{
+			name: "Unknown configuration at top level",
+			config: `
+				agent_address = "/tmp"
+				foo = "bar"
+				bar = "foo"
+				`,
+			expectError: "unknown top level key(s): bar,foo",
+		},
+		{
+			name: "Unknown configuration in first jwt svid",
+			config: `
+				cmd = "echo"
+				jwt_svids = [
+						{
+							jwt_audience="your-audience",
+							jwt_svid_file_name="jwt_svid.token",
+							foo = "bar", 
+							bar = "foo"
+						}
+					    ]
+				`,
+			expectError: "unknown key(s) in jwt_svids[0]: bar,foo",
+		},
+		{
+			name: "Unknown configuration in first jwt svid",
+			config: `
+				cmd = "echo"
+				jwt_svids = [
+						{
+							jwt_audience = "your-audience-0",
+							jwt_svid_file_name="jwt_svid-0.token",
+						},
+						{
+							jwt_audience = "your-audience-1",
+							jwt_svid_file_name = "jwt_svid-1.token",
+							foo = "bar", 
+							bar = "foo"
+						}
+					    ]
+				`,
+			expectError: "unknown key(s) in jwt_svids[1]: bar,foo",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			configFile, err := os.CreateTemp("", "spiffe-helper")
+			require.NoError(t, err)
+			defer os.Remove(configFile.Name())
+
+			_, err = configFile.WriteString(tt.config)
+			require.NoError(t, err)
+
+			c, err := ParseConfig(configFile.Name())
+			require.NoError(t, err)
+
+			log, _ := test.NewNullLogger()
+			err = c.ValidateConfig(log)
+			require.EqualError(t, err, tt.expectError)
+		})
+	}
+}
+
 func TestDefaultAgentAddress(t *testing.T) {
 	for _, tt := range []struct {
 		name                 string
