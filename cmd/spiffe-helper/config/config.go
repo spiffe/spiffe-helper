@@ -95,14 +95,8 @@ func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagNam
 }
 
 func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
-	if len(c.UnusedKeyPositions) != 0 {
-		return fmt.Errorf("unknown top level key(s): %s", strings.Join(mapKeysToString(c.UnusedKeyPositions), ","))
-	}
-
-	for i, jwtSVID := range c.JWTSVIDs {
-		if len(jwtSVID.UnusedKeyPositions) != 0 {
-			return fmt.Errorf("unknown key(s) in jwt_svids[%d]: %s", i, strings.Join(mapKeysToString(jwtSVID.UnusedKeyPositions), ","))
-		}
+	if err := c.checkForUnknwonConfig(); err != nil {
+		return err
 	}
 
 	if err := validateOSConfig(c); err != nil {
@@ -220,6 +214,21 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	return nil
 }
 
+// checkForUnknwonConfig looks for any unknown configuration keys and returns an error if one is found
+func (c *Config) checkForUnknwonConfig() error {
+	if len(c.UnusedKeyPositions) != 0 {
+		return fmt.Errorf("unknown top level key(s): %s", mapKeysToString(c.UnusedKeyPositions))
+	}
+
+	for i, jwtSVID := range c.JWTSVIDs {
+		if len(jwtSVID.UnusedKeyPositions) != 0 {
+			return fmt.Errorf("unknown key(s) in jwt_svids[%d]: %s", i, mapKeysToString(jwtSVID.UnusedKeyPositions))
+		}
+	}
+
+	return nil
+}
+
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
@@ -293,8 +302,8 @@ func isFlagPassed(name string) bool {
 	return found
 }
 
-// mapKeysToString returns a string slice will all the keys from a map
-func mapKeysToString[V any](myMap map[string]V) []string {
+// mapKeysToString returns a comma separated string with all the keys from a map
+func mapKeysToString[V any](myMap map[string]V) string {
 	keys := make([]string, 0, len(myMap))
 
 	for key := range myMap {
@@ -302,5 +311,5 @@ func mapKeysToString[V any](myMap map[string]V) []string {
 	}
 
 	slices.Sort(keys)
-	return keys
+	return strings.Join(keys, ",")
 }
