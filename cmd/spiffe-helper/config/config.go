@@ -95,7 +95,7 @@ func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagNam
 }
 
 func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
-	if err := c.checkForUnknwonConfig(); err != nil {
+	if err := c.checkForUnknownConfig(); err != nil {
 		return err
 	}
 
