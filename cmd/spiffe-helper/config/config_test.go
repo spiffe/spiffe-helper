@@ -348,7 +348,7 @@ func TestDetectsUnknownConfig(t *testing.T) {
 			expectError: "unknown key(s) in jwt_svids[0]: bar,foo",
 		},
 		{
-			name: "Unknown configuration in first jwt svid",
+			name: "Unknown configuration in second jwt svid",
 			config: `
 				cmd = "echo"
 				jwt_svids = [
