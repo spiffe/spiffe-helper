@@ -318,6 +318,7 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestDetectsUnknownConfig(t *testing.T) {
+	tempDir := t.TempDir()
 	for _, tt := range []struct {
 		name        string
 		config      string
@@ -368,9 +369,8 @@ func TestDetectsUnknownConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			configFile, err := os.CreateTemp("", "spiffe-helper")
+			configFile, err := os.CreateTemp(tempDir, "spiffe-helper")
 			require.NoError(t, err)
-			defer os.Remove(configFile.Name())
 
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
