@@ -3,10 +3,14 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"io/fs"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/hashicorp/hcl"
+	"github.com/hashicorp/hcl/hcl/token"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
@@ -50,11 +54,15 @@ type Config struct {
 	// JWT configuration
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids"`
 	JWTBundleFilename string      `hcl:"jwt_bundle_file_name"`
+
+	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
 }
 
 type JWTConfig struct {
 	JWTAudience     string `hcl:"jwt_audience"`
 	JWTSVIDFilename string `hcl:"jwt_svid_file_name"`
+
+	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
 }
 
 // ParseConfig parses the given HCL file into a Config struct
@@ -87,6 +95,10 @@ func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagNam
 }
 
 func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
+	if err := c.checkForUnknownConfig(); err != nil {
+		return err
+	}
+
 	if err := validateOSConfig(c); err != nil {
 		return err
 	}
@@ -202,6 +214,21 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	return nil
 }
 
+// checkForUnknownConfig looks for any unknown configuration keys and returns an error if one is found
+func (c *Config) checkForUnknownConfig() error {
+	if len(c.UnusedKeyPositions) != 0 {
+		return fmt.Errorf("unknown top level key(s): %s", mapKeysToString(c.UnusedKeyPositions))
+	}
+
+	for i, jwtSVID := range c.JWTSVIDs {
+		if len(jwtSVID.UnusedKeyPositions) != 0 {
+			return fmt.Errorf("unknown key(s) in jwt_svids[%d]: %s", i, mapKeysToString(jwtSVID.UnusedKeyPositions))
+		}
+	}
+
+	return nil
+}
+
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
@@ -273,4 +300,15 @@ func isFlagPassed(name string) bool {
 	})
 
 	return found
+}
+
+// mapKeysToString returns a comma separated string with all the keys from a map
+func mapKeysToString[V any](myMap map[string]V) string {
+	keys := make([]string, 0, len(myMap))
+	for key := range myMap {
+		keys = append(keys, key)
+	}
+
+	slices.Sort(keys)
+	return strings.Join(keys, ",")
 }
