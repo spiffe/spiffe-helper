@@ -214,8 +214,8 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	return nil
 }
 
-// checkForUnknwonConfig looks for any unknown configuration keys and returns an error if one is found
-func (c *Config) checkForUnknwonConfig() error {
+// checkForUnknownConfig looks for any unknown configuration keys and returns an error if one is found
+func (c *Config) checkForUnknownConfig() error {
 	if len(c.UnusedKeyPositions) != 0 {
 		return fmt.Errorf("unknown top level key(s): %s", mapKeysToString(c.UnusedKeyPositions))
 	}
