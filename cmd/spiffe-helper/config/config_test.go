@@ -5,8 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,7 +53,6 @@ func TestValidateConfig(t *testing.T) {
 		name        string
 		config      *Config
 		expectError string
-		expectLogs  []shortEntry
 	}{
 		{
 			name: "no error",
@@ -114,10 +111,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			_, hook := test.NewNullLogger()
 			err := tt.config.ValidateConfig()
-
-			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
 
 			if tt.expectError != "" {
 				require.EqualError(t, err, tt.expectError)
@@ -291,20 +285,4 @@ func TestDaemonModeFlag(t *testing.T) {
 	config.ParseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
 	require.NotNil(t, config.DaemonMode)
 	assert.Equal(t, false, *config.DaemonMode)
-}
-
-type shortEntry struct {
-	Level   logrus.Level
-	Message string
-}
-
-func getShortEntries(entries []*logrus.Entry) []shortEntry {
-	result := make([]shortEntry, 0, len(entries))
-	for _, entry := range entries {
-		result = append(result, shortEntry{
-			Level:   entry.Level,
-			Message: entry.Message,
-		})
-	}
-	return result
 }
