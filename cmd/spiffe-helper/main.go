@@ -43,7 +43,7 @@ func startSidecar(configFile string, daemonModeFlag bool, log logrus.FieldLogger
 	}
 	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
 
-	if err := hclConfig.ValidateConfig(log); err != nil {
+	if err := hclConfig.ValidateConfig(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 

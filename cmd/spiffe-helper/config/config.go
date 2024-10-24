@@ -24,32 +24,24 @@ const (
 )
 
 type Config struct {
-	AddIntermediatesToBundle           bool   `hcl:"add_intermediates_to_bundle"`
-	AddIntermediatesToBundleDeprecated bool   `hcl:"addIntermediatesToBundle"`
-	AgentAddress                       string `hcl:"agent_address"`
-	AgentAddressDeprecated             string `hcl:"agentAddress"`
-	Cmd                                string `hcl:"cmd"`
-	CmdArgs                            string `hcl:"cmd_args"`
-	PIDFileName                        string `hcl:"pid_file_name"`
-	CmdArgsDeprecated                  string `hcl:"cmdArgs"`
-	CertDir                            string `hcl:"cert_dir"`
-	CertDirDeprecated                  string `hcl:"certDir"`
-	CertFileMode                       int    `hcl:"cert_file_mode"`
-	KeyFileMode                        int    `hcl:"key_file_mode"`
-	JWTBundleFileMode                  int    `hcl:"jwt_bundle_file_mode"`
-	JWTSVIDFileMode                    int    `hcl:"jwt_svid_file_mode"`
-	IncludeFederatedDomains            bool   `hcl:"include_federated_domains"`
-	RenewSignal                        string `hcl:"renew_signal"`
-	RenewSignalDeprecated              string `hcl:"renewSignal"`
-	DaemonMode                         *bool  `hcl:"daemon_mode"`
+	AddIntermediatesToBundle bool   `hcl:"add_intermediates_to_bundle"`
+	AgentAddress             string `hcl:"agent_address"`
+	Cmd                      string `hcl:"cmd"`
+	CmdArgs                  string `hcl:"cmd_args"`
+	PIDFileName              string `hcl:"pid_file_name"`
+	CertDir                  string `hcl:"cert_dir"`
+	CertFileMode             int    `hcl:"cert_file_mode"`
+	KeyFileMode              int    `hcl:"key_file_mode"`
+	JWTBundleFileMode        int    `hcl:"jwt_bundle_file_mode"`
+	JWTSVIDFileMode          int    `hcl:"jwt_svid_file_mode"`
+	IncludeFederatedDomains  bool   `hcl:"include_federated_domains"`
+	RenewSignal              string `hcl:"renew_signal"`
+	DaemonMode               *bool  `hcl:"daemon_mode"`
 
 	// x509 configuration
-	SVIDFileName                 string `hcl:"svid_file_name"`
-	SVIDFileNameDeprecated       string `hcl:"svidFileName"`
-	SVIDKeyFileName              string `hcl:"svid_key_file_name"`
-	SVIDKeyFileNameDeprecated    string `hcl:"svidKeyFileName"`
-	SVIDBundleFileName           string `hcl:"svid_bundle_file_name"`
-	SVIDBundleFileNameDeprecated string `hcl:"svidBundleFileName"`
+	SVIDFileName       string `hcl:"svid_file_name"`
+	SVIDKeyFileName    string `hcl:"svid_key_file_name"`
+	SVIDBundleFileName string `hcl:"svid_bundle_file_name"`
 
 	// JWT configuration
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids"`
@@ -94,69 +86,13 @@ func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagNam
 	}
 }
 
-func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
+func (c *Config) ValidateConfig() error {
 	if err := c.checkForUnknownConfig(); err != nil {
 		return err
 	}
 
 	if err := validateOSConfig(c); err != nil {
 		return err
-	}
-
-	if c.AgentAddressDeprecated != "" {
-		if c.AgentAddress != "" {
-			return errors.New("use of agent_address and agentAddress found, use only agent_address")
-		}
-		log.Warn(getWarning("agentAddress", "agent_address"))
-		c.AgentAddress = c.AgentAddressDeprecated
-	}
-
-	if c.CmdArgsDeprecated != "" {
-		if c.CmdArgs != "" {
-			return errors.New("use of cmd_args and cmdArgs found, use only cmd_args")
-		}
-		log.Warn(getWarning("cmdArgs", "cmd_args"))
-		c.CmdArgs = c.CmdArgsDeprecated
-	}
-
-	if c.CertDirDeprecated != "" {
-		if c.CertDir != "" {
-			return errors.New("use of cert_dir and certDir found, use only cert_dir")
-		}
-		log.Warn(getWarning("certDir", "cert_dir"))
-		c.CertDir = c.CertDirDeprecated
-	}
-
-	if c.SVIDFileNameDeprecated != "" {
-		if c.SVIDFileName != "" {
-			return errors.New("use of svid_file_name and svidFileName found, use only svid_file_name")
-		}
-		log.Warn(getWarning("svidFileName", "svid_file_name"))
-		c.SVIDFileName = c.SVIDFileNameDeprecated
-	}
-
-	if c.SVIDKeyFileNameDeprecated != "" {
-		if c.SVIDKeyFileName != "" {
-			return errors.New("use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name")
-		}
-		log.Warn(getWarning("svidKeyFileName", "svid_key_file_name"))
-		c.SVIDKeyFileName = c.SVIDKeyFileNameDeprecated
-	}
-
-	if c.SVIDBundleFileNameDeprecated != "" {
-		if c.SVIDBundleFileName != "" {
-			return errors.New("use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name")
-		}
-		log.Warn(getWarning("svidBundleFileName", "svid_bundle_file_name"))
-		c.SVIDBundleFileName = c.SVIDBundleFileNameDeprecated
-	}
-
-	if c.RenewSignalDeprecated != "" {
-		if c.RenewSignal != "" {
-			return errors.New("use of renew_signal and renewSignal found, use only renew_signal")
-		}
-		log.Warn(getWarning("renewSignal", "renew_signal"))
-		c.RenewSignal = c.RenewSignalDeprecated
 	}
 
 	for _, jwtConfig := range c.JWTSVIDs {
@@ -273,10 +209,6 @@ func validateJWTConfig(c *Config) (bool, bool) {
 	jwtBundleEmptyCount := countEmpty(c.SVIDBundleFileName)
 
 	return jwtBundleEmptyCount == 0, len(c.JWTSVIDs) > 0
-}
-
-func getWarning(s1 string, s2 string) string {
-	return s1 + " will be deprecated, should be used as " + s2
 }
 
 func countEmpty(configs ...string) int {
