@@ -5,8 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,7 +53,6 @@ func TestValidateConfig(t *testing.T) {
 		name        string
 		config      *Config
 		expectError string
-		expectLogs  []shortEntry
 	}{
 		{
 			name: "no error",
@@ -112,200 +109,9 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectError: "'jwt_file_name' is required in 'jwt_svids'",
 		},
-		// Duplicated field error:
-		{
-			name: "Both agent_address & agentAddress in use",
-			config: &Config{
-				AgentAddress:           "path",
-				AgentAddressDeprecated: "path",
-				SVIDFileName:           "cert.pem",
-				SVIDKeyFileName:        "key.pem",
-				SVIDBundleFileName:     "bundle.pem",
-			},
-			expectError: "use of agent_address and agentAddress found, use only agent_address",
-		},
-		{
-			name: "Both cmd_args & cmdArgs in use",
-			config: &Config{
-				AgentAddress:       "path",
-				CmdArgs:            "start_envoy.sh",
-				CmdArgsDeprecated:  "start_envoy.sh",
-				SVIDFileName:       "cert.pem",
-				SVIDKeyFileName:    "key.pem",
-				SVIDBundleFileName: "bundle.pem",
-			},
-			expectError: "use of cmd_args and cmdArgs found, use only cmd_args",
-		},
-		{
-			name: "Both cert_dir & certDir in use",
-			config: &Config{
-				AgentAddress:       "path",
-				CertDir:            "certs",
-				CertDirDeprecated:  "certs",
-				SVIDFileName:       "cert.pem",
-				SVIDKeyFileName:    "key.pem",
-				SVIDBundleFileName: "bundle.pem",
-			},
-			expectError: "use of cert_dir and certDir found, use only cert_dir",
-		},
-		{
-			name: "Both svid_file_name & svidFileName in use",
-			config: &Config{
-				AgentAddress:           "path",
-				SVIDFileName:           "cert.pem",
-				SVIDFileNameDeprecated: "cert.pem",
-				SVIDKeyFileName:        "key.pem",
-				SVIDBundleFileName:     "bundle.pem",
-			},
-			expectError: "use of svid_file_name and svidFileName found, use only svid_file_name",
-		},
-		{
-			name: "Both svid_key_file_name & svidKeyFileName in use",
-			config: &Config{
-				AgentAddress:              "path",
-				SVIDFileName:              "cert.pem",
-				SVIDKeyFileName:           "key.pem",
-				SVIDKeyFileNameDeprecated: "key.pem",
-				SVIDBundleFileName:        "bundle.pem",
-			},
-			expectError: "use of svid_key_file_name and svidKeyFileName found, use only svid_key_file_name",
-		},
-		{
-			name: "Both svid_bundle_file_name & svidBundleFileName in use",
-			config: &Config{
-				AgentAddress:                 "path",
-				SVIDFileName:                 "cert.pem",
-				SVIDKeyFileName:              "key.pem",
-				SVIDBundleFileName:           "bundle.pem",
-				SVIDBundleFileNameDeprecated: "bundle.pem",
-			},
-			expectError: "use of svid_bundle_file_name and svidBundleFileName found, use only svid_bundle_file_name",
-		},
-		{
-			name: "Both renew_signal & renewSignal in use",
-			config: &Config{
-				AgentAddress:          "path",
-				SVIDFileName:          "cert.pem",
-				SVIDKeyFileName:       "key.pem",
-				SVIDBundleFileName:    "bundle.pem",
-				RenewSignal:           "SIGHUP",
-				RenewSignalDeprecated: "SIGHUP",
-			},
-			expectError: "use of renew_signal and renewSignal found, use only renew_signal",
-		},
-		// Deprecated field warning:
-		{
-			name: "Using AgentAddressDeprecated",
-			config: &Config{
-				AgentAddressDeprecated: "path",
-				SVIDFileName:           "cert.pem",
-				SVIDKeyFileName:        "key.pem",
-				SVIDBundleFileName:     "bundle.pem",
-			},
-			expectLogs: []shortEntry{
-				{
-					Level:   logrus.WarnLevel,
-					Message: "agentAddress will be deprecated, should be used as agent_address",
-				},
-			},
-		},
-		{
-			name: "Using CmdArgsDeprecated",
-			config: &Config{
-				AgentAddress:       "path",
-				CmdArgsDeprecated:  "start_envoy.sh",
-				SVIDFileName:       "cert.pem",
-				SVIDKeyFileName:    "key.pem",
-				SVIDBundleFileName: "bundle.pem",
-			},
-			expectLogs: []shortEntry{
-				{
-					Level:   logrus.WarnLevel,
-					Message: "cmdArgs will be deprecated, should be used as cmd_args",
-				},
-			},
-		},
-		{
-			name: "Using CertDirDeprecated",
-			config: &Config{
-				AgentAddress:       "path",
-				CertDirDeprecated:  "certs",
-				SVIDFileName:       "cert.pem",
-				SVIDKeyFileName:    "key.pem",
-				SVIDBundleFileName: "bundle.pem",
-			},
-			expectLogs: []shortEntry{
-				{
-					Level:   logrus.WarnLevel,
-					Message: "certDir will be deprecated, should be used as cert_dir",
-				},
-			},
-		},
-		{
-			name: "Using SVIDFileNameDeprecated",
-			config: &Config{
-				AgentAddress:           "path",
-				SVIDFileNameDeprecated: "cert.pem",
-				SVIDKeyFileName:        "key.pem",
-				SVIDBundleFileName:     "bundle.pem",
-			},
-			expectLogs: []shortEntry{
-				{
-					Level:   logrus.WarnLevel,
-					Message: "svidFileName will be deprecated, should be used as svid_file_name",
-				},
-			},
-		},
-		{
-			name: "Using SVIDKeyFileNameDeprecated",
-			config: &Config{
-				AgentAddress:              "path",
-				SVIDFileName:              "cert.pem",
-				SVIDKeyFileNameDeprecated: "key.pem",
-				SVIDBundleFileName:        "bundle.pem",
-			},
-			expectLogs: []shortEntry{
-				{
-					Level:   logrus.WarnLevel,
-					Message: "svidKeyFileName will be deprecated, should be used as svid_key_file_name",
-				},
-			},
-		},
-		{
-			name: "Using SVIDBundleFileNameDeprecated",
-			config: &Config{
-				AgentAddress:                 "path",
-				SVIDFileName:                 "cert.pem",
-				SVIDKeyFileName:              "key.pem",
-				SVIDBundleFileNameDeprecated: "bundle.pem",
-			},
-			expectLogs: []shortEntry{
-				{
-					Level:   logrus.WarnLevel,
-					Message: "svidBundleFileName will be deprecated, should be used as svid_bundle_file_name",
-				},
-			},
-		},
-		{
-			name: "Using RenewSignalDeprecated",
-			config: &Config{
-				AgentAddress:          "path",
-				SVIDFileName:          "cert.pem",
-				SVIDKeyFileName:       "key.pem",
-				SVIDBundleFileName:    "bundle.pem",
-				RenewSignalDeprecated: "SIGHUP",
-			},
-			expectLogs: []shortEntry{{
-				Level:   logrus.WarnLevel,
-				Message: "renewSignal will be deprecated, should be used as renew_signal",
-			}},
-		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			log, hook := test.NewNullLogger()
-			err := tt.config.ValidateConfig(log)
-
-			require.ElementsMatch(t, tt.expectLogs, getShortEntries(hook.AllEntries()))
+			err := tt.config.ValidateConfig()
 
 			if tt.expectError != "" {
 				require.EqualError(t, err, tt.expectError)
@@ -378,8 +184,7 @@ func TestDetectsUnknownConfig(t *testing.T) {
 			c, err := ParseConfig(configFile.Name())
 			require.NoError(t, err)
 
-			log, _ := test.NewNullLogger()
-			err = c.ValidateConfig(log)
+			err = c.ValidateConfig()
 			require.EqualError(t, err, tt.expectError)
 		})
 	}
@@ -421,8 +226,7 @@ func TestDefaultAgentAddress(t *testing.T) {
 				SVIDKeyFileName:    "key.pem",
 				SVIDBundleFileName: "bundle.pem",
 			}
-			log, _ := test.NewNullLogger()
-			err := config.ValidateConfig(log)
+			err := config.ValidateConfig()
 			require.NoError(t, err)
 			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
 		})
@@ -481,20 +285,4 @@ func TestDaemonModeFlag(t *testing.T) {
 	config.ParseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
 	require.NotNil(t, config.DaemonMode)
 	assert.Equal(t, false, *config.DaemonMode)
-}
-
-type shortEntry struct {
-	Level   logrus.Level
-	Message string
-}
-
-func getShortEntries(entries []*logrus.Entry) []shortEntry {
-	result := make([]shortEntry, 0, len(entries))
-	for _, entry := range entries {
-		result = append(result, shortEntry{
-			Level:   entry.Level,
-			Message: entry.Message,
-		})
-	}
-	return result
 }
