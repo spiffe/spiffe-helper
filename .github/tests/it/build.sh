@@ -31,27 +31,27 @@ docker compose exec spire-server ./bin/spire-server entry create \
     -parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \
     -spiffeID spiffe://example.org/postgres-db \
     -selector unix:uid:70 \
-	-ttl 60
+	-x509SVIDTTLttl 60
 
 docker compose exec spire-server ./bin/spire-server entry create \
-	-parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \
+    -parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \
     -spiffeID spiffe://example.org/mysql-db \
     -selector unix:uid:0 \
-    -ttl 60
+    -x509SVIDTTLttl 60
 
 docker compose exec spire-server ./bin/spire-server entry create \
     -parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \
     -spiffeID spiffe://example.org/client \
     -selector unix:uid:72 \
-	-dns client \
-	-ttl 100
+    -dns client \
+    -x509SVIDTTL 100
 
 docker compose exec spire-server ./bin/spire-server entry create \
     -parentID "spiffe://example.org/spire/agent/x509pop/${FINGERPRINT}" \
     -spiffeID spiffe://example.org/go-server \
     -selector unix:uid:73 \
-	-dns go-server \
-	-ttl 3600
+    -dns go-server \
+    -x509SVIDTTLttl 3600
 
 # set ups spire agent
 docker compose up spire-agent -d
