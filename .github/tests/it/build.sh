@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 fingerprint () {
 	# calculate the SHA1 digest of the DER bytes of the certificate using the
