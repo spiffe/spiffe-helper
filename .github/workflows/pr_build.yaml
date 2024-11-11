@@ -118,7 +118,12 @@ jobs:
       matrix:
        tests: ${{ fromJson(needs.build-matrix.outputs.tests) }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
       - name: Build containers
         run: ./build.sh
         shell: bash

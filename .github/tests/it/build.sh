@@ -55,7 +55,8 @@ docker compose exec spire-server ./bin/spire-server entry create \
 # set ups spire agent
 docker compose up spire-agent -d
 
-docker compose build spiffe-helper
+go_version=$(sed -En 's/^go[ ]+([0-9.]+).*/\1/p' ../../../go.mod)
+docker compose build --build-arg go_version=$go_version spiffe-helper
 
 # set ups and postgres-db
 docker compose up postgres-db -d
