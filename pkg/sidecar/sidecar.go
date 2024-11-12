@@ -87,7 +87,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSVIDFilename)
+				s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTExtraAudiences, jwtConfig.JWTSVIDFilename)
 			}()
 		}
 	}
@@ -253,8 +253,8 @@ func (s *Sidecar) checkProcessExit() {
 	atomic.StoreInt32(&s.processRunning, 0)
 }
 
-func (s *Sidecar) fetchJWTSVIDs(ctx context.Context, jwtAudience string) (*jwtsvid.SVID, error) {
-	jwtSVID, err := s.jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{Audience: jwtAudience})
+func (s *Sidecar) fetchJWTSVIDs(ctx context.Context, jwtAudience string, jwtExtraAudiences []string) (*jwtsvid.SVID, error) {
+	jwtSVID, err := s.jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{Audience: jwtAudience, ExtraAudiences: jwtExtraAudiences})
 	if err != nil {
 		s.config.Log.Errorf("Unable to fetch JWT SVID: %v", err)
 		return nil, err
@@ -291,10 +291,10 @@ func getRefreshInterval(svid *jwtsvid.SVID) time.Duration {
 	return time.Until(svid.Expiry)/2 + time.Second
 }
 
-func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, jwtSVIDFilename string) (*jwtsvid.SVID, error) {
+func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, jwtExtraAudiences []string, jwtSVIDFilename string) (*jwtsvid.SVID, error) {
 	s.config.Log.Debug("Updating JWT SVID")
 
-	jwtSVID, err := s.fetchJWTSVIDs(ctx, jwtAudience)
+	jwtSVID, err := s.fetchJWTSVIDs(ctx, jwtAudience, jwtExtraAudiences)
 	if err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		return nil, err
@@ -309,10 +309,10 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 	return jwtSVID, nil
 }
 
-func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtSVIDFilename string) {
+func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtExtraAudiences []string, jwtSVIDFilename string) {
 	retryInterval := createRetryIntervalFunc()
 	var initialInterval time.Duration
-	jwtSVID, err := s.performJWTSVIDUpdate(ctx, jwtAudience, jwtSVIDFilename)
+	jwtSVID, err := s.performJWTSVIDUpdate(ctx, jwtAudience, jwtExtraAudiences, jwtSVIDFilename)
 	if err != nil {
 		// If the first update fails, use the retry interval
 		initialInterval = retryInterval()
@@ -328,7 +328,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtSVID
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			jwtSVID, err = s.performJWTSVIDUpdate(ctx, jwtAudience, jwtSVIDFilename)
+			jwtSVID, err = s.performJWTSVIDUpdate(ctx, jwtAudience, jwtExtraAudiences, jwtSVIDFilename)
 			if err == nil {
 				retryInterval = createRetryIntervalFunc()
 				ticker.Reset(getRefreshInterval(jwtSVID))

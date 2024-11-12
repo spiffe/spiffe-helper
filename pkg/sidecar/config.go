@@ -73,6 +73,9 @@ type JWTConfig struct {
 	// The audience for the JWT SVID to fetch
 	JWTAudience string
 
+	// The extra audiences for the JWT SVID to fetch
+	JWTExtraAudiences []string
+
 	// The filename to save the JWT SVID to
 	JWTSVIDFilename string
 }
