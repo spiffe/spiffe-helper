@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -111,7 +112,8 @@ func TestValidateConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.config.ValidateConfig()
+			log, _ := test.NewNullLogger()
+			err := tt.config.ValidateConfig(log)
 
 			if tt.expectError != "" {
 				require.EqualError(t, err, tt.expectError)
@@ -184,7 +186,8 @@ func TestDetectsUnknownConfig(t *testing.T) {
 			c, err := ParseConfig(configFile.Name())
 			require.NoError(t, err)
 
-			err = c.ValidateConfig()
+			log, _ := test.NewNullLogger()
+			err = c.ValidateConfig(log)
 			require.EqualError(t, err, tt.expectError)
 		})
 	}
@@ -192,10 +195,11 @@ func TestDetectsUnknownConfig(t *testing.T) {
 
 func TestDefaultAgentAddress(t *testing.T) {
 	for _, tt := range []struct {
-		name                 string
-		agentAddress         string
-		envAgentAddress      string
-		expectedAgentAddress string
+		name                    string
+		agentAddress            string
+		envSPIREAgentAddress    string
+		envSPIFFEEndpointSocket string
+		expectedAgentAddress    string
 	}{
 		{
 			name:                 "Agent Address not set in config or env",
@@ -207,28 +211,51 @@ func TestDefaultAgentAddress(t *testing.T) {
 			expectedAgentAddress: "MY_ADDRESS",
 		},
 		{
-			name:                 "Agent Address not set in config but set in env",
-			envAgentAddress:      "MY_ENV_ADDRESS",
+			name:                 "Agent Address not set in config but SPIRE_AGENT_ADDRESS is set in env",
+			envSPIREAgentAddress: "MY_ENV_ADDRESS",
 			expectedAgentAddress: "MY_ENV_ADDRESS",
 		},
 		{
-			name:                 "Agent Address set in config and set in env",
-			agentAddress:         "MY_ADDRESS",
-			envAgentAddress:      "MY_ENV_ADDRESS",
-			expectedAgentAddress: "MY_ADDRESS",
+			name:                    "Agent Address not set in config but SPIFFE_ENDPOINT_SOCKET is set in env",
+			envSPIFFEEndpointSocket: "MY_ENV_ADDRESS",
+			expectedAgentAddress:    "MY_ENV_ADDRESS",
+		},
+		{
+			name:                    "Both SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET are set in env",
+			envSPIREAgentAddress:    "MY_SPIRE_AGENT_ADDRESS",
+			envSPIFFEEndpointSocket: "MY_SPIFFE_ENDPOINT_SOCKET",
+			expectedAgentAddress:    "MY_SPIFFE_ENDPOINT_SOCKET",
+		},
+		{
+			name:                    "Agent Address set in config and set in env",
+			agentAddress:            "MY_ADDRESS",
+			envSPIFFEEndpointSocket: "MY_ENV_ADDRESS",
+			expectedAgentAddress:    "MY_ADDRESS",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("SPIRE_AGENT_ADDRESS", tt.envAgentAddress)
+			os.Setenv("SPIRE_AGENT_ADDRESS", tt.envSPIREAgentAddress)
+			os.Setenv("SPIFFE_ENDPOINT_SOCKET", tt.envSPIFFEEndpointSocket)
 			config := &Config{
 				AgentAddress:       tt.agentAddress,
 				SVIDFileName:       "cert.pem",
 				SVIDKeyFileName:    "key.pem",
 				SVIDBundleFileName: "bundle.pem",
 			}
-			err := config.ValidateConfig()
+			log, hook := test.NewNullLogger()
+			err := config.ValidateConfig(log)
 			require.NoError(t, err)
 			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
+
+			if tt.envSPIREAgentAddress != "" {
+				require.NotNil(t, hook.LastEntry())
+				if tt.envSPIFFEEndpointSocket == "" {
+					assert.Equal(t, "SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0. Use SPIFFE_ENDPOINT_SOCKET instead.", hook.LastEntry().Message)
+				}
+				if tt.envSPIFFEEndpointSocket != "" {
+					assert.Equal(t, "SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET both set. Using value from SPIFFE_ENDPOINT_SOCKET. Support for SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0.", hook.LastEntry().Message)
+				}
+			}
 		})
 	}
 }
