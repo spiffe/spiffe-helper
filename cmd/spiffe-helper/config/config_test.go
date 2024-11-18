@@ -202,6 +202,7 @@ func TestDefaultAgentAddress(t *testing.T) {
 		envSPIREAgentAddress    string
 		envSPIFFEEndpointSocket string
 		expectedAgentAddress    string
+		expectError             string
 	}{
 		{
 			name:                 "Agent Address not set in config or env",
@@ -226,7 +227,7 @@ func TestDefaultAgentAddress(t *testing.T) {
 			name:                    "Both SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET are set in env",
 			envSPIREAgentAddress:    "MY_SPIRE_AGENT_ADDRESS",
 			envSPIFFEEndpointSocket: "MY_SPIFFE_ENDPOINT_SOCKET",
-			expectedAgentAddress:    "MY_SPIFFE_ENDPOINT_SOCKET",
+			expectError:             "both SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET set. Use SPIFFE_ENDPOINT_SOCKET only. Support for SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0",
 		},
 		{
 			name:                    "Agent Address set in config and set in env",
@@ -238,25 +239,27 @@ func TestDefaultAgentAddress(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Setenv("SPIRE_AGENT_ADDRESS", tt.envSPIREAgentAddress)
 			os.Setenv("SPIFFE_ENDPOINT_SOCKET", tt.envSPIFFEEndpointSocket)
+
 			config := &Config{
 				AgentAddress:       tt.agentAddress,
 				SVIDFileName:       "cert.pem",
 				SVIDKeyFileName:    "key.pem",
 				SVIDBundleFileName: "bundle.pem",
 			}
+
 			log, hook := test.NewNullLogger()
 			err := config.ValidateConfig(log)
+			if tt.expectError != "" {
+				require.EqualError(t, err, tt.expectError)
+				return
+			}
 			require.NoError(t, err)
+
 			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
 
-			if tt.envSPIREAgentAddress != "" {
+			if tt.envSPIREAgentAddress != "" && tt.envSPIFFEEndpointSocket == "" {
 				require.NotNil(t, hook.LastEntry())
-				if tt.envSPIFFEEndpointSocket == "" {
-					assert.Equal(t, "SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0. Use SPIFFE_ENDPOINT_SOCKET instead.", hook.LastEntry().Message)
-				}
-				if tt.envSPIFFEEndpointSocket != "" {
-					assert.Equal(t, "SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET both set. Using value from SPIFFE_ENDPOINT_SOCKET. Support for SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0.", hook.LastEntry().Message)
-				}
+				assert.Equal(t, "SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0. Use SPIFFE_ENDPOINT_SOCKET instead.", hook.LastEntry().Message)
 			}
 		})
 	}
