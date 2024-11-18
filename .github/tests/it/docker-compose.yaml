@@ -19,7 +19,9 @@ services:
   spiffe-helper:
     build: 
       context: ../../../
-      dockerfile: ./.github/tests/it/spiffe-helper/Dockerfile
+      dockerfile: ./Dockerfile
+      args:
+        - go_version
 
   postgres-db:
     build: postgres
