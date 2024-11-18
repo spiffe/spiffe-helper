@@ -56,7 +56,10 @@ docker compose exec spire-server ./bin/spire-server entry create \
 # set ups spire agent
 docker compose up spire-agent -d
 
+# extract go version
 go_version=$(sed -En 's/^go[ ]+([0-9.]+).*/\1/p' ../../../go.mod)
+
+# build spiffe-helper
 docker compose build --build-arg go_version=$go_version spiffe-helper
 
 # set ups and postgres-db
@@ -71,10 +74,12 @@ docker compose exec mysql-db /etc/init.d/mysql start
 docker compose exec mysql-db su root -c "mysql < /var/lib/mysql/data/init.sql"
 
 # set ups go-server
+docker compose build --build-arg go_version=$go_version go-server
 docker compose up go-server -d
 wait go-server /run/go-server/certs/svid.crt
 docker compose exec go-server su go-server -c "/opt/go-server/server &"
 
-#set ups client
+# set ups client
+docker compose build --build-arg go_version=$go_version client
 docker compose up client -d
 wait client /run/client/certs/svid.crt
