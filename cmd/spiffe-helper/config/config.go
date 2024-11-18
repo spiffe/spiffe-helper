@@ -51,8 +51,9 @@ type Config struct {
 }
 
 type JWTConfig struct {
-	JWTAudience     string `hcl:"jwt_audience"`
-	JWTSVIDFilename string `hcl:"jwt_svid_file_name"`
+	JWTAudience       string   `hcl:"jwt_audience"`
+	JWTExtraAudiences []string `hcl:"jwt_extra_audiences"`
+	JWTSVIDFilename   string   `hcl:"jwt_svid_file_name"`
 
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
 }
@@ -188,8 +189,9 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 
 	for _, jwtSVID := range config.JWTSVIDs {
 		sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
-			JWTAudience:     jwtSVID.JWTAudience,
-			JWTSVIDFilename: jwtSVID.JWTSVIDFilename,
+			JWTAudience:       jwtSVID.JWTAudience,
+			JWTExtraAudiences: jwtSVID.JWTExtraAudiences,
+			JWTSVIDFilename:   jwtSVID.JWTSVIDFilename,
 		})
 	}
 
