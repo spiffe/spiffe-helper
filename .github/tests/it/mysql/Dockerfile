@@ -10,4 +10,4 @@ RUN touch /var/lib/mysql/server-cert.pem /var/lib/mysql/server-key.pem /var/lib/
 RUN chmod 660 /var/lib/mysql/server-cert.pem /var/lib/mysql/server-key.pem /var/lib/mysql/ca.pem
 
 USER root
-COPY --from=it-spiffe-helper /service/spiffe-helper /opt/helper/spiffe-helper
+COPY --from=it-spiffe-helper /spiffe-helper /opt/helper/spiffe-helper
