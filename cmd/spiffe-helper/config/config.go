@@ -87,7 +87,7 @@ func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagNam
 	}
 }
 
-func (c *Config) ValidateConfig() error {
+func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	if err := c.checkForUnknownConfig(); err != nil {
 		return err
 	}
@@ -106,8 +106,18 @@ func (c *Config) ValidateConfig() error {
 	}
 
 	if c.AgentAddress == "" {
-		c.AgentAddress = os.Getenv("SPIRE_AGENT_ADDRESS")
-		if c.AgentAddress == "" {
+		spireAgentAddress := os.Getenv("SPIRE_AGENT_ADDRESS")
+		spiffeEndpointSocket := os.Getenv("SPIFFE_ENDPOINT_SOCKET")
+
+		switch {
+		case spireAgentAddress != "" && spiffeEndpointSocket == "":
+			log.Warn("SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0. Use SPIFFE_ENDPOINT_SOCKET instead.")
+			c.AgentAddress = spireAgentAddress
+		case spireAgentAddress != "" && spiffeEndpointSocket != "":
+			return errors.New("both SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET set. Use SPIFFE_ENDPOINT_SOCKET only. Support for SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0")
+		case spireAgentAddress == "" && spiffeEndpointSocket != "":
+			c.AgentAddress = spiffeEndpointSocket
+		default:
 			c.AgentAddress = defaultAgentAddress
 		}
 	}
