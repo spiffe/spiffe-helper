@@ -19,6 +19,7 @@ fail(){
 
 testWithParameter(){
     var=$(docker compose exec client su client -c "/run/client/mysql-connect.sh \"$1\"")
+    echo $var
 
     if echo "$var" | grep -q "test@user.com"; then
         if [ "$2" -eq 1 ]; then 
