@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
@@ -27,9 +26,11 @@ type Sidecar struct {
 	config         *Config
 	client         *workloadapi.Client
 	jwtSource      *workloadapi.JWTSource
-	processRunning int32
+	processRunning bool
 	process        *os.Process
 	certReadyChan  chan struct{}
+
+	mu sync.Mutex
 }
 
 // New creates a new SPIFFE sidecar
@@ -200,7 +201,10 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 
 // signalProcessCMD sends the renew signal to the process or starts it if its first time
 func (s *Sidecar) signalProcess() error {
-	if atomic.LoadInt32(&s.processRunning) == 0 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.processRunning {
 		cmdArgs, err := getCmdArgs(s.config.CmdArgs)
 		if err != nil {
 			return fmt.Errorf("error parsing cmd arguments: %w", err)
@@ -213,6 +217,7 @@ func (s *Sidecar) signalProcess() error {
 			return fmt.Errorf("error executing process \"%v\": %w", s.config.Cmd, err)
 		}
 		s.process = cmd.Process
+		s.processRunning = true
 		go s.checkProcessExit()
 	} else {
 		if err := SignalProcess(s.process, s.config.RenewSignal); err != nil {
@@ -244,13 +249,13 @@ func (s *Sidecar) signalPID() error {
 }
 
 func (s *Sidecar) checkProcessExit() {
-	atomic.StoreInt32(&s.processRunning, 1)
-	_, err := s.process.Wait()
-	if err != nil {
+	if _, err := s.process.Wait(); err != nil {
 		s.config.Log.Errorf("error waiting for process exit: %v", err)
 	}
 
-	atomic.StoreInt32(&s.processRunning, 0)
+	s.mu.Lock()
+	s.processRunning = false
+	s.mu.Unlock()
 }
 
 func (s *Sidecar) fetchJWTSVIDs(ctx context.Context, jwtAudience string, jwtExtraAudiences []string) (*jwtsvid.SVID, error) {
