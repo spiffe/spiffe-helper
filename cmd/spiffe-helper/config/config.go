@@ -37,6 +37,8 @@ type Config struct {
 	IncludeFederatedDomains  bool   `hcl:"include_federated_domains"`
 	RenewSignal              string `hcl:"renew_signal"`
 	DaemonMode               *bool  `hcl:"daemon_mode"`
+	EnableHealthCheck        *bool  `hcl:"enable_health_check"`
+	HealthCheckPort          int    `hcl:"health_check_port"`
 
 	// x509 configuration
 	SVIDFileName       string `hcl:"svid_file_name"`
@@ -156,6 +158,11 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		return errors.New("jwt svid file mode must be positive")
 	} else if c.JWTSVIDFileMode == 0 {
 		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
+	}
+
+	if c.EnableHealthCheck == nil {
+		defaultEnableHealthCheck := false
+		c.EnableHealthCheck = &defaultEnableHealthCheck
 	}
 
 	return nil
