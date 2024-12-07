@@ -91,8 +91,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	sidecar := Sidecar{
-		config:        config,
-		certReadyChan: make(chan struct{}, 1),
+		config:            config,
+		certReadyChan:     make(chan struct{}, 1),
+		fileWritesSuccess: make(map[string]bool),
 	}
 	defer close(sidecar.certReadyChan)
 
