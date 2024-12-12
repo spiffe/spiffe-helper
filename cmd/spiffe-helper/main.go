@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
 	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 func main() {
@@ -39,12 +40,10 @@ func startSidecar(configFile string, daemonModeFlag bool, log logrus.FieldLogger
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Infof("Using configuration file: %q", configFile)
-	hclConfig, err := config.ParseConfig(configFile)
+	hclConfig, err := config.ParseConfigFile(log, configFile, daemonModeFlag)
 	if err != nil {
-		return fmt.Errorf("failed to parse %q: %w", configFile, err)
+		return err
 	}
-	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, config.DaemonModeFlagName)
 
 	if err := hclConfig.ValidateConfig(log); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)

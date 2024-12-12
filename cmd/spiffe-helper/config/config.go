@@ -16,10 +16,7 @@ import (
 )
 
 const (
-	DaemonModeFlagName = "daemon-mode"
-)
-
-const (
+	daemonModeFlagName       = "daemon-mode"
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
 	defaultCertFileMode      = 0644
 	defaultKeyFileMode       = 0600
@@ -174,6 +171,16 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	}
 
 	return nil
+}
+
+func ParseConfigFile(log logrus.FieldLogger, configFile string, daemonModeFlag bool) (*Config, error) {
+	log.Infof("Using configuration file: %q", configFile)
+	hclConfig, err := ParseConfig(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
+	}
+	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+	return hclConfig, nil
 }
 
 // checkForUnknownConfig looks for any unknown configuration keys and returns an error if one is found

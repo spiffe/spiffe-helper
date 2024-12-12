@@ -3,20 +3,21 @@ package health
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
-	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
+	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
 func StartHealthServer(configFile string, daemonModeFlag bool, log logrus.FieldLogger, sidecar *sidecar.Sidecar) error {
-	hclConfig, err := config.ParseConfig(configFile)
+	hclConfig, err := config.ParseConfigFile(log, configFile, daemonModeFlag)
 	if err != nil {
-		return fmt.Errorf("failed to parse %q: %w", configFile, err)
+		return err
 	}
-	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, config.DaemonModeFlagName)
+
 	if err := hclConfig.ValidateConfig(log); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
