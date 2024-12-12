@@ -10,10 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	daemonModeFlagName = "daemon-mode"
-)
-
 func TestParseConfig(t *testing.T) {
 	c, err := ParseConfig("testdata/helper.conf")
 
@@ -308,13 +304,13 @@ func TestDaemonModeFlag(t *testing.T) {
 		SVIDBundleFileName: "bundle.pem",
 	}
 
-	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
+	daemonModeFlag := flag.Bool(DaemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
 	flag.Parse()
 
-	err := flag.Set(daemonModeFlagName, "false")
+	err := flag.Set(DaemonModeFlagName, "false")
 	require.NoError(t, err)
 
-	config.ParseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
+	config.ParseConfigFlagOverrides(*daemonModeFlag)
 	require.NotNil(t, config.DaemonMode)
 	assert.Equal(t, false, *config.DaemonMode)
 }

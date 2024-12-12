@@ -16,7 +16,10 @@ import (
 )
 
 const (
-	daemonModeFlagName       = "daemon-mode"
+	DaemonModeFlagName = "daemon-mode"
+)
+
+const (
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
 	defaultCertFileMode      = 0644
 	defaultKeyFileMode       = 0600
@@ -83,8 +86,8 @@ func ParseConfig(file string) (*Config, error) {
 }
 
 // ParseConfigFlagOverrides handles command line arguments that override config file settings
-func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
-	if isFlagPassed(daemonModeFlagName) {
+func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool) {
+	if isFlagPassed(DaemonModeFlagName) {
 		// If daemon mode is set by CLI this takes precedence
 		c.DaemonMode = &daemonModeFlag
 	} else if c.DaemonMode == nil {
@@ -179,7 +182,7 @@ func ParseConfigFile(log logrus.FieldLogger, configFile string, daemonModeFlag b
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
 	}
-	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+	hclConfig.ParseConfigFlagOverrides(daemonModeFlag)
 	return hclConfig, nil
 }
 
