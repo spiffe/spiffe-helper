@@ -23,7 +23,7 @@ func StartHealthServer(configFile string, daemonModeFlag bool, log logrus.FieldL
 	}
 
 	if *hclConfig.DaemonMode && *hclConfig.HealthCheck.EnableHealthCheck {
-		http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		http.HandleFunc(hclConfig.HealthCheck.HealthCheckPath, func(w http.ResponseWriter, _ *http.Request) {
 			healthy := sidecar.CheckHealth()
 			if healthy {
 				_, err := w.Write([]byte(http.StatusText(http.StatusOK)))

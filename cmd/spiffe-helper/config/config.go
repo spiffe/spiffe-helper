@@ -25,23 +25,25 @@ const (
 	defaultKeyFileMode       = 0600
 	defaultJWTBundleFileMode = 0600
 	defaultJWTSVIDFileMode   = 0600
+	defaultHealthCheckPort   = 8081
+	defaultHealthCheckPath   = "/healthz"
 )
 
 type Config struct {
-	AddIntermediatesToBundle bool              `hcl:"add_intermediates_to_bundle"`
-	AgentAddress             string            `hcl:"agent_address"`
-	Cmd                      string            `hcl:"cmd"`
-	CmdArgs                  string            `hcl:"cmd_args"`
-	PIDFileName              string            `hcl:"pid_file_name"`
-	CertDir                  string            `hcl:"cert_dir"`
-	CertFileMode             int               `hcl:"cert_file_mode"`
-	KeyFileMode              int               `hcl:"key_file_mode"`
-	JWTBundleFileMode        int               `hcl:"jwt_bundle_file_mode"`
-	JWTSVIDFileMode          int               `hcl:"jwt_svid_file_mode"`
-	IncludeFederatedDomains  bool              `hcl:"include_federated_domains"`
-	RenewSignal              string            `hcl:"renew_signal"`
-	DaemonMode               *bool             `hcl:"daemon_mode"`
-	HealthCheck              HealthCheckConfig `hcl:"health_checks"`
+	AddIntermediatesToBundle bool               `hcl:"add_intermediates_to_bundle"`
+	AgentAddress             string             `hcl:"agent_address"`
+	Cmd                      string             `hcl:"cmd"`
+	CmdArgs                  string             `hcl:"cmd_args"`
+	PIDFileName              string             `hcl:"pid_file_name"`
+	CertDir                  string             `hcl:"cert_dir"`
+	CertFileMode             int                `hcl:"cert_file_mode"`
+	KeyFileMode              int                `hcl:"key_file_mode"`
+	JWTBundleFileMode        int                `hcl:"jwt_bundle_file_mode"`
+	JWTSVIDFileMode          int                `hcl:"jwt_svid_file_mode"`
+	IncludeFederatedDomains  bool               `hcl:"include_federated_domains"`
+	RenewSignal              string             `hcl:"renew_signal"`
+	DaemonMode               *bool              `hcl:"daemon_mode"`
+	HealthCheck              *HealthCheckConfig `hcl:"health_checks"`
 
 	// x509 configuration
 	SVIDFileName       string `hcl:"svid_file_name"`
@@ -56,8 +58,9 @@ type Config struct {
 }
 
 type HealthCheckConfig struct {
-	EnableHealthCheck *bool `hcl:"enable_health_check"`
-	HealthCheckPort   int   `hcl:"health_check_port"`
+	EnableHealthCheck *bool  `hcl:"enable_health_check"`
+	HealthCheckPort   int    `hcl:"health_check_port"`
+	HealthCheckPath   string `hcl:"health_check_path"`
 }
 
 type JWTConfig struct {
@@ -168,9 +171,17 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
 	}
 
-	if c.HealthCheck.EnableHealthCheck == nil {
+	if c.HealthCheck == nil || c.HealthCheck.EnableHealthCheck == nil {
 		defaultEnableHealthCheck := false
 		c.HealthCheck.EnableHealthCheck = &defaultEnableHealthCheck
+	}
+	if c.HealthCheck.HealthCheckPort < 0 {
+		return errors.New("health check port must be positive")
+	} else if c.HealthCheck.HealthCheckPort == 0 {
+		c.HealthCheck.HealthCheckPort = defaultHealthCheckPort
+	}
+	if c.HealthCheck.HealthCheckPath == "" {
+		c.HealthCheck.HealthCheckPath = defaultHealthCheckPath
 	}
 
 	return nil
