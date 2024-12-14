@@ -12,7 +12,7 @@ import (
 )
 
 func StartHealthServer(hclConfig *config.Config, log logrus.FieldLogger, sidecar *sidecar.Sidecar) error {
-	if *hclConfig.DaemonMode && *hclConfig.HealthCheck.EnableHealthCheck {
+	if *hclConfig.DaemonMode && hclConfig.HealthCheck.EnableHealthCheck {
 		http.HandleFunc(hclConfig.HealthCheck.HealthCheckPath, func(w http.ResponseWriter, _ *http.Request) {
 			healthy := sidecar.CheckHealth()
 			if healthy {

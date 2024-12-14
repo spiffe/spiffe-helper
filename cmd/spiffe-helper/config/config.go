@@ -58,7 +58,7 @@ type Config struct {
 }
 
 type HealthCheckConfig struct {
-	EnableHealthCheck *bool  `hcl:"enable_health_check"`
+	EnableHealthCheck bool   `hcl:"enable_health_check"`
 	HealthCheckPort   int    `hcl:"health_check_port"`
 	HealthCheckPath   string `hcl:"health_check_path"`
 }
@@ -171,16 +171,12 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
 	}
 
-	if c.HealthCheck == nil || c.HealthCheck.EnableHealthCheck == nil {
-		defaultEnableHealthCheck := false
-		c.HealthCheck.EnableHealthCheck = &defaultEnableHealthCheck
-	}
-	if c.HealthCheck.HealthCheckPort < 0 {
+	if c.HealthCheck != nil && c.HealthCheck.HealthCheckPort < 0 {
 		return errors.New("health check port must be positive")
-	} else if c.HealthCheck.HealthCheckPort == 0 {
+	} else if c.HealthCheck != nil && c.HealthCheck.HealthCheckPort == 0 {
 		c.HealthCheck.HealthCheckPort = defaultHealthCheckPort
 	}
-	if c.HealthCheck.HealthCheckPath == "" {
+	if c.HealthCheck != nil && c.HealthCheck.HealthCheckPath == "" {
 		c.HealthCheck.HealthCheckPath = defaultHealthCheckPath
 	}
 
