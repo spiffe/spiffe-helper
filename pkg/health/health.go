@@ -2,7 +2,6 @@ package health
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,16 +11,7 @@ import (
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
-func StartHealthServer(configFile string, daemonModeFlag bool, log logrus.FieldLogger, sidecar *sidecar.Sidecar) error {
-	hclConfig, err := config.ParseConfigFile(log, configFile, daemonModeFlag)
-	if err != nil {
-		return err
-	}
-
-	if err := hclConfig.ValidateConfig(log); err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
-	}
-
+func StartHealthServer(hclConfig *config.Config, log logrus.FieldLogger, sidecar *sidecar.Sidecar) error {
 	if *hclConfig.DaemonMode && *hclConfig.HealthCheck.EnableHealthCheck {
 		http.HandleFunc(hclConfig.HealthCheck.HealthCheckPath, func(w http.ResponseWriter, _ *http.Request) {
 			healthy := sidecar.CheckHealth()

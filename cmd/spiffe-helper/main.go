@@ -20,12 +20,23 @@ func main() {
 	flag.Parse()
 	log := logrus.WithField("system", "spiffe-helper")
 
-	if err := startSidecar(*configFile, *daemonModeFlag, log); err != nil {
+	hclConfig, err := config.ParseConfigFile(log, *configFile, *daemonModeFlag)
+	if err != nil {
+		log.WithError(err).Errorf("failed to parse configuration")
+		os.Exit(1)
+	}
+
+	if err := hclConfig.ValidateConfig(log); err != nil {
+		log.WithError(err).Errorf("invalid configuration")
+		os.Exit(1)
+	}
+
+	if err := startSidecar(hclConfig, log); err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
 		os.Exit(1)
 	}
 
-	if err := health.StartHealthServer(*configFile, *daemonModeFlag, log, spiffeSidecar); err != nil {
+	if err := health.StartHealthServer(hclConfig, log, spiffeSidecar); err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper health check server")
 		os.Exit(1)
 	}
@@ -36,18 +47,9 @@ func main() {
 
 var spiffeSidecar *sidecar.Sidecar
 
-func startSidecar(configFile string, daemonModeFlag bool, log logrus.FieldLogger) error {
+func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-
-	hclConfig, err := config.ParseConfigFile(log, configFile, daemonModeFlag)
-	if err != nil {
-		return err
-	}
-
-	if err := hclConfig.ValidateConfig(log); err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
-	}
 
 	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
 	spiffeSidecar = sidecar.New(sidecarConfig)
