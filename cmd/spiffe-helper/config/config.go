@@ -58,9 +58,9 @@ type Config struct {
 }
 
 type HealthCheckConfig struct {
-	EnableHealthCheck bool   `hcl:"enable_health_check"`
-	HealthCheckPort   int    `hcl:"health_check_port"`
-	HealthCheckPath   string `hcl:"health_check_path"`
+	ListenerEnabled bool   `hcl:"listener_enabled"`
+	BindPort   int    `hcl:"bind_port"`
+	HealthPath   string `hcl:"health_path"`
 }
 
 type JWTConfig struct {
