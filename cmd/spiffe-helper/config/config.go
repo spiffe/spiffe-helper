@@ -25,8 +25,8 @@ const (
 	defaultKeyFileMode       = 0600
 	defaultJWTBundleFileMode = 0600
 	defaultJWTSVIDFileMode   = 0600
-	defaultHealthCheckPort   = 8081
-	defaultHealthCheckPath   = "/healthz"
+	defaultBindPort          = 8081
+	defaultHealthPath        = "/healthz"
 )
 
 type Config struct {
@@ -59,8 +59,8 @@ type Config struct {
 
 type HealthCheckConfig struct {
 	ListenerEnabled bool   `hcl:"listener_enabled"`
-	BindPort   int    `hcl:"bind_port"`
-	HealthPath   string `hcl:"health_path"`
+	BindPort        int    `hcl:"bind_port"`
+	HealthPath      string `hcl:"health_path"`
 }
 
 type JWTConfig struct {
@@ -171,13 +171,13 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
 	}
 
-	if c.HealthCheck != nil && c.HealthCheck.HealthCheckPort < 0 {
-		return errors.New("health check port must be positive")
-	} else if c.HealthCheck != nil && c.HealthCheck.HealthCheckPort == 0 {
-		c.HealthCheck.HealthCheckPort = defaultHealthCheckPort
+	if c.HealthCheck != nil && c.HealthCheck.BindPort < 0 {
+		return errors.New("bind port must be positive")
+	} else if c.HealthCheck != nil && c.HealthCheck.BindPort == 0 {
+		c.HealthCheck.BindPort = defaultBindPort
 	}
-	if c.HealthCheck != nil && c.HealthCheck.HealthCheckPath == "" {
-		c.HealthCheck.HealthCheckPath = defaultHealthCheckPath
+	if c.HealthCheck != nil && c.HealthCheck.HealthPath == "" {
+		c.HealthCheck.HealthPath = defaultHealthPath
 	}
 
 	return nil
