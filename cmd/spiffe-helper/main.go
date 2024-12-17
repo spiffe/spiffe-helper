@@ -34,7 +34,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := startSidecar(hclConfig, log); err != nil {
+	spiffeSidecar, err := startSidecar(hclConfig, log)
+	if err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
 		os.Exit(1)
 	}
@@ -48,20 +49,18 @@ func main() {
 	os.Exit(0)
 }
 
-var spiffeSidecar *sidecar.Sidecar
-
-func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
+func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) (*sidecar.Sidecar, error) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
-	spiffeSidecar = sidecar.New(sidecarConfig)
+	spiffeSidecar := sidecar.New(sidecarConfig)
 
 	if !*hclConfig.DaemonMode {
 		log.Info("Daemon mode disabled")
-		return spiffeSidecar.Run(ctx)
+		return spiffeSidecar, spiffeSidecar.Run(ctx)
 	}
 
 	log.Info("Launching daemon")
-	return spiffeSidecar.RunDaemon(ctx)
+	return spiffeSidecar, spiffeSidecar.RunDaemon(ctx)
 }
