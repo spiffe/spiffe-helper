@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
+	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
@@ -23,8 +23,25 @@ func main() {
 	flag.Parse()
 	log := logrus.WithField("system", "spiffe-helper")
 
-	if err := startSidecar(*configFile, *daemonModeFlag, log); err != nil {
+	hclConfig, err := config.ParseConfigFile(log, *configFile, *daemonModeFlag)
+	if err != nil {
+		log.WithError(err).Errorf("failed to parse configuration")
+		os.Exit(1)
+	}
+
+	if err := hclConfig.ValidateConfig(log); err != nil {
+		log.WithError(err).Errorf("invalid configuration")
+		os.Exit(1)
+	}
+
+	spiffeSidecar, err := startSidecar(hclConfig, log)
+	if err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
+		os.Exit(1)
+	}
+
+	if err := health.StartHealthServer(hclConfig, log, spiffeSidecar); err != nil {
+		log.WithError(err).Errorf("Error starting spiffe-helper health check server")
 		os.Exit(1)
 	}
 
@@ -32,29 +49,18 @@ func main() {
 	os.Exit(0)
 }
 
-func startSidecar(configFile string, daemonModeFlag bool, log logrus.FieldLogger) error {
+func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) (*sidecar.Sidecar, error) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-
-	log.Infof("Using configuration file: %q", configFile)
-	hclConfig, err := config.ParseConfig(configFile)
-	if err != nil {
-		return fmt.Errorf("failed to parse %q: %w", configFile, err)
-	}
-	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
-
-	if err := hclConfig.ValidateConfig(log); err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
-	}
 
 	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
 	spiffeSidecar := sidecar.New(sidecarConfig)
 
 	if !*hclConfig.DaemonMode {
 		log.Info("Daemon mode disabled")
-		return spiffeSidecar.Run(ctx)
+		return spiffeSidecar, spiffeSidecar.Run(ctx)
 	}
 
 	log.Info("Launching daemon")
-	return spiffeSidecar.RunDaemon(ctx)
+	return spiffeSidecar, spiffeSidecar.RunDaemon(ctx)
 }

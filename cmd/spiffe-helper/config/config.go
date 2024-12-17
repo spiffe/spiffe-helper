@@ -16,27 +16,31 @@ import (
 )
 
 const (
+	daemonModeFlagName       = "daemon-mode"
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
 	defaultCertFileMode      = 0644
 	defaultKeyFileMode       = 0600
 	defaultJWTBundleFileMode = 0600
 	defaultJWTSVIDFileMode   = 0600
+	defaultBindPort          = 8081
+	defaultHealthPath        = "/healthz"
 )
 
 type Config struct {
-	AddIntermediatesToBundle bool   `hcl:"add_intermediates_to_bundle"`
-	AgentAddress             string `hcl:"agent_address"`
-	Cmd                      string `hcl:"cmd"`
-	CmdArgs                  string `hcl:"cmd_args"`
-	PIDFileName              string `hcl:"pid_file_name"`
-	CertDir                  string `hcl:"cert_dir"`
-	CertFileMode             int    `hcl:"cert_file_mode"`
-	KeyFileMode              int    `hcl:"key_file_mode"`
-	JWTBundleFileMode        int    `hcl:"jwt_bundle_file_mode"`
-	JWTSVIDFileMode          int    `hcl:"jwt_svid_file_mode"`
-	IncludeFederatedDomains  bool   `hcl:"include_federated_domains"`
-	RenewSignal              string `hcl:"renew_signal"`
-	DaemonMode               *bool  `hcl:"daemon_mode"`
+	AddIntermediatesToBundle bool              `hcl:"add_intermediates_to_bundle"`
+	AgentAddress             string            `hcl:"agent_address"`
+	Cmd                      string            `hcl:"cmd"`
+	CmdArgs                  string            `hcl:"cmd_args"`
+	PIDFileName              string            `hcl:"pid_file_name"`
+	CertDir                  string            `hcl:"cert_dir"`
+	CertFileMode             int               `hcl:"cert_file_mode"`
+	KeyFileMode              int               `hcl:"key_file_mode"`
+	JWTBundleFileMode        int               `hcl:"jwt_bundle_file_mode"`
+	JWTSVIDFileMode          int               `hcl:"jwt_svid_file_mode"`
+	IncludeFederatedDomains  bool              `hcl:"include_federated_domains"`
+	RenewSignal              string            `hcl:"renew_signal"`
+	DaemonMode               *bool             `hcl:"daemon_mode"`
+	HealthCheck              HealthCheckConfig `hcl:"health_checks"`
 
 	// x509 configuration
 	SVIDFileName       string `hcl:"svid_file_name"`
@@ -48,6 +52,12 @@ type Config struct {
 	JWTBundleFilename string      `hcl:"jwt_bundle_file_name"`
 
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
+}
+
+type HealthCheckConfig struct {
+	ListenerEnabled bool   `hcl:"listener_enabled"`
+	BindPort        int    `hcl:"bind_port"`
+	HealthPath      string `hcl:"health_path"`
 }
 
 type JWTConfig struct {
@@ -76,7 +86,7 @@ func ParseConfig(file string) (*Config, error) {
 }
 
 // ParseConfigFlagOverrides handles command line arguments that override config file settings
-func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
+func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool) {
 	if isFlagPassed(daemonModeFlagName) {
 		// If daemon mode is set by CLI this takes precedence
 		c.DaemonMode = &daemonModeFlag
@@ -158,7 +168,26 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
 	}
 
+	if c.HealthCheck.ListenerEnabled && c.HealthCheck.BindPort < 0 {
+		return errors.New("bind port must be positive")
+	} else if c.HealthCheck.ListenerEnabled && c.HealthCheck.BindPort == 0 {
+		c.HealthCheck.BindPort = defaultBindPort
+	}
+	if c.HealthCheck.ListenerEnabled && c.HealthCheck.HealthPath == "" {
+		c.HealthCheck.HealthPath = defaultHealthPath
+	}
+
 	return nil
+}
+
+func ParseConfigFile(log logrus.FieldLogger, configFile string, daemonModeFlag bool) (*Config, error) {
+	log.Infof("Using configuration file: %q", configFile)
+	hclConfig, err := ParseConfig(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
+	}
+	hclConfig.ParseConfigFlagOverrides(daemonModeFlag)
+	return hclConfig, nil
 }
 
 // checkForUnknownConfig looks for any unknown configuration keys and returns an error if one is found
