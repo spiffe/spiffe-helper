@@ -13,9 +13,13 @@ import (
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
+const (
+	daemonModeFlagName = "daemon-mode"
+)
+
 func main() {
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
-	daemonModeFlag := flag.Bool(config.DaemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
+	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
 	flag.Parse()
 	log := logrus.WithField("system", "spiffe-helper")
 

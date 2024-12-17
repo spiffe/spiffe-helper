@@ -16,10 +16,7 @@ import (
 )
 
 const (
-	DaemonModeFlagName = "daemon-mode"
-)
-
-const (
+	daemonModeFlagName       = "daemon-mode"
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
 	defaultCertFileMode      = 0644
 	defaultKeyFileMode       = 0600
@@ -90,7 +87,7 @@ func ParseConfig(file string) (*Config, error) {
 
 // ParseConfigFlagOverrides handles command line arguments that override config file settings
 func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool) {
-	if isFlagPassed(DaemonModeFlagName) {
+	if isFlagPassed(daemonModeFlagName) {
 		// If daemon mode is set by CLI this takes precedence
 		c.DaemonMode = &daemonModeFlag
 	} else if c.DaemonMode == nil {

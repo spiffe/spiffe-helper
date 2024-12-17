@@ -304,10 +304,10 @@ func TestDaemonModeFlag(t *testing.T) {
 		SVIDBundleFileName: "bundle.pem",
 	}
 
-	daemonModeFlag := flag.Bool(DaemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
+	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
 	flag.Parse()
 
-	err := flag.Set(DaemonModeFlagName, "false")
+	err := flag.Set(daemonModeFlagName, "false")
 	require.NoError(t, err)
 
 	config.ParseConfigFlagOverrides(*daemonModeFlag)
