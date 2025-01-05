@@ -25,13 +25,18 @@ import (
 // Sidecar is the component that consumes the Workload API and renews certs
 // implements the interface Sidecar
 type Sidecar struct {
-	config            *Config
-	client            *workloadapi.Client
-	jwtSource         *workloadapi.JWTSource
-	processRunning    int32
-	process           *os.Process
-	certReadyChan     chan struct{}
-	fileWritesSuccess map[string]bool
+	config          *Config
+	client          *workloadapi.Client
+	jwtSource       *workloadapi.JWTSource
+	processRunning  int32
+	process         *os.Process
+	certReadyChan   chan struct{}
+	fileWriteStatus FileWriteStatus
+}
+
+type FileWriteStatus struct {
+	X509WriteSuccess  bool
+	JwtWriteSuccesses map[string]bool
 }
 
 // New creates a new SPIFFE sidecar
@@ -40,7 +45,7 @@ func New(config *Config) *Sidecar {
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
 	}
-	sidecar.fileWritesSuccess = make(map[string]bool)
+	sidecar.fileWriteStatus.JwtWriteSuccesses = make(map[string]bool)
 	return sidecar
 }
 
@@ -171,19 +176,12 @@ func (s *Sidecar) setupClients(ctx context.Context) error {
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
-	svidFile := path.Join(s.config.CertDir, s.config.SVIDFileName)
-	svidKeyFile := path.Join(s.config.CertDir, s.config.SVIDKeyFileName)
-	svidBundleFile := path.Join(s.config.CertDir, s.config.SVIDBundleFileName)
 	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
-		s.fileWritesSuccess[svidFile] = false
-		s.fileWritesSuccess[svidKeyFile] = false
-		s.fileWritesSuccess[svidBundleFile] = false
+		s.fileWriteStatus.X509WriteSuccess = false
 		return
 	}
-	s.fileWritesSuccess[svidFile] = true
-	s.fileWritesSuccess[svidKeyFile] = true
-	s.fileWritesSuccess[svidBundleFile] = true
+	s.fileWriteStatus.X509WriteSuccess = true
 	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
@@ -316,10 +314,10 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 	jwtSVIDPath := path.Join(s.config.CertDir, jwtSVIDFilename)
 	if err = disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
-		s.fileWritesSuccess[jwtSVIDPath] = false
+		s.fileWriteStatus.JwtWriteSuccesses[jwtSVIDPath] = false
 		return nil, err
 	}
-	s.fileWritesSuccess[jwtSVIDPath] = true
+	s.fileWriteStatus.JwtWriteSuccesses[jwtSVIDPath] = true
 
 	s.config.Log.Info("JWT SVID updated")
 	return jwtSVID, nil
@@ -416,10 +414,10 @@ func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	jwtBundleFilePath := path.Join(w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename)
 	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename, w.sidecar.config.JWTBundleFileMode); err != nil {
 		w.sidecar.config.Log.Errorf("Error writing JWT Bundle to disk: %v", err)
-		w.sidecar.fileWritesSuccess[jwtBundleFilePath] = false
+		w.sidecar.fileWriteStatus.JwtWriteSuccesses[jwtBundleFilePath] = false
 		return
 	}
-	w.sidecar.fileWritesSuccess[jwtBundleFilePath] = true
+	w.sidecar.fileWriteStatus.JwtWriteSuccesses[jwtBundleFilePath] = true
 
 	w.sidecar.config.Log.Info("JWT bundle updated")
 }
@@ -432,7 +430,7 @@ func (w JWTBundlesWatcher) OnJWTBundlesWatchError(err error) {
 }
 
 func (s *Sidecar) CheckHealth() bool {
-	for _, success := range s.fileWritesSuccess {
+	for _, success := range s.fileWriteStatus.JwtWriteSuccesses {
 		if !success {
 			return false
 		}
@@ -440,6 +438,6 @@ func (s *Sidecar) CheckHealth() bool {
 	return true
 }
 
-func (s *Sidecar) GetFileWritesSuccess() map[string]bool {
-	return s.fileWritesSuccess
+func (s *Sidecar) GetFileWriteStatuses() FileWriteStatus {
+	return s.fileWriteStatus
 }

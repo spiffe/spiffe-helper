@@ -40,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := health.StartHealthServer(hclConfig, log, spiffeSidecar); err != nil {
+	if err := health.StartHealthServer(hclConfig.DaemonMode, hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper health check server")
 		os.Exit(1)
 	}
