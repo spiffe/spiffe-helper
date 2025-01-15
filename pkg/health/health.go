@@ -16,8 +16,8 @@ type CheckConfig struct {
 	HealthPath      string `hcl:"health_path"`
 }
 
-func StartHealthServer(daemonMode *bool, healthCheckConfig CheckConfig, log logrus.FieldLogger, sidecar *sidecar.Sidecar) error {
-	if *daemonMode && healthCheckConfig.ListenerEnabled {
+func StartHealthServer(daemonMode bool, healthCheckConfig CheckConfig, log logrus.FieldLogger, sidecar *sidecar.Sidecar) error {
+	if daemonMode && healthCheckConfig.ListenerEnabled {
 		http.HandleFunc(healthCheckConfig.HealthPath, func(w http.ResponseWriter, _ *http.Request) {
 			healthy := sidecar.CheckHealth()
 			if healthy {
