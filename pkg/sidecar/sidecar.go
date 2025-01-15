@@ -414,7 +414,7 @@ func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	jwtBundleFilePath := path.Join(w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename)
 	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename, w.sidecar.config.JWTBundleFileMode); err != nil {
 		w.sidecar.config.Log.Errorf("Error writing JWT Bundle to disk: %v", err)
-		w.sidecar.fileWriteStatus.JwtWriteSuccesses[jwtBundleFilePath] = false
+		w.sidecar.fileWriteStatus.JWTWriteSuccesses[jwtBundleFilePath] = false
 		return
 	}
 	w.sidecar.fileWriteStatus.JwtWriteSuccesses[jwtBundleFilePath] = true
