@@ -163,13 +163,16 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
 	}
 
-	if c.HealthCheck.ListenerEnabled && c.HealthCheck.BindPort < 0 {
+	if c.HealthCheck.ListenerEnabled {
+	    if c.HealthCheck.BindPort < 0 {
 		return errors.New("bind port must be positive")
-	} else if c.HealthCheck.ListenerEnabled && c.HealthCheck.BindPort == 0 {
+	    } 
+	    if c.HealthCheck.BindPort == 0 {
 		c.HealthCheck.BindPort = defaultBindPort
-	}
-	if c.HealthCheck.ListenerEnabled && c.HealthCheck.HealthPath == "" {
+	    }
+	    if c.HealthCheck.HealthPath == "" {
 		c.HealthCheck.HealthPath = defaultHealthPath
+	    }
 	}
 
 	return nil
