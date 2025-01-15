@@ -317,7 +317,7 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 		s.fileWriteStatus.JwtWriteSuccesses[jwtSVIDPath] = false
 		return nil, err
 	}
-	s.fileWriteStatus.JwtWriteSuccesses[jwtSVIDPath] = true
+	s.fileWriteStatus.JWTWriteSuccesses[jwtSVIDPath] = true
 
 	s.config.Log.Info("JWT SVID updated")
 	return jwtSVID, nil
