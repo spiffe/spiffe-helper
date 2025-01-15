@@ -45,7 +45,7 @@ func New(config *Config) *Sidecar {
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
 	}
-	sidecar.fileWriteStatus.JwtWriteSuccesses = make(map[string]bool)
+	sidecar.fileWriteStatus.JWTWriteSuccesses = make(map[string]bool)
 	return sidecar
 }
 
