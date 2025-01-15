@@ -417,7 +417,7 @@ func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 		w.sidecar.fileWriteStatus.JWTWriteSuccesses[jwtBundleFilePath] = false
 		return
 	}
-	w.sidecar.fileWriteStatus.JwtWriteSuccesses[jwtBundleFilePath] = true
+	w.sidecar.fileWriteStatus.JWTWriteSuccesses[jwtBundleFilePath] = true
 
 	w.sidecar.config.Log.Info("JWT bundle updated")
 }
