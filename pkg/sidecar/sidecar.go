@@ -36,7 +36,7 @@ type Sidecar struct {
 
 type FileWriteStatus struct {
 	X509WriteSuccess  bool            `json:"x509_write_success"`
-	JwtWriteSuccesses map[string]bool `json:"jwt_write_successes"`
+	JWTWriteSuccesses map[string]bool `json:"jwt_write_successes"`
 }
 
 // New creates a new SPIFFE sidecar
