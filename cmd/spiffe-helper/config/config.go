@@ -164,15 +164,15 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	}
 
 	if c.HealthCheck.ListenerEnabled {
-	    if c.HealthCheck.BindPort < 0 {
-		return errors.New("bind port must be positive")
-	    } 
-	    if c.HealthCheck.BindPort == 0 {
-		c.HealthCheck.BindPort = defaultBindPort
-	    }
-	    if c.HealthCheck.HealthPath == "" {
-		c.HealthCheck.HealthPath = defaultHealthPath
-	    }
+		if c.HealthCheck.BindPort < 0 {
+			return errors.New("bind port must be positive")
+		}
+		if c.HealthCheck.BindPort == 0 {
+			c.HealthCheck.BindPort = defaultBindPort
+		}
+		if c.HealthCheck.HealthPath == "" {
+			c.HealthCheck.HealthPath = defaultHealthPath
+		}
 	}
 
 	return nil
