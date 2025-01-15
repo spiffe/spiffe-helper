@@ -435,7 +435,7 @@ func (s *Sidecar) CheckHealth() bool {
 			return false
 		}
 	}
-	return true
+	return s.fileWriteStatus.X509WriteSuccess
 }
 
 func (s *Sidecar) GetFileWriteStatuses() FileWriteStatus {
