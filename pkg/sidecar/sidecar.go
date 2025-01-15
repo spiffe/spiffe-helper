@@ -314,7 +314,7 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 	jwtSVIDPath := path.Join(s.config.CertDir, jwtSVIDFilename)
 	if err = disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
-		s.fileWriteStatus.JwtWriteSuccesses[jwtSVIDPath] = false
+		s.fileWriteStatus.JWTWriteSuccesses[jwtSVIDPath] = false
 		return nil, err
 	}
 	s.fileWriteStatus.JWTWriteSuccesses[jwtSVIDPath] = true
