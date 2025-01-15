@@ -21,8 +21,8 @@ func StartHealthServer(healthCheckConfig CheckConfig, log logrus.FieldLogger, si
 		healthy := sidecar.CheckHealth()
 		if healthy {
 			_, err := w.Write([]byte(http.StatusText(http.StatusOK)))
-			log.Error(err)
 			if err != nil {
+			        log.WithError(err).Errorf("failed writing status text")
 				return
 			}
 		} else {
