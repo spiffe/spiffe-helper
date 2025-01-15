@@ -23,7 +23,8 @@ func main() {
 	flag.Parse()
 	log := logrus.WithField("system", "spiffe-helper")
 
-	hclConfig, err := config.ParseConfigFile(log, *configFile, *daemonModeFlag)
+	log.Infof("Using configuration file: %q", *configFile)
+	hclConfig, err := config.ParseConfig(*configFile, *daemonModeFlag, daemonModeFlagName)
 	if err != nil {
 		log.WithError(err).Errorf("failed to parse configuration")
 		os.Exit(1)
@@ -40,9 +41,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := health.StartHealthServer(*hclConfig.DaemonMode, hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
-		log.WithError(err).Errorf("Error starting spiffe-helper health check server")
-		os.Exit(1)
+	if *hclConfig.DaemonMode && hclConfig.HealthCheck.ListenerEnabled {
+		if err := health.StartHealthServer(*hclConfig.DaemonMode, hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
+			log.WithError(err).Errorf("Error starting spiffe-helper health check server")
+			os.Exit(1)
+		}
 	}
 
 	log.Infof("Exiting")

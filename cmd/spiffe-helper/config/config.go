@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	daemonModeFlagName       = "daemon-mode"
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
 	defaultCertFileMode      = 0644
 	defaultKeyFileMode       = 0600
@@ -63,8 +62,8 @@ type JWTConfig struct {
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
 }
 
-// ParseConfig parses the given HCL file into a Config struct
-func ParseConfig(file string) (*Config, error) {
+// ParseConfigFile parses the given HCL file into a Config struct
+func ParseConfigFile(file string) (*Config, error) {
 	// Read HCL file
 	dat, err := os.ReadFile(file)
 	if err != nil {
@@ -81,7 +80,7 @@ func ParseConfig(file string) (*Config, error) {
 }
 
 // ParseConfigFlagOverrides handles command line arguments that override config file settings
-func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool) {
+func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
 	if isFlagPassed(daemonModeFlagName) {
 		// If daemon mode is set by CLI this takes precedence
 		c.DaemonMode = &daemonModeFlag
@@ -178,16 +177,6 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	return nil
 }
 
-func ParseConfigFile(log logrus.FieldLogger, configFile string, daemonModeFlag bool) (*Config, error) {
-	log.Infof("Using configuration file: %q", configFile)
-	hclConfig, err := ParseConfig(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
-	}
-	hclConfig.ParseConfigFlagOverrides(daemonModeFlag)
-	return hclConfig, nil
-}
-
 // checkForUnknownConfig looks for any unknown configuration keys and returns an error if one is found
 func (c *Config) checkForUnknownConfig() error {
 	if len(c.UnusedKeyPositions) != 0 {
@@ -201,6 +190,15 @@ func (c *Config) checkForUnknownConfig() error {
 	}
 
 	return nil
+}
+
+func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
+	hclConfig, err := ParseConfigFile(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
+	}
+	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+	return hclConfig, nil
 }
 
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {

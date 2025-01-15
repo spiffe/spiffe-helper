@@ -17,30 +17,28 @@ type CheckConfig struct {
 }
 
 func StartHealthServer(daemonMode bool, healthCheckConfig CheckConfig, log logrus.FieldLogger, sidecar *sidecar.Sidecar) error {
-	if daemonMode && healthCheckConfig.ListenerEnabled {
-		http.HandleFunc(healthCheckConfig.HealthPath, func(w http.ResponseWriter, _ *http.Request) {
-			healthy := sidecar.CheckHealth()
-			if healthy {
-				_, err := w.Write([]byte(http.StatusText(http.StatusOK)))
-				log.Error(err)
-				if err != nil {
-					return
-				}
-			} else {
-				statusText := http.StatusText(http.StatusServiceUnavailable)
-				b, err := json.Marshal(sidecar.GetFileWriteStatuses())
-				if err != nil {
-					statusText = string(b)
-				}
-				http.Error(w, statusText, http.StatusServiceUnavailable)
+	http.HandleFunc(healthCheckConfig.HealthPath, func(w http.ResponseWriter, _ *http.Request) {
+		healthy := sidecar.CheckHealth()
+		if healthy {
+			_, err := w.Write([]byte(http.StatusText(http.StatusOK)))
+			log.Error(err)
+			if err != nil {
+				return
 			}
-		})
-		server := &http.Server{
-			Addr:              ":" + strconv.Itoa(healthCheckConfig.BindPort),
-			ReadHeaderTimeout: 5 * time.Second,
-			WriteTimeout:      5 * time.Second,
+		} else {
+			statusText := http.StatusText(http.StatusServiceUnavailable)
+			b, err := json.Marshal(sidecar.GetFileWriteStatuses())
+			if err != nil {
+				statusText = string(b)
+			}
+			http.Error(w, statusText, http.StatusServiceUnavailable)
 		}
-		log.Fatal(server.ListenAndServe())
+	})
+	server := &http.Server{
+		Addr:              ":" + strconv.Itoa(healthCheckConfig.BindPort),
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      5 * time.Second,
 	}
+	log.Fatal(server.ListenAndServe())
 	return nil
 }

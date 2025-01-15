@@ -10,8 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	daemonModeFlagName = "daemon-mode"
+)
+
 func TestParseConfig(t *testing.T) {
-	c, err := ParseConfig("testdata/helper.conf")
+	c, err := ParseConfigFile("testdata/helper.conf")
 
 	assert.NoError(t, err)
 
@@ -181,7 +185,7 @@ func TestDetectsUnknownConfig(t *testing.T) {
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			c, err := ParseConfig(configFile.Name())
+			c, err := ParseConfigFile(configFile.Name())
 			require.NoError(t, err)
 
 			log, _ := test.NewNullLogger()
@@ -310,7 +314,7 @@ func TestDaemonModeFlag(t *testing.T) {
 	err := flag.Set(daemonModeFlagName, "false")
 	require.NoError(t, err)
 
-	config.ParseConfigFlagOverrides(*daemonModeFlag)
+	config.ParseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
 	require.NotNil(t, config.DaemonMode)
 	assert.Equal(t, false, *config.DaemonMode)
 }
