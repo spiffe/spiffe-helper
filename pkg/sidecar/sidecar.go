@@ -430,7 +430,7 @@ func (w JWTBundlesWatcher) OnJWTBundlesWatchError(err error) {
 }
 
 func (s *Sidecar) CheckHealth() bool {
-	for _, success := range s.fileWriteStatus.JwtWriteSuccesses {
+	for _, success := range s.fileWriteStatus.JWTWriteSuccesses {
 		if !success {
 			return false
 		}
