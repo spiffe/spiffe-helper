@@ -93,8 +93,11 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	sidecar := Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
-		fileWriteStatus: FileWriteStatus{
-			JWTWriteSuccesses: make(map[string]bool),
+		health: Health{
+			FileWriteStatuses: FileWriteStatuses{
+				X509WriteStatus: writeStatusUnwritten,
+				JWTWriteStatus:  make(map[string]string),
+			},
 		},
 	}
 	defer close(sidecar.certReadyChan)

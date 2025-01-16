@@ -23,7 +23,8 @@ const (
 	defaultJWTBundleFileMode = 0600
 	defaultJWTSVIDFileMode   = 0600
 	defaultBindPort          = 8081
-	defaultHealthPath        = "/healthz"
+	defaultLivenessPath      = "/live"
+	defaultReadinessPath     = "/ready"
 )
 
 type Config struct {
@@ -169,8 +170,11 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		if c.HealthCheck.BindPort == 0 {
 			c.HealthCheck.BindPort = defaultBindPort
 		}
-		if c.HealthCheck.HealthPath == "" {
-			c.HealthCheck.HealthPath = defaultHealthPath
+		if c.HealthCheck.LivenessPath == "" {
+			c.HealthCheck.LivenessPath = defaultLivenessPath
+		}
+		if c.HealthCheck.ReadinessPath == "" {
+			c.HealthCheck.ReadinessPath = defaultReadinessPath
 		}
 	}
 
