@@ -35,11 +35,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	spiffeSidecar, err := startSidecar(hclConfig, log)
-	if err != nil {
-		log.WithError(err).Errorf("Error starting spiffe-helper")
-		os.Exit(1)
-	}
+	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
+	spiffeSidecar := sidecar.New(sidecarConfig)
 
 	if *hclConfig.DaemonMode && hclConfig.HealthCheck.ListenerEnabled {
 		if err := health.StartHealthServer(hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
@@ -48,22 +45,25 @@ func main() {
 		}
 	}
 
+	err = startSidecar(hclConfig, log, spiffeSidecar)
+	if err != nil {
+		log.WithError(err).Errorf("Error starting spiffe-helper")
+		os.Exit(1)
+	}
+
 	log.Infof("Exiting")
 	os.Exit(0)
 }
 
-func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) (*sidecar.Sidecar, error) {
+func startSidecar(hclConfig *config.Config, log logrus.FieldLogger, spiffeSidecar *sidecar.Sidecar) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
-	spiffeSidecar := sidecar.New(sidecarConfig)
-
 	if !*hclConfig.DaemonMode {
 		log.Info("Daemon mode disabled")
-		return spiffeSidecar, spiffeSidecar.Run(ctx)
+		return spiffeSidecar.Run(ctx)
 	}
 
 	log.Info("Launching daemon")
-	return spiffeSidecar, spiffeSidecar.RunDaemon(ctx)
+	return spiffeSidecar.RunDaemon(ctx)
 }
