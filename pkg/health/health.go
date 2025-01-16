@@ -22,7 +22,7 @@ func StartHealthServer(healthCheckConfig CheckConfig, log logrus.FieldLogger, si
 		if healthy {
 			_, err := w.Write([]byte(http.StatusText(http.StatusOK)))
 			if err != nil {
-			        log.WithError(err).Errorf("failed writing status text")
+				log.WithError(err).Errorf("failed writing status text")
 				return
 			}
 		} else {
