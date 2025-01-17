@@ -38,14 +38,15 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  | `jwt_bundle_file_mode`              | The octal file mode to use when saving a JWT Bundle file.                                                                         | `0600`                                                                                                                                                               |
  | `jwt_svid_file_mode`                | The octal file mode to use when saving a JWT SVID file.                                                                           | `0600`                                                                                                                                                               |
 
-### Health Check Configuration
+### Health Checks Configuration
 SPIFFE Helper can expose and endpoint that can be used for health checking
 
-| Configuration                       | Description                                                                                                                       | Example Value                                                                                                                                                        |
- |-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
- | `health_checks.enable_health_check` | Whether to start an HTTP server at the configured endpoint for the daemon health. Doesn't apply for non-daemon mode.              | `false`                                                                                                                                                              |
- | `health_checks.health_check_port`   | The port to run the HTTP health server.                                                                                           | `8081`                                                                                                                                                               |
-| `health_checks.health_check_path`   | The URL path for the health check                                                                                                 | `/healthz`                                                                                                                                                           |
+| Configuration                    | Description                                                                                                          | Example Value |
+ |----------------------------------|----------------------------------------------------------------------------------------------------------------------|---------------|
+ | `health_checks.listener_enabled` | Whether to start an HTTP server at the configured endpoint for the daemon health. Doesn't apply for non-daemon mode. | `false`       |
+ | `health_checks.bind_port`        | The port to run the HTTP health server.                                                                              | `8081`        |
+| `health_checks.liveness_path`    | The URL path for the liveness health check                                                                           | `/live`       |
+| `health_checks.readiness_path`   | The URL path for the readiness health check                                                                          | `/readu`      |
 
 ### Configuration example
 ```
