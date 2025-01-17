@@ -17,14 +17,19 @@ type CheckConfig struct {
 	ReadinessPath   string `hcl:"readiness_path"`
 }
 
+const (
+	contentTypeJSON          = "application/json"
+	contentTypePlainText     = "text/plain"
+	statusOK                 = http.StatusOK
+	statusServiceUnavailable = http.StatusServiceUnavailable
+)
+
 func StartHealthServer(healthCheckConfig CheckConfig, log logrus.FieldLogger, sidecar *sidecar.Sidecar) error {
 	http.HandleFunc(healthCheckConfig.LivenessPath, func(w http.ResponseWriter, _ *http.Request) {
-		liveness := sidecar.CheckLiveness()
-		writeResponse(w, liveness, log, sidecar)
+		writeResponse(w, sidecar.CheckLiveness(), log, sidecar)
 	})
 	http.HandleFunc(healthCheckConfig.ReadinessPath, func(w http.ResponseWriter, _ *http.Request) {
-		readiness := sidecar.CheckReadiness()
-		writeResponse(w, readiness, log, sidecar)
+		writeResponse(w, sidecar.CheckReadiness(), log, sidecar)
 	})
 	server := &http.Server{
 		Addr:              ":" + strconv.Itoa(healthCheckConfig.BindPort),
@@ -41,43 +46,35 @@ type Response struct {
 }
 
 func writeResponse(w http.ResponseWriter, goodStatus bool, log logrus.FieldLogger, sidecar *sidecar.Sidecar) {
-	if goodStatus {
-		response := http.StatusText(http.StatusOK)
-		w.Header().Set("Content-Type", "text/plain")
-		b, err := json.Marshal(Response{
-			Status: response,
-			Health: sidecar.GetHealth(),
-		})
+	statusCode := statusOK
+	statusText := http.StatusText(statusOK)
+
+	if !goodStatus {
+		statusCode = statusServiceUnavailable
+		statusText = http.StatusText(statusServiceUnavailable)
+	}
+
+	response := Response{
+		Status: statusText,
+		Health: sidecar.GetHealth(),
+	}
+
+	jsonBytes, err := json.Marshal(response)
+	if err != nil {
+		log.WithError(err).Errorf("failed marshalling response")
+		w.Header().Set("Content-Type", contentTypePlainText)
+		w.WriteHeader(statusCode)
+		_, err = w.Write([]byte(statusText))
 		if err != nil {
-			log.WithError(err).Errorf("failed marshalling response")
-		} else {
-			response = string(b)
-			w.Header().Set("Content-Type", "application/json")
+			log.WithError(err).Errorf("failed writing response text")
 		}
-		w.WriteHeader(http.StatusOK)
-		_, err = w.Write([]byte(response))
-		if err != nil {
-			log.WithError(err).Errorf("failed writing status text")
-			return
-		}
-	} else {
-		response := http.StatusText(http.StatusServiceUnavailable)
-		w.Header().Set("Content-Type", "plain/text")
-		b, err := json.Marshal(Response{
-			Status: response,
-			Health: sidecar.GetHealth(),
-		})
-		if err != nil {
-			log.WithError(err).Errorf("failed marshalling response")
-		} else {
-			response = string(b)
-			w.Header().Set("Content-Type", "application/json")
-		}
-		w.WriteHeader(http.StatusServiceUnavailable)
-		_, err = w.Write([]byte(response))
-		if err != nil {
-			log.WithError(err).Errorf("failed writing status text")
-			return
-		}
+		return
+	}
+
+	w.Header().Set("Content-Type", contentTypeJSON)
+	w.WriteHeader(statusCode)
+	_, err = w.Write(jsonBytes)
+	if err != nil {
+		log.WithError(err).Errorf("failed writing response JSON")
 	}
 }
