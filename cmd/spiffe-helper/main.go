@@ -53,8 +53,7 @@ func startSidecar(hclConfig *config.Config, log logrus.FieldLogger, spiffeSideca
 
 	if *hclConfig.DaemonMode && hclConfig.HealthCheck.ListenerEnabled {
 		if err := health.StartHealthServer(hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
-			log.WithError(err).Errorf("Error starting spiffe-helper health check server")
-			os.Exit(1)
+			return err
 		}
 	}
 
