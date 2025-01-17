@@ -37,14 +37,6 @@ func main() {
 
 	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
 	spiffeSidecar := sidecar.New(sidecarConfig)
-
-	if *hclConfig.DaemonMode && hclConfig.HealthCheck.ListenerEnabled {
-		if err := health.StartHealthServer(hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
-			log.WithError(err).Errorf("Error starting spiffe-helper health check server")
-			os.Exit(1)
-		}
-	}
-
 	err = startSidecar(hclConfig, log, spiffeSidecar)
 	if err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
@@ -58,6 +50,13 @@ func main() {
 func startSidecar(hclConfig *config.Config, log logrus.FieldLogger, spiffeSidecar *sidecar.Sidecar) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	if *hclConfig.DaemonMode && hclConfig.HealthCheck.ListenerEnabled {
+		if err := health.StartHealthServer(hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
+			log.WithError(err).Errorf("Error starting spiffe-helper health check server")
+			os.Exit(1)
+		}
+	}
 
 	if !*hclConfig.DaemonMode {
 		log.Info("Daemon mode disabled")
