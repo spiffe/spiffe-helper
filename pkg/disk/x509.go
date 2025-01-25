@@ -15,13 +15,25 @@ import (
 // the Workload API, and calls writeCerts and writeKey to write to disk
 // the svid, key and bundle of certificates.
 // It is possible to change output setting `addIntermediatesToBundle` as true.
-func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBundle, includeFederatedDomains bool, certDir, svidFilename, svidKeyFilename, svidBundleFilename string, certFileMode, keyFileMode fs.FileMode) error {
+func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBundle, includeFederatedDomains bool, certDir, svidFilename, svidKeyFilename, svidBundleFilename string, certFileMode, keyFileMode fs.FileMode, Hint string) error {
 	svidFile := path.Join(certDir, svidFilename)
 	svidKeyFile := path.Join(certDir, svidKeyFilename)
 	svidBundleFile := path.Join(certDir, svidBundleFilename)
 
-	// There may be more than one certificate, but we're only interested in the default one
 	svid := x509Context.DefaultSVID()
+	if Hint != "" {
+		notFound := true
+		for id := range x509Context.SVIDs {
+			svid = x509Context.SVIDs[id]
+			if svid.Hint == Hint {
+				notFound = false
+				break
+			}
+		}
+		if notFound {
+			return fmt.Errorf("failed to find the hinted svid")
+		}
+	}
 
 	// Extract bundle for the default SVID
 	bundleSet, found := x509Context.Bundles.Get(svid.ID.TrustDomain())

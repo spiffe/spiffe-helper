@@ -67,6 +67,9 @@ type Config struct {
 
 	// TODO: is there a reason for this to be exposed? and inside of config?
 	ReloadExternalProcess func() error
+
+	// Hint: The hint to pass to the spiffe endpoint to help select SPIFFE IDs
+	Hint string
 }
 
 type JWTConfig struct {

@@ -34,8 +34,25 @@ func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename stri
 }
 
 // WriteJWTBundle write the given JWT SVID to disk
-func WriteJWTSVID(jwtSVID *jwtsvid.SVID, dir, jwtSVIDFilename string, jwtSVIDFileMode fs.FileMode) error {
+func WriteJWTSVID(jwtSVIDs []*jwtsvid.SVID, dir, jwtSVIDFilename string, jwtSVIDFileMode fs.FileMode, Hint string) error {
 	filePath := path.Join(dir, jwtSVIDFilename)
+	var jwtSVID *jwtsvid.SVID
+
+	notFound := true
+	if Hint == "" {
+		jwtSVID = jwtSVIDs[0]
+	} else {
+		for id := range jwtSVIDs {
+			jwtSVID := jwtSVIDs[id]
+			if jwtSVID.Hint == Hint {
+				notFound = false
+				break
+			}
+		}
+		if notFound {
+			return fmt.Errorf("failed to find the hinted svid")
+		}
+	}
 
 	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), jwtSVIDFileMode)
 }
