@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/token"
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
@@ -21,22 +22,26 @@ const (
 	defaultKeyFileMode       = 0600
 	defaultJWTBundleFileMode = 0600
 	defaultJWTSVIDFileMode   = 0600
+	defaultBindPort          = 8081
+	defaultLivenessPath      = "/live"
+	defaultReadinessPath     = "/ready"
 )
 
 type Config struct {
-	AddIntermediatesToBundle bool   `hcl:"add_intermediates_to_bundle"`
-	AgentAddress             string `hcl:"agent_address"`
-	Cmd                      string `hcl:"cmd"`
-	CmdArgs                  string `hcl:"cmd_args"`
-	PIDFileName              string `hcl:"pid_file_name"`
-	CertDir                  string `hcl:"cert_dir"`
-	CertFileMode             int    `hcl:"cert_file_mode"`
-	KeyFileMode              int    `hcl:"key_file_mode"`
-	JWTBundleFileMode        int    `hcl:"jwt_bundle_file_mode"`
-	JWTSVIDFileMode          int    `hcl:"jwt_svid_file_mode"`
-	IncludeFederatedDomains  bool   `hcl:"include_federated_domains"`
-	RenewSignal              string `hcl:"renew_signal"`
-	DaemonMode               *bool  `hcl:"daemon_mode"`
+	AddIntermediatesToBundle bool               `hcl:"add_intermediates_to_bundle"`
+	AgentAddress             string             `hcl:"agent_address"`
+	Cmd                      string             `hcl:"cmd"`
+	CmdArgs                  string             `hcl:"cmd_args"`
+	PIDFileName              string             `hcl:"pid_file_name"`
+	CertDir                  string             `hcl:"cert_dir"`
+	CertFileMode             int                `hcl:"cert_file_mode"`
+	KeyFileMode              int                `hcl:"key_file_mode"`
+	JWTBundleFileMode        int                `hcl:"jwt_bundle_file_mode"`
+	JWTSVIDFileMode          int                `hcl:"jwt_svid_file_mode"`
+	IncludeFederatedDomains  bool               `hcl:"include_federated_domains"`
+	RenewSignal              string             `hcl:"renew_signal"`
+	DaemonMode               *bool              `hcl:"daemon_mode"`
+	HealthCheck              health.CheckConfig `hcl:"health_checks"`
 
 	// x509 configuration
 	SVIDFileName       string `hcl:"svid_file_name"`
@@ -58,8 +63,8 @@ type JWTConfig struct {
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
 }
 
-// ParseConfig parses the given HCL file into a Config struct
-func ParseConfig(file string) (*Config, error) {
+// ParseConfigFile parses the given HCL file into a Config struct
+func ParseConfigFile(file string) (*Config, error) {
 	// Read HCL file
 	dat, err := os.ReadFile(file)
 	if err != nil {
@@ -158,6 +163,21 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		c.JWTSVIDFileMode = defaultJWTSVIDFileMode
 	}
 
+	if c.HealthCheck.ListenerEnabled {
+		if c.HealthCheck.BindPort < 0 {
+			return errors.New("bind port must be positive")
+		}
+		if c.HealthCheck.BindPort == 0 {
+			c.HealthCheck.BindPort = defaultBindPort
+		}
+		if c.HealthCheck.LivenessPath == "" {
+			c.HealthCheck.LivenessPath = defaultLivenessPath
+		}
+		if c.HealthCheck.ReadinessPath == "" {
+			c.HealthCheck.ReadinessPath = defaultReadinessPath
+		}
+	}
+
 	return nil
 }
 
@@ -174,6 +194,15 @@ func (c *Config) checkForUnknownConfig() error {
 	}
 
 	return nil
+}
+
+func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
+	hclConfig, err := ParseConfigFile(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
+	}
+	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+	return hclConfig, nil
 }
 
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
