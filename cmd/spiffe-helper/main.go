@@ -35,10 +35,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
-	spiffeSidecar := sidecar.New(sidecarConfig)
-	err = startSidecar(hclConfig, log, spiffeSidecar)
-	if err != nil {
+	if err = startSidecar(hclConfig, log); err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
 		os.Exit(1)
 	}
@@ -47,7 +44,9 @@ func main() {
 	os.Exit(0)
 }
 
-func startSidecar(hclConfig *config.Config, log logrus.FieldLogger, spiffeSidecar *sidecar.Sidecar) error {
+func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
+	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
+	spiffeSidecar := sidecar.New(sidecarConfig)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
