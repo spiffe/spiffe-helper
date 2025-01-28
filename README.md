@@ -41,12 +41,12 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
 ### Health Checks Configuration
 SPIFFE Helper can expose and endpoint that can be used for health checking
 
-| Configuration                    | Description                                                                                                          | Example Value |
+ | Configuration                    | Description                                                                                                          | Example Value |
  |----------------------------------|----------------------------------------------------------------------------------------------------------------------|---------------|
  | `health_checks.listener_enabled` | Whether to start an HTTP server at the configured endpoint for the daemon health. Doesn't apply for non-daemon mode. | `false`       |
  | `health_checks.bind_port`        | The port to run the HTTP health server.                                                                              | `8081`        |
-| `health_checks.liveness_path`    | The URL path for the liveness health check                                                                           | `/live`       |
-| `health_checks.readiness_path`   | The URL path for the readiness health check                                                                          | `/readu`      |
+ | `health_checks.liveness_path`    | The URL path for the liveness health check                                                                           | `/live`       |
+ | `health_checks.readiness_path`   | The URL path for the readiness health check                                                                          | `/readu`      |
 
 ### Configuration example
 ```
