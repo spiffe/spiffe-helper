@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,14 +31,43 @@ type Sidecar struct {
 	processRunning int32
 	process        *os.Process
 	certReadyChan  chan struct{}
+	health         Health
 }
+
+type Health struct {
+	FileWriteStatuses FileWriteStatuses `json:"file_write_statuses"`
+}
+
+type FileWriteStatuses struct {
+	X509WriteStatus string            `json:"x509_write_status"`
+	JWTWriteStatus  map[string]string `json:"jwt_write_status"`
+}
+
+const (
+	writeStatusUnwritten = "unwritten"
+	writeStatusFailed    = "failed"
+	writeStatusWritten   = "written"
+)
 
 // New creates a new SPIFFE sidecar
 func New(config *Config) *Sidecar {
-	return &Sidecar{
+	sidecar := &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
+		health: Health{
+			FileWriteStatuses: FileWriteStatuses{
+				X509WriteStatus: writeStatusUnwritten,
+				JWTWriteStatus:  make(map[string]string),
+			},
+		},
 	}
+	for _, jwtConfig := range config.JWTSVIDs {
+		jwtSVIDFilename := path.Join(config.CertDir, jwtConfig.JWTSVIDFilename)
+		sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
+	}
+	jwtBundleFilePath := path.Join(config.CertDir, config.JWTBundleFilename)
+	sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+	return sidecar
 }
 
 // RunDaemon starts the main loop
@@ -169,8 +199,10 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
 	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
+		s.health.FileWriteStatuses.X509WriteStatus = writeStatusFailed
 		return
 	}
+	s.health.FileWriteStatuses.X509WriteStatus = writeStatusWritten
 	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
@@ -302,10 +334,13 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 		return nil, err
 	}
 
+	jwtSVIDPath := path.Join(s.config.CertDir, jwtSVIDFilename)
 	if err = disk.WriteJWTSVID(jwtSVIDs, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode, s.config.Hint); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
+		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDPath] = writeStatusFailed
 		return nil, err
 	}
+	s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDPath] = writeStatusWritten
 
 	s.config.Log.Info("JWT SVID updated")
 	return jwtSVIDs, nil
@@ -399,10 +434,13 @@ type JWTBundlesWatcher struct {
 // OnJWTBundlesUpdate is run every time a bundle is updated
 func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	w.sidecar.config.Log.Debug("Updating JWT bundle")
+	jwtBundleFilePath := path.Join(w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename)
 	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename, w.sidecar.config.JWTBundleFileMode); err != nil {
 		w.sidecar.config.Log.Errorf("Error writing JWT Bundle to disk: %v", err)
+		w.sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusFailed
 		return
 	}
+	w.sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusWritten
 
 	w.sidecar.config.Log.Info("JWT bundle updated")
 }
@@ -412,4 +450,26 @@ func (w JWTBundlesWatcher) OnJWTBundlesWatchError(err error) {
 	if status.Code(err) != codes.Canceled {
 		w.sidecar.config.Log.Errorf("Error while watching JWT bundles: %v", err)
 	}
+}
+
+func (s *Sidecar) CheckLiveness() bool {
+	for _, writeStatus := range s.health.FileWriteStatuses.JWTWriteStatus {
+		if writeStatus == writeStatusFailed {
+			return false
+		}
+	}
+	return s.health.FileWriteStatuses.X509WriteStatus != writeStatusFailed
+}
+
+func (s *Sidecar) CheckReadiness() bool {
+	for _, writeStatus := range s.health.FileWriteStatuses.JWTWriteStatus {
+		if writeStatus != writeStatusWritten {
+			return false
+		}
+	}
+	return s.health.FileWriteStatuses.X509WriteStatus != writeStatusWritten
+}
+
+func (s *Sidecar) GetHealth() Health {
+	return s.health
 }
