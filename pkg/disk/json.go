@@ -36,25 +36,22 @@ func WriteJWTBundleSet(jwkSet *jwtbundle.Set, dir string, jwtBundleFilename stri
 // WriteJWTBundle write the given JWT SVID to disk
 func WriteJWTSVID(jwtSVIDs []*jwtsvid.SVID, dir, jwtSVIDFilename string, jwtSVIDFileMode fs.FileMode, hint string) error {
 	filePath := path.Join(dir, jwtSVIDFilename)
-	var jwtSVID *jwtsvid.SVID
+	jwtSVID := getJWTByHint(jwtSVIDs, hint)
+	if jwtSVID == nil {
+		return fmt.Errorf("failed to find the hinted svid")
+	}
+	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), jwtSVIDFileMode)
+}
 
-	notFound := true
-	if Hint == "" {
-		jwtSVID = jwtSVIDs[0]
-	} else {
-		for id := range jwtSVIDs {
-			jwtSVID := jwtSVIDs[id]
-			if jwtSVID.Hint == Hint {
-				notFound = false
-				break
-			}
-		}
-		if notFound {
-			return fmt.Errorf("failed to find the hinted svid")
+func getJWTByHint(jwtSVIDs []*jwtsvid.SVID, hint string) *jwtsvid.SVID { // Choose a better name :D
+	if hint == "" {
+		return jwtSVIDs[0]
+	}
+	for _, jwtSVID := range jwtSVIDs {
+		if jwtSVID.Hint == Hint {
+			return jwtSVID
 		}
 	}
-
-	return os.WriteFile(filePath, []byte(jwtSVID.Marshal()), jwtSVIDFileMode)
 }
 
 func writeJSON(certs map[string]any, dir, filename string, fileMode fs.FileMode) error {
