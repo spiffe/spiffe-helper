@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
+	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
 
@@ -23,7 +23,19 @@ func main() {
 	flag.Parse()
 	log := logrus.WithField("system", "spiffe-helper")
 
-	if err := startSidecar(*configFile, *daemonModeFlag, log); err != nil {
+	log.Infof("Using configuration file: %q", *configFile)
+	hclConfig, err := config.ParseConfig(*configFile, *daemonModeFlag, daemonModeFlagName)
+	if err != nil {
+		log.WithError(err).Errorf("failed to parse configuration")
+		os.Exit(1)
+	}
+
+	if err := hclConfig.ValidateConfig(log); err != nil {
+		log.WithError(err).Errorf("invalid configuration")
+		os.Exit(1)
+	}
+
+	if err = startSidecar(hclConfig, log); err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
 		os.Exit(1)
 	}
@@ -32,23 +44,18 @@ func main() {
 	os.Exit(0)
 }
 
-func startSidecar(configFile string, daemonModeFlag bool, log logrus.FieldLogger) error {
+func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
+	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
+	spiffeSidecar := sidecar.New(sidecarConfig)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Infof("Using configuration file: %q", configFile)
-	hclConfig, err := config.ParseConfig(configFile)
-	if err != nil {
-		return fmt.Errorf("failed to parse %q: %w", configFile, err)
+	if *hclConfig.DaemonMode && hclConfig.HealthCheck.ListenerEnabled {
+		log.Info("Starting health server")
+		if err := health.StartHealthServer(hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
+			return err
+		}
 	}
-	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
-
-	if err := hclConfig.ValidateConfig(log); err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
-	}
-
-	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
-	spiffeSidecar := sidecar.New(sidecarConfig)
 
 	if !*hclConfig.DaemonMode {
 		log.Info("Daemon mode disabled")
