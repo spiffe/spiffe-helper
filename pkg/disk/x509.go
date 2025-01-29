@@ -21,11 +21,11 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 	svidBundleFile := path.Join(certDir, svidBundleFilename)
 
 	svid := x509Context.DefaultSVID()
-	if Hint != "" {
+	if hint != "" {
 		notFound := true
 		for id := range x509Context.SVIDs {
 			svid = x509Context.SVIDs[id]
-			if svid.Hint == Hint {
+			if svid.Hint == hint {
 				notFound = false
 				break
 			}

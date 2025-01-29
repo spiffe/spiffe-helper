@@ -65,9 +65,12 @@ func TestWriteJWTSVID(t *testing.T) {
 	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{"audience"})
 	require.NoError(t, err)
 
+	// Create SVID array
+	jwtSVIDs := []*jwtsvid.SVID{jwtSVID}
+
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVID, tempDir, jwtSVIDFilename, jwtSVIDFileMode)
+	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, "")
 	require.NoError(t, err)
 
 	// Read back and check it's the same

@@ -134,7 +134,7 @@ func TestWriteX509Context(t *testing.T) {
 				}
 			}
 
-			err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename, certFileMode, keyFileMode)
+			err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename, certFileMode, keyFileMode, "")
 			require.NoError(t, err)
 
 			// Load certificates from disk and validate it is expected

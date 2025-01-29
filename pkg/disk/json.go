@@ -48,10 +48,11 @@ func getJWTByHint(jwtSVIDs []*jwtsvid.SVID, hint string) *jwtsvid.SVID { // Choo
 		return jwtSVIDs[0]
 	}
 	for _, jwtSVID := range jwtSVIDs {
-		if jwtSVID.Hint == Hint {
+		if jwtSVID.Hint == hint {
 			return jwtSVID
 		}
 	}
+	return nil
 }
 
 func writeJSON(certs map[string]any, dir, filename string, fileMode fs.FileMode) error {
