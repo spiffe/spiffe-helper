@@ -42,7 +42,7 @@ type Config struct {
 	RenewSignal              string             `hcl:"renew_signal"`
 	DaemonMode               *bool              `hcl:"daemon_mode"`
 	HealthCheck              health.CheckConfig `hcl:"health_checks"`
-	Hint                     string `hcl:"hint"`
+	Hint                     string             `hcl:"hint"`
 
 	// x509 configuration
 	SVIDFileName       string `hcl:"svid_file_name"`
