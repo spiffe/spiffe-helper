@@ -51,6 +51,9 @@ const (
 
 // New creates a new SPIFFE sidecar
 func New(config *Config) *Sidecar {
+	if config.ExitWhenReady {
+		config.Log.Warn("The ExitWhenReady flag is set but it is deprecated and will be ignored. Use daemon_mode=false instead.")
+	}
 	sidecar := &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),

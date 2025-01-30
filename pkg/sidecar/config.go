@@ -26,7 +26,8 @@ type Config struct {
 	// The directory name to store the x509s and/or JWTs.
 	CertDir string
 
-	// If true, fetches x509 certificate and then exit(0).
+	// Deprecated and ignored. Use DaemonMode in
+	// cmd/spiffe-helper/config/config.go's Config instead.
 	ExitWhenReady bool
 
 	// Permissions to use when writing x509 SVID to disk
