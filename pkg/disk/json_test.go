@@ -45,7 +45,7 @@ func TestWriteJWTBundleSet(t *testing.T) {
 	require.Equal(t, jwtBundle, actualJWTBundle)
 }
 
-func TestWriteJWTSVID(t *testing.T) {
+func TestWriteJWTSVIDNoHint(t *testing.T) {
 	spiffeID := spiffeid.RequireFromString("spiffe://example.test/workload")
 
 	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
@@ -71,6 +71,56 @@ func TestWriteJWTSVID(t *testing.T) {
 	// Write to disk
 	tempDir := t.TempDir()
 	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, "")
+	require.NoError(t, err)
+
+	// Read back and check it's the same
+	actualToken, err := os.ReadFile(path.Join(tempDir, jwtSVIDFilename))
+	require.NoError(t, err)
+	require.Equal(t, token, string(actualToken))
+}
+
+func TestWriteJWTSVIDWithHint(t *testing.T) {
+	spiffeID := spiffeid.RequireFromString("spiffe://example.test/workload")
+
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+
+	// Generate Token
+	claims := jwt.Claims{
+		Subject:  spiffeID.String(),
+		Issuer:   "issuer",
+		Expiry:   jwt.NewNumericDate(time.Now()),
+		Audience: []string{"audience"},
+		IssuedAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+	}
+	token := generateToken(t, claims, key, "key")
+
+	// Create SVID
+	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{"audience"})
+	jwtSVID.Hint = "first"
+	require.NoError(t, err)
+
+	// Generate Token2
+	claims = jwt.Claims{
+		Subject:  spiffeID.String(),
+		Issuer:   "issuer",
+		Expiry:   jwt.NewNumericDate(time.Now()),
+		Audience: []string{"audience"},
+		IssuedAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+	}
+	token = generateToken(t, claims, key, "key")
+
+	// Create SVID
+	jwtSVID2, err := jwtsvid.ParseInsecure(token, []string{"audience"})
+	jwtSVID2.Hint = "other"
+	require.NoError(t, err)
+
+	// Create SVID array
+	jwtSVIDs := []*jwtsvid.SVID{jwtSVID, jwtSVID2}
+
+	// Write to disk
+	tempDir := t.TempDir()
+	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, "other")
 	require.NoError(t, err)
 
 	// Read back and check it's the same
