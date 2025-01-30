@@ -101,7 +101,7 @@ func TestWriteX509Context(t *testing.T) {
 	}
 	for _, hint := range []string{"", "other"} {
 		prefixSpiffeID, err := spiffeid.FromString("spiffe://example.test/shouldnt/ever/get")
-                require.NoError(t, err)
+		require.NoError(t, err)
 		for _, test := range tests {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
@@ -111,13 +111,13 @@ func TestWriteX509Context(t *testing.T) {
 				require.Len(t, certs, test.chainLength)
 
 				svids := []*x509svid.SVID{
-						{
-							ID:           spiffeID,
-							Certificates: certs,
-							PrivateKey:   key,
-							Hint:         "other",
-						},
-					}
+					{
+						ID:           spiffeID,
+						Certificates: certs,
+						PrivateKey:   key,
+						Hint:         "other",
+					},
+				}
 				if hint != "" {
 					// Prepend on a test cert so that the hinted one is last
 					svids = append([]*x509svid.SVID{
@@ -131,7 +131,7 @@ func TestWriteX509Context(t *testing.T) {
 				}
 				x509Context := &workloadapi.X509Context{
 					Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), test.ca.Roots())),
-					SVIDs: svids,
+					SVIDs:   svids,
 				}
 
 				bundle := test.ca.Roots()
