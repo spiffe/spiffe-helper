@@ -16,6 +16,9 @@ func (s *Sidecar) getWorkloadAPIAddress() workloadapi.ClientOption {
 }
 
 func SignalProcess(process *os.Process, renewSignal string) error {
+	if renewSignal == "" {
+		return nil
+	}
 	sig := unix.SignalNum(renewSignal)
 	if sig == 0 {
 		return fmt.Errorf("error getting signal: %v", renewSignal)
