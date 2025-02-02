@@ -22,16 +22,40 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Whenever an attempt is made to signal pid_file_name, the outcome is sent
+// in messages on a channel with this type. Mainly for test purposes.
+type pidFileSignalledResult struct {
+	pid int
+	err error
+}
+
 // Sidecar is the component that consumes the Workload API and renews certs
-// implements the interface Sidecar
 type Sidecar struct {
 	config         *Config
 	client         *workloadapi.Client
 	jwtSource      *workloadapi.JWTSource
 	processRunning int32
 	process        *os.Process
-	certReadyChan  chan struct{}
-	health         Health
+
+	// Health server
+	health Health
+
+	// When a new x.509 SVID is received, it is sent to this channel. Mainly
+	// for test purposes.
+	certReadyChan chan *workloadapi.X509Context
+
+	// When 'cmd' exits and wait() returns, the exit status is sent to this
+	// channel. Mainly for test purposes.
+	cmdExitChan chan os.ProcessState
+
+	// When the process is signaled to reload certificates the outcome is
+	// sent to this channel. Mainly for test purposes.
+	pidFileSignalledChan chan pidFileSignalledResult
+
+	// stdio to connect to the 'cmd' to run
+	stdin  *os.File
+	stdout *os.File
+	stderr *os.File
 }
 
 type Health struct {
@@ -53,13 +77,16 @@ const (
 func New(config *Config) *Sidecar {
 	sidecar := &Sidecar{
 		config:        config,
-		certReadyChan: make(chan struct{}, 1),
+		certReadyChan: make(chan *workloadapi.X509Context, 1),
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
 				X509WriteStatus: writeStatusUnwritten,
 				JWTWriteStatus:  make(map[string]string),
 			},
 		},
+		stdin:  os.Stdin,
+		stdout: os.Stdout,
+		stderr: os.Stderr,
 	}
 	for _, jwtConfig := range config.JWTSVIDs {
 		jwtSVIDFilename := path.Join(config.CertDir, jwtConfig.JWTSVIDFilename)
@@ -169,7 +196,7 @@ func (s *Sidecar) Run(ctx context.Context) error {
 }
 
 // CertReadyChan returns a channel to know when the certificates are ready
-func (s *Sidecar) CertReadyChan() <-chan struct{} {
+func (s *Sidecar) CertReadyChan() <-chan *workloadapi.X509Context {
 	return s.certReadyChan
 }
 
@@ -225,7 +252,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 
 	select {
-	case s.certReadyChan <- struct{}{}:
+	case s.certReadyChan <- svidResponse:
 	default:
 	}
 }
@@ -239,8 +266,9 @@ func (s *Sidecar) signalProcess() error {
 		}
 
 		cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		// TODO: forward stdin too
+		cmd.Stdout = s.stdout
+		cmd.Stderr = s.stderr
 		if err := cmd.Start(); err != nil {
 			return fmt.Errorf("error executing process \"%v\": %w", s.config.Cmd, err)
 		}
@@ -257,31 +285,41 @@ func (s *Sidecar) signalProcess() error {
 
 // signalPID sends the renew signal to the PID file
 func (s *Sidecar) signalPID() error {
-	fileBytes, err := os.ReadFile(s.config.PIDFileName)
-	if err != nil {
-		return fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
-	}
+	pid, err := func() (int, error) {
+		fileBytes, err := os.ReadFile(s.config.PIDFileName)
+		if err != nil {
+			return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
+		}
 
-	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
-	if err != nil {
-		return fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
-	}
+		pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
+		}
 
-	pidProcess, err := os.FindProcess(pid)
-	if err != nil {
-		return fmt.Errorf("failed to find process id %d: %w", pid, err)
-	}
+		pidProcess, err := os.FindProcess(pid)
+		if err != nil {
+			return pid, fmt.Errorf("failed to find process id %d: %w", pid, err)
+		}
 
-	return SignalProcess(pidProcess, s.config.RenewSignal)
+		return pid, SignalProcess(pidProcess, s.config.RenewSignal)
+	}()
+	// Allow tests to observe the outcome of signalling the pid file
+	if s.pidFileSignalledChan != nil {
+		s.pidFileSignalledChan <- pidFileSignalledResult{pid: pid, err: err}
+	}
+	return err
 }
 
+// Goroutine to watch a running process until it exits and report its exit status
 func (s *Sidecar) checkProcessExit() {
 	atomic.StoreInt32(&s.processRunning, 1)
-	_, err := s.process.Wait()
+	state, err := s.process.Wait()
 	if err != nil {
 		s.config.Log.Errorf("error waiting for process exit: %v", err)
 	}
-
+	if s.cmdExitChan != nil {
+		s.cmdExitChan <- *state
+	}
 	atomic.StoreInt32(&s.processRunning, 0)
 }
 
