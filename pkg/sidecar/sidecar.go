@@ -239,6 +239,20 @@ func (s *Sidecar) signalProcess() error {
 		}
 
 		cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
+		// By attaching stdin we allow spiffe-helper to be used in a
+		// pipeline or as a simple passthrough. Because it consumes the
+		// child process's exit status and restarts the child process
+		// next time it is signalled it can't be use as a transparent
+		// wrapper, but this way we can still send data to the child
+		// process.
+		//
+		// A future enhancement to Run() to launch a child process and
+		// wait for it to complete, then exit with the child process's
+		// exit code would then allow proper use as a wrapper.
+		//
+		// If the caller doesn't want it attached, they can close stdin
+		// before forking spiffe-helper, same as stdout and stderr.
+		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Start(); err != nil {

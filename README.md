@@ -38,6 +38,12 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  | `jwt_bundle_file_mode`              | The octal file mode to use when saving a JWT Bundle file.                                                                         | `0600`                                                                                                                                                               |
  | `jwt_svid_file_mode`                | The octal file mode to use when saving a JWT SVID file.                                                                           | `0600`                                                                                                                                                               |
 
+**Notes**:
+
+* If `cmd` is specified, spiffe-helper will connect its `stdin`, `stdout` and
+  `stderr` to that of the command it invokes. If this is not desired, close
+  these file descriptors before invoking spiffe-helper.
+
 ### Health Checks Configuration
 SPIFFE Helper can expose and endpoint that can be used for health checking
 
