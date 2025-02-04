@@ -250,6 +250,9 @@ func TestDetectsUnknownConfig(t *testing.T) {
 			log, _ := test.NewNullLogger()
 			err = c.ValidateConfig(log)
 			require.EqualError(t, err, tt.expectError)
+
+			err = configFile.Close()
+			require.NoError(t, err)
 		})
 	}
 }
