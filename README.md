@@ -78,15 +78,37 @@ certificates are renewed. This can be a long-lived process that uses the
 certificates, or a short-lived command that signals a reload mechanism
 for an externally-managed process.
 
-The `cmd_args` will be split into individual arguments using space separation
-unless the argument is enclosed in double quotes, which are consumed. Single quotes
-are NOT respected for argument quoting, so `cmd` = `touch` and `cmd_args` =
-`'some file'` will create two files named `'some` and `file'` (including the quotes
-in the file name), not a single file named `some file`.
+**cmd_args is not parsed according to shell-like rules**. The `cmd_args` will
+be split into individual arguments using space separation unless the argument
+is enclosed in double quotes, which are consumed. Double quotes must be
+backslash escaped in the hcl string. For example:
 
-`cmd_args` is *not* subject to shell expansion or interpretation. If you need
-to use shell features, you must invoke a shell explicitly, e.g. `cmd =
-"/bin/sh"` and `cmd_args = "-c \"echo hello\""`. Be careful with shell
+```hcl
+cmd_args = "\"this is one argument\""
+```
+
+Double quotes within the argument string must be escaped by doubling them so
+they are not interpreted as argument delimiters. E.g.:
+
+```hcl
+cmd_args = "\"this is a single argument with ONE double-quote \"\" in it\""
+```
+
+Single quotes are NOT respected for argument quoting, and do not protect double
+quotes. For example:
+
+```hcl
+cmd = "sh"
+cmd_args = "-c 'echo hello world'"
+```
+
+will run `sh` with the argument-vector ["-c", "'echo", "hello", "world'"], not
+["-c", "echo hello world"], which will fail with `Syntax error: Unterminated
+quoted string`.
+
+`cmd_args` is *not* subject to shell metacharacter expansion or interpretation.
+If you need to use shell features, you must invoke a shell explicitly, e.g.
+`cmd = "/bin/sh"` and `cmd_args = "-c \"echo hello\""`. Be careful with shell
 invocations, as they can introduce security vulnerabilities and should be
 avoided where possible.
 
