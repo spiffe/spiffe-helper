@@ -53,14 +53,21 @@ where it fetches the certificates once and exits.
 
 The helper can be used in several ways, as detailed below:
 
-* Run a command that uses the certificates, and signal it when they are renewed.
-* Run a command that reloads an external process when the certificates are renewed.
 * Signal an external process when the certificates are renewed.
+* Run a command that reloads an external process when the certificates are renewed.
+* Run a command that uses the certificates, and signal it when they are renewed
+  (not recommended)
 * Fetch the certificates once and exit.
 
 Note that "daemon mode" does not actually detach itself from the controlling
 process and background itself like a unix "daemon". It just keeps running until
 terminated by a signal or a fatal error.
+
+`spiffe-helper` does not have all the features of a proper process supervisor,
+so it's usually best to let a dedicated process supervisor like systemd manage
+the process that uses the certificates. Use `spiffe-helper` to fetch and renew
+the certificates and wake the external process via `cmd` or `pid_file_name`
+when the certificates are reloaded.
 
 #### Use in daemon-mode with file watcher
 
@@ -78,10 +85,10 @@ certificates are renewed. This can be a long-lived process that uses the
 certificates, or a short-lived command that signals a reload mechanism
 for an externally-managed process.
 
-**cmd_args is not parsed according to shell-like rules**. The `cmd_args` will
-be split into individual arguments using space separation unless the argument
-is enclosed in double quotes, which are consumed. Double quotes must be
-backslash escaped in the hcl string. For example:
+:warning: **cmd_args is not parsed according to shell-like rules**. The
+`cmd_args` will be split into individual arguments using space separation
+unless the argument is enclosed in double quotes, which are consumed. Double
+quotes must be backslash escaped in the hcl string. For example:
 
 ```hcl
 cmd_args = "\"this is one argument\""
@@ -115,8 +122,8 @@ avoided where possible.
 The command's stdout and stderr will be attached to spiffe-helper's stdout
 and stderr. Its stdin will be closed.
 
-The process will not be launched for the first time until the certificates
-are fetched successfully.
+The process specified by `cmd` and `cmd_args` will not be launched for the
+first time until the certificates are fetched successfully.
 
 `spiffe-helper` continues running if the process created by `cmd` exits. The
 process is not re-launched immediately if it exits.
