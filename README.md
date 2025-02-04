@@ -13,8 +13,6 @@ The SPIFFE Helper is a simple utility for fetching X.509 SVID certificates from 
 
 If `-config` is not specified, the default value `helper.conf` is assumed. 
 
-The flag `-exitWhenReady` is also supported.
-
 ## Configuration
 The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted file that defines the following configurations:
 
