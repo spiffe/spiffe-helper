@@ -105,6 +105,8 @@ golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
 golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
 golangci_lint_cache = $(golangci_lint_dir)/cache
 
+WINE ?= wine
+
 ############################################################################
 # Install toolchain
 ############################################################################
@@ -206,8 +208,17 @@ tarball: build
 rpm:
 	@OUTDIR="$(OUTDIR)" TAG="$(TAG)" BUILD="$(BUILD)" ./script/rpm/build-rpm.sh
 
+# If you want detailed test output run 'go test -v ./...'
 test: | go-check
 	go test ./...
+
+test-wine: | go-check
+	# compile the tests in their respective directories, rather than 'go
+	# test -c ./...' which would compile all tests in the same directory.
+	for testdir in $$(find -name \*_test.go -printf '%h\n' | sort -u); do (cd $$testdir && GOOS=windows GOARCH=amd64 go test -c .); done
+	# run the tests with wine, in their respective directories so they
+	# can find test fixtures by relative path.
+	set -e -u && for test in $$(find -name \*.test.exe); do ( cd "$$(dirname $$test)" && $(WINE) ./"$$(basename $$test)" "-test.v" ); done
 
 clean: | go-check
 	go clean ./cmd/spiffe-helper
