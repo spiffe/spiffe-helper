@@ -115,12 +115,14 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 		{
 			// pid_file_name signalling - we expect the sidecar to send
 			// a signal to the pid pointed to in the pid file.
-			name:   "pid_file_name signalling",
+			name:   "pid file valid",
 			signal: syscall.SIGUSR1,
 		},
 		{
-			// Repeat the test with the pid file missing the first time around
-			name:           "pid_file_name signalling",
+			// Repeat the test with the pid file missing the first time around,
+			// then create it after confirming the first signal attempt(s)
+			// failed.
+			name:           "pid file missing then created",
 			signal:         syscall.SIGUSR1,
 			missingPidfile: true,
 		},
@@ -179,39 +181,51 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 			}
 
 			if tc.missingPidfile {
-				// The pid file was missing so signalling will fail.
+				// The pid file was missing the first time around, so we should
+				// have received an error with no pid specified.
 				require.Equal(t, 0, pidFileResult.pid)
 				require.Error(t, pidFileResult.err)
-				// Creating the pid file won't help now, so we're done
-				// until the next renew.
+				require.Equal(t, 0, pidFileResult.retry)
+				require.Equal(t, pidFileMaxRetries, pidFileResult.maxRetries)
+				// Create the pid file. Retry back-off means the sidecar will
+				// still be waiting and retrying.
 				writePidFile()
-				select {
-				case <-ctx.Done():
-					// overall context has expired; this will fail the test.
-					require.NoError(t, ctx.Err())
-					return
-				case pidFileResult = <-sidecar.pidFileSignalledChan:
-					t.Logf("sidecar reports it sent a signal: %+v", pidFileResult)
-					require.Fail(t, "should not have signalled, since we don't retry signals")
-				case <-time.After(200 * time.Millisecond):
-					// A signal retry would've arried by now if there was going to be one
-					t.Logf("no signal re-delivery after pid file creation")
+				// Consume signal attempt notifications until we get a
+				// successful one or a final maxretries failure. We aren't
+				// checking if we actually got the forwarded signal yet as
+				// there could be races there. Only check what the sidecar
+				// manager thinks it has done.
+			SIGNALLED:
+				for {
+					select {
+					case <-ctx.Done():
+						// overall context has expired; this will fail the test.
+						require.NoError(t, ctx.Err())
+						return
+					case pidFileResult = <-sidecar.pidFileSignalledChan:
+						t.Logf("sidecar reports it attempted to send a signal: %+v", pidFileResult)
+						if pidFileResult.err == nil {
+							// Sidecar thinks it sent a signal successfully on retry
+							break SIGNALLED
+						}
+						if pidFileResult.retry == pidFileMaxRetries {
+							// Sidecar ran out of retries and gave up
+							require.Fail(t, "pid file signalling failed after max retries")
+						}
+					}
 				}
-				// A cert renewal will trigger another attempt to signal, which should succeed
-				s.MockUpdateX509Certificate(ctx, t, svid)
-				select {
-				case <-ctx.Done():
-					require.NoError(t, ctx.Err())
-					return
-				case pidFileResult = <-sidecar.pidFileSignalledChan:
-					t.Logf("sidecar reports it sent a signal: %+v", pidFileResult)
-					require.NoError(t, pidFileResult.err)
-				}
+				// Must not be the first retry
+				require.Greater(t, pidFileResult.retry, 0)
+			} else {
+				// Since a valid pid file was supplied, signalling must succeed
+				// on the first attempt
+				require.Equal(t, 0, pidFileResult.retry)
 			}
-			// Since a valid pid file was supplied, signalling must succeed
-			// on the first attempt
-			require.Equal(t, pid, pidFileResult.pid)
+
+			// The pid file was present, so we should have received a signal
 			require.NoError(t, pidFileResult.err)
+			require.Equal(t, pid, pidFileResult.pid)
+			require.Equal(t, pidFileMaxRetries, pidFileResult.maxRetries)
 
 			// Did we actually receive the signal?
 			select {

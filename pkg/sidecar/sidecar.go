@@ -25,8 +25,10 @@ import (
 // Whenever an attempt is made to signal pid_file_name, the outcome is sent
 // in messages on a channel with this type. Mainly for test purposes.
 type pidFileSignalledResult struct {
-	pid int
-	err error
+	pid        int
+	err        error
+	retry      int
+	maxRetries int
 }
 
 // Sidecar is the component that consumes the Workload API and renews certs
@@ -71,6 +73,10 @@ const (
 	writeStatusUnwritten = "unwritten"
 	writeStatusFailed    = "failed"
 	writeStatusWritten   = "written"
+
+	pidFileMaxRetries           = 7
+	pidFileRetryBackoffInitial  = 100 * time.Millisecond
+	pidFileRetryBackoffExponent = 2
 )
 
 // New creates a new SPIFFE sidecar
@@ -233,15 +239,13 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
-		if err := s.signalProcess(); err != nil {
+		if err := s.startOrSignalProcess(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal process")
 		}
 	}
 
 	if s.config.PIDFileName != "" {
-		if err := s.signalPID(); err != nil {
-			s.config.Log.WithError(err).Error("Unable to signal PID file")
-		}
+		s.retrySignalPIDFile()
 	}
 
 	// TODO: is ReloadExternalProcess still used?
@@ -257,8 +261,8 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 }
 
-// signalProcessCMD sends the renew signal to the process or starts it if its first time
-func (s *Sidecar) signalProcess() error {
+// startOrSignalProcess sends the renew signal to the process or starts it if its first time
+func (s *Sidecar) startOrSignalProcess() error {
 	if atomic.LoadInt32(&s.processRunning) == 0 {
 		cmdArgs, err := getCmdArgs(s.config.CmdArgs)
 		if err != nil {
@@ -283,31 +287,88 @@ func (s *Sidecar) signalProcess() error {
 	return nil
 }
 
-// signalPID sends the renew signal to the PID file
-func (s *Sidecar) signalPID() error {
-	pid, err := func() (int, error) {
-		fileBytes, err := os.ReadFile(s.config.PIDFileName)
-		if err != nil {
-			return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
-		}
-
-		pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
-		if err != nil {
-			return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
-		}
-
-		pidProcess, err := os.FindProcess(pid)
-		if err != nil {
-			return pid, fmt.Errorf("failed to find process id %d: %w", pid, err)
-		}
-
-		return pid, SignalProcess(pidProcess, s.config.RenewSignal)
-	}()
-	// Allow tests to observe the outcome of signalling the pid file
-	if s.pidFileSignalledChan != nil {
-		s.pidFileSignalledChan <- pidFileSignalledResult{pid: pid, err: err}
+// signalPIDFile sends the renew signal to the PID file
+func (s *Sidecar) signalPIDFile() (int, error) {
+	fileBytes, err := os.ReadFile(s.config.PIDFileName)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
 	}
-	return err
+
+	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
+	}
+
+	pidProcess, err := os.FindProcess(pid)
+	if err != nil {
+		return pid, fmt.Errorf("failed to find process id %d: %w", pid, err)
+	}
+
+	err = SignalProcess(pidProcess, s.config.RenewSignal)
+	if err != nil {
+		return pidProcess.Pid, err
+	}
+	return pidProcess.Pid, nil
+}
+
+// retrySignalPIDFile retries signalPIDFile in a short backoff loop to defend
+// against races between certificate renewal and pid file creation or update.
+//
+// It is possible that the pid file may not yet exist if spiffe-helper has been
+// started to initially acquire the certs required to start the process that
+// the pid file will point to. In this case we want to retry until the pid file
+// exists. Though signalling the process should really be unnecessary if we
+// just wrote the certificates anyway, this confirms that the pid file is valid
+// so misconfiguration can be detected and logged early, rather than waiting
+// until the certificate expiry and renewal interval.
+//
+// It is also possible that the pid pointed to by the pid file might exit and a
+// new process be started just as we write a new certificate. In this case it's
+// possible that the new process read the old certificates before we overwrote
+// them, but the pid file has not been updated before we try to signal it. We
+// must retry if signalling the old process fails, until the pid file is
+// updated to point to the new process.
+//
+// Retrying happens in the background to avoid blocking the main loop. This
+// could cause multiple signal delivery in the unlikely case of repeated
+// renewals within a short period, but that should be harmless.
+//
+// This should probably be an indefinte retry-until-success loop that starts
+// logging errors after a certain number of retries, with configurable initial
+// and max retry delays. But it's expected that the pid file will be updated
+// quickly, so this is a simple solution for now.
+func (s *Sidecar) retrySignalPIDFile() {
+	go func() {
+		retryBackoff := pidFileRetryBackoffInitial
+		i := 0
+		for {
+			pid, err := s.signalPIDFile()
+			// for test observer
+			if s.pidFileSignalledChan != nil {
+				s.pidFileSignalledChan <- pidFileSignalledResult{pid: pid, err: err, retry: i, maxRetries: pidFileMaxRetries}
+			}
+			msg := s.config.Log.
+				WithField("pid_file_name", s.config.PIDFileName).
+				WithField("renew_signal", s.config.RenewSignal).
+				WithField("pid", pid).
+				WithField("retry", i).
+				WithField("max_retries", pidFileMaxRetries)
+			if err == nil {
+				msg.Info("Signaled PID file")
+				return
+			}
+			msg = msg.WithError(err)
+			if i < pidFileMaxRetries {
+				msg.Info("Error signaling PID file, retrying...")
+			} else {
+				msg.Error("Error signaling PID file after multiple retries")
+				return
+			}
+			time.Sleep(retryBackoff)
+			retryBackoff *= pidFileRetryBackoffExponent
+			i++
+		}
+	}()
 }
 
 // Goroutine to watch a running process until it exits and report its exit status
