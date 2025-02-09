@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 )
 
@@ -20,19 +21,9 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 	svidKeyFile := path.Join(certDir, svidKeyFilename)
 	svidBundleFile := path.Join(certDir, svidBundleFilename)
 
-	svid := x509Context.DefaultSVID()
-	if hint != "" {
-		notFound := true
-		for id := range x509Context.SVIDs {
-			svid = x509Context.SVIDs[id]
-			if svid.Hint == hint {
-				notFound = false
-				break
-			}
-		}
-		if notFound {
-			return fmt.Errorf("failed to find the hinted svid")
-		}
+	svid, err := getX509SVID(x509Context, hint)
+	if err != nil {
+		return err
 	}
 
 	// Extract bundle for the default SVID
@@ -101,4 +92,20 @@ func writeKey(file string, data []byte, keyFileMode fs.FileMode) error {
 	}
 
 	return os.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
+}
+
+// getX509SVID extracts the x509 SVID that matches the hint or returns the default
+// if hint is empty
+func getX509SVID(x509Context *workloadapi.X509Context, hint string) (*x509svid.SVID, error) {
+	if hint == "" {
+		return x509Context.DefaultSVID(), nil
+	}
+
+	for _, svid := range x509Context.SVIDs {
+		if svid.Hint == hint {
+			return svid, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to find the hinted x509 SVID")
 }
