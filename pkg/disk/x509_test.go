@@ -99,58 +99,75 @@ func TestWriteX509Context(t *testing.T) {
 			intermediateInBundle:    true,
 		},
 	}
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			spiffeID, err := spiffeid.FromString(test.spiffeIDString)
-			require.NoError(t, err)
-			certs, key := test.ca.CreateX509SVID(spiffeID.String())
-			require.Len(t, certs, test.chainLength)
+	for _, hint := range []string{"", "other"} {
+		prefixSpiffeID, err := spiffeid.FromString("spiffe://example.test/shouldnt/ever/get")
+		require.NoError(t, err)
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				spiffeID, err := spiffeid.FromString(test.spiffeIDString)
+				require.NoError(t, err)
+				certs, key := test.ca.CreateX509SVID(spiffeID.String())
+				require.Len(t, certs, test.chainLength)
 
-			x509Context := &workloadapi.X509Context{
-				Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), test.ca.Roots())),
-				SVIDs: []*x509svid.SVID{
+				svids := []*x509svid.SVID{
 					{
 						ID:           spiffeID,
 						Certificates: certs,
 						PrivateKey:   key,
+						Hint:         "other",
 					},
-				},
-			}
-
-			bundle := test.ca.Roots()
-
-			if test.intermediateInBundle {
-				bundle = append(bundle, certs[1:]...)
-				certs = certs[:1]
-			}
-
-			if test.federatedCA != nil {
-				federatedTrustDomain := spiffeid.RequireTrustDomainFromString("federated.test")
-				x509Context.Bundles.Add(x509bundle.FromX509Authorities(federatedTrustDomain, test.federatedCA.Roots()))
-
-				if test.includeFederatedDomains {
-					bundle = append(bundle, test.federatedCA.Roots()...)
 				}
-			}
+				if hint != "" {
+					// Prepend on a test cert so that the hinted one is last
+					svids = append([]*x509svid.SVID{
+						{
+							ID:           prefixSpiffeID,
+							Certificates: certs,
+							PrivateKey:   key,
+							Hint:         "first",
+						},
+					}, svids...)
+				}
+				x509Context := &workloadapi.X509Context{
+					Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), test.ca.Roots())),
+					SVIDs:   svids,
+				}
 
-			err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename, certFileMode, keyFileMode)
-			require.NoError(t, err)
+				bundle := test.ca.Roots()
 
-			// Load certificates from disk and validate it is expected
-			actualCerts, err := util.LoadCertificates(path.Join(tempDir, svidFilename))
-			require.NoError(t, err)
-			require.Equal(t, certs, actualCerts)
+				if test.intermediateInBundle {
+					bundle = append(bundle, certs[1:]...)
+					certs = certs[:1]
+				}
 
-			// Load key from disk and validate it is expected
-			actualKey, err := util.LoadPrivateKey(path.Join(tempDir, svidKeyFilename))
-			require.NoError(t, err)
-			require.Equal(t, key, actualKey)
+				if test.federatedCA != nil {
+					federatedTrustDomain := spiffeid.RequireTrustDomainFromString("federated.test")
+					x509Context.Bundles.Add(x509bundle.FromX509Authorities(federatedTrustDomain, test.federatedCA.Roots()))
 
-			// Load bundle from disk and validate it is expected
-			actualBundle, err := util.LoadCertificates(path.Join(tempDir, svidBundleFilename))
-			require.NoError(t, err)
-			require.Equal(t, bundle, actualBundle)
-		})
+					if test.includeFederatedDomains {
+						bundle = append(bundle, test.federatedCA.Roots()...)
+					}
+				}
+
+				err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename, certFileMode, keyFileMode, hint)
+				require.NoError(t, err)
+
+				// Load certificates from disk and validate it is expected
+				actualCerts, err := util.LoadCertificates(path.Join(tempDir, svidFilename))
+				require.NoError(t, err)
+				require.Equal(t, certs, actualCerts)
+
+				// Load key from disk and validate it is expected
+				actualKey, err := util.LoadPrivateKey(path.Join(tempDir, svidKeyFilename))
+				require.NoError(t, err)
+				require.Equal(t, key, actualKey)
+
+				// Load bundle from disk and validate it is expected
+				actualBundle, err := util.LoadCertificates(path.Join(tempDir, svidBundleFilename))
+				require.NoError(t, err)
+				require.Equal(t, bundle, actualBundle)
+			})
+		}
 	}
 }

@@ -42,6 +42,7 @@ type Config struct {
 	RenewSignal              string             `hcl:"renew_signal"`
 	DaemonMode               *bool              `hcl:"daemon_mode"`
 	HealthCheck              health.CheckConfig `hcl:"health_checks"`
+	Hint                     string             `hcl:"hint"`
 
 	// x509 configuration
 	SVIDFileName       string `hcl:"svid_file_name"`
@@ -124,6 +125,21 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 			c.AgentAddress = spiffeEndpointSocket
 		default:
 			c.AgentAddress = defaultAgentAddress
+		}
+	}
+
+	if c.DaemonMode != nil && !*c.DaemonMode {
+		if c.Cmd != "" {
+			log.Warn("cmd is set but daemon_mode is false. cmd will be ignored. This may become an error in a future release.")
+		}
+		if c.RenewSignal != "" {
+			log.Warn("renew_signal is set but daemon_mode is false. renew_signal will be ignored. This may become an error in a future release.")
+		}
+		// pid_file_name is new enough that there should not be existing configurations that use it without daemon_mode
+		// so we can error here without backcompat worries. In future we may support one-shot signalling of a process, but
+		// it's ignored at the moment so we shouldn't allow the user to think it's doing something.
+		if c.PIDFileName != "" {
+			return errors.New("pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode")
 		}
 	}
 
@@ -224,6 +240,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		SVIDFileName:             config.SVIDFileName,
 		SVIDKeyFileName:          config.SVIDKeyFileName,
 		SVIDBundleFileName:       config.SVIDBundleFileName,
+		Hint:                     config.Hint,
 	}
 
 	for _, jwtSVID := range config.JWTSVIDs {
