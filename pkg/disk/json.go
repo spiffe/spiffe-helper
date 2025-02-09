@@ -69,5 +69,4 @@ func getJWTSVID(jwtSVIDs []*jwtsvid.SVID, hint string) (*jwtsvid.SVID, error) {
 	}
 
 	return nil, fmt.Errorf("failed to find the hinted JWT SVID")
-
 }
