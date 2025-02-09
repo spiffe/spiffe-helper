@@ -132,7 +132,7 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 			log.Warn("cmd is set but daemon_mode is false. cmd will be ignored. This may become an error in a future release.")
 		}
 		if c.RenewSignal != "" {
-			log.Warn("renew_signal is set but daemon_mode is false. renew_signal will be ignored. This may become an error in future.")
+			log.Warn("renew_signal is set but daemon_mode is false. renew_signal will be ignored. This may become an error in a future release.")
 		}
 		// pid_file_name is new enough that there should not be existing configuration that uses it without daemon_mode
 		// so we can error here without B/C worries. In future we may support one-shot signalling of a process, but
