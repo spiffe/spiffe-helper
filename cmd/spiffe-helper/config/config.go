@@ -42,6 +42,7 @@ type Config struct {
 	RenewSignal              string             `hcl:"renew_signal"`
 	DaemonMode               *bool              `hcl:"daemon_mode"`
 	HealthCheck              health.CheckConfig `hcl:"health_checks"`
+	Hint                     string             `hcl:"hint"`
 
 	// x509 configuration
 	SVIDFileName       string `hcl:"svid_file_name"`
@@ -224,6 +225,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		SVIDFileName:             config.SVIDFileName,
 		SVIDKeyFileName:          config.SVIDKeyFileName,
 		SVIDBundleFileName:       config.SVIDBundleFileName,
+		Hint:                     config.Hint,
 	}
 
 	for _, jwtSVID := range config.JWTSVIDs {

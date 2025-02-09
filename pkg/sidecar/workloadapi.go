@@ -39,7 +39,7 @@ func (s *Sidecar) fetchAndWriteX509Context(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteX509Context(x509Context, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode)
+	return disk.WriteX509Context(x509Context, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint)
 }
 
 func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
@@ -71,18 +71,18 @@ func (s *Sidecar) fetchAndWriteJWTSVIDs(ctx context.Context) error {
 }
 
 func (s *Sidecar) fetchAndWriteJWTSVID(ctx context.Context, audience, jwtSVIDFilename string) error {
-	var jwtSVID *jwtsvid.SVID
+	var jwtSVIDs []*jwtsvid.SVID
 
 	// Retry PermissionDenied errors. We may get a few of these before the cert is minted
 	err := retry.OnError(backoff, func(err error) bool {
 		return status.Code(err) == codes.PermissionDenied
 	}, func() (err error) {
-		jwtSVID, err = s.jwtSource.FetchJWTSVID(ctx, jwtsvid.Params{Audience: audience})
+		jwtSVIDs, err = s.jwtSource.FetchJWTSVIDs(ctx, jwtsvid.Params{Audience: audience})
 		return err
 	})
 	if err != nil {
 		return err
 	}
 
-	return disk.WriteJWTSVID(jwtSVID, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode)
+	return disk.WriteJWTSVID(jwtSVIDs, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode, s.config.Hint)
 }
