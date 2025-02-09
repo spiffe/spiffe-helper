@@ -129,7 +129,7 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 
 	if c.DaemonMode != nil && !*c.DaemonMode {
 		if c.Cmd != "" {
-			log.Warn("cmd is set but daemon_mode is false. cmd will be ignored. This may become an error in future.")
+			log.Warn("cmd is set but daemon_mode is false. cmd will be ignored. This may become an error in a future release.")
 		}
 		if c.RenewSignal != "" {
 			log.Warn("renew_signal is set but daemon_mode is false. renew_signal will be ignored. This may become an error in future.")
