@@ -18,13 +18,16 @@ linters:
     - gofmt
     - goimports
     - gosec
+    - intrange
     - misspell
     - nakedret
     - nilerr
+    - nolintlint
     - prealloc
     - revive
     - unconvert
     - unparam
+    - wastedassign
     - whitespace
 
 linters-settings:
