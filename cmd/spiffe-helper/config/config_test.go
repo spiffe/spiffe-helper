@@ -78,6 +78,13 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "no error",
+			config: &Config{
+				AgentAddress:      "path",
+				JWTBundleFilename: "bundle.json",
+			},
+		},
+		{
 			name: "no error in oneshot mode",
 			config: &Config{
 				DaemonMode:         &[]bool{false}[0],
