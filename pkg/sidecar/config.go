@@ -45,7 +45,7 @@ type Config struct {
 	JWTSVIDs []JWTConfig
 
 	// File name to be used to store JWT Bundle in JSON format.
-	JWTBundleFilename string
+	JWTBundleFileName string
 
 	// The logger to use
 	Log logrus.FieldLogger
@@ -77,5 +77,5 @@ type JWTConfig struct {
 	JWTExtraAudiences []string
 
 	// The filename to save the JWT SVID to
-	JWTSVIDFilename string
+	JWTSVIDFileName string
 }

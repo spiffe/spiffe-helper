@@ -40,8 +40,8 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedSVIDFileName, c.SVIDFileName)
 	assert.Equal(t, expectedKeyFileName, c.SVIDKeyFileName)
 	assert.Equal(t, expectedSVIDBundleFileName, c.SVIDBundleFileName)
-	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSVIDs[0].JWTSVIDFilename)
-	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFilename)
+	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSVIDs[0].JWTSVIDFileName)
+	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFileName)
 	assert.Equal(t, expectedJWTAudience, c.JWTSVIDs[0].JWTAudience)
 	assert.Equal(t, expectedJWTExtraAudiences, c.JWTSVIDs[0].JWTExtraAudiences)
 	assert.True(t, c.AddIntermediatesToBundle)
@@ -71,10 +71,10 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress: "path",
 				JWTSVIDs: []JWTConfig{{
-					JWTSVIDFilename: "jwt.token",
+					JWTSVIDFileName: "jwt.token",
 					JWTAudience:     "your-audience",
 				}},
-				JWTBundleFilename: "bundle.json",
+				JWTBundleFileName: "bundle.json",
 			},
 		},
 		{
@@ -107,7 +107,7 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress: "path",
 				JWTSVIDs: []JWTConfig{{
-					JWTSVIDFilename: "jwt.token",
+					JWTSVIDFileName: "jwt.token",
 				}},
 			},
 			expectError: "'jwt_audience' is required in 'jwt_svids'",
@@ -334,7 +334,7 @@ func TestNewSidecarConfig(t *testing.T) {
 		JWTSVIDs: []JWTConfig{
 			{
 				JWTAudience:     "my-audience",
-				JWTSVIDFilename: "my-jwt-filename",
+				JWTSVIDFileName: "my-jwt-filename",
 			},
 		},
 	}
@@ -352,7 +352,7 @@ func TestNewSidecarConfig(t *testing.T) {
 	require.Equal(t, len(config.JWTSVIDs), len(sidecarConfig.JWTSVIDs))
 	for i := 0; i < len(config.JWTSVIDs); i++ {
 		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWTSVIDs[i].JWTAudience)
-		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFilename, sidecarConfig.JWTSVIDs[i].JWTSVIDFilename)
+		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFileName, sidecarConfig.JWTSVIDs[i].JWTSVIDFileName)
 	}
 
 	// Ensure empty fields were not populated
