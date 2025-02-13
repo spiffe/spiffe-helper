@@ -264,7 +264,7 @@ func validateX509Config(c *Config) (bool, error) {
 }
 
 func validateJWTConfig(c *Config) (bool, bool) {
-	jwtBundleEmptyCount := countEmpty(c.SVIDBundleFileName)
+	jwtBundleEmptyCount := countEmpty(c.JWTBundleFilename)
 
 	return jwtBundleEmptyCount == 0, len(c.JWTSVIDs) > 0
 }
