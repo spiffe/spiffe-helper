@@ -44,19 +44,24 @@ type FileWriteStatuses struct {
 }
 
 const (
-	writeStatusUnwritten = "unwritten"
-	writeStatusFailed    = "failed"
-	writeStatusWritten   = "written"
+	writeStatusUnconfigured = "unconfigured"
+	writeStatusUnwritten    = "unwritten"
+	writeStatusFailed       = "failed"
+	writeStatusWritten      = "written"
 )
 
 // New creates a new SPIFFE sidecar
 func New(config *Config) *Sidecar {
+	x509WriteStatus := writeStatusUnconfigured
+	if config.SVIDFileName != "" || config.SVIDKeyFileName != "" || config.SVIDBundleFileName != "" {
+		x509WriteStatus = writeStatusUnwritten
+	}
 	sidecar := &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnwritten,
+				X509WriteStatus: x509WriteStatus,
 				JWTWriteStatus:  make(map[string]string),
 			},
 		},
@@ -65,8 +70,10 @@ func New(config *Config) *Sidecar {
 		jwtSVIDFilename := path.Join(config.CertDir, jwtConfig.JWTSVIDFilename)
 		sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
 	}
-	jwtBundleFilePath := path.Join(config.CertDir, config.JWTBundleFilename)
-	sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+	if config.JWTBundleFilename != "" {
+		jwtBundleFilePath := path.Join(config.CertDir, config.JWTBundleFilename)
+		sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+	}
 	return sidecar
 }
 
@@ -480,7 +487,7 @@ func (s *Sidecar) CheckReadiness() bool {
 			return false
 		}
 	}
-	return s.health.FileWriteStatuses.X509WriteStatus != writeStatusWritten
+	return s.health.FileWriteStatuses.X509WriteStatus == writeStatusWritten || s.health.FileWriteStatuses.X509WriteStatus == writeStatusUnconfigured
 }
 
 func (s *Sidecar) GetHealth() Health {
