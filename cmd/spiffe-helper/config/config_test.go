@@ -18,6 +18,7 @@ func TestParseConfig(t *testing.T) {
 	c, err := ParseConfigFile("testdata/helper.conf")
 
 	assert.NoError(t, err)
+	assert.NoError(t, c.checkForUnknownConfig())
 
 	expectedAgentAddress := "/tmp/spire-agent/public/api.sock"
 	expectedCmd := "hot-restarter.py"
