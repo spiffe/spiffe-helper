@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - binary: spiffe-helper
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    main: ./cmd/spiffe-helper
+
+archives:
+  - id: spiffe-helper
+    formats: [ 'tar.gz' ]
+    builds:
+      - spiffe-helper
+    # This name template makes the OS and Arch compatible with the results of `uname`
+    name_template: >-
+      spiffe-helper_{{- .Version}}_
+      {{- title .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
+      - LICENSE
+    # Use zip for windows archives
+    format_overrides:
+      - goos: windows
+        formats: [ 'zip' ]
+
+dockers:
+  - id: spiffe-helper-amd64
+    goarch: amd64
+    image_templates:
+      - "{{ .Env.DOCKER_REPO }}:{{ .Version}}-amd64"
+    use: buildx
+    dockerfile: Dockerfile-goreleaser
+    build_flag_templates:
+      - "--platform=linux/amd64"
+  - id: spiffe-helper-arm64
+    goarch: arm64
+    image_templates:
+      - "{{ .Env.DOCKER_REPO }}:{{ .Version}}-arm64"
+    use: buildx
+    dockerfile: Dockerfile-goreleaser
+    build_flag_templates:
+      - "--platform=linux/arm64"
+
+docker_manifests:
+  - name_template: "{{ .Env.DOCKER_REPO }}:{{ .Version}}"
+    image_templates:
+      - "{{ .Env.DOCKER_REPO }}:{{ .Version}}-amd64"
+      - "{{ .Env.DOCKER_REPO }}:{{ .Version}}-arm64"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"

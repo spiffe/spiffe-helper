@@ -1,0 +1,6 @@
+FROM gcr.io/distroless/static
+WORKDIR /
+COPY spiffe-helper /
+
+ENTRYPOINT ["/spiffe-helper"]
+CMD []
