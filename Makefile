@@ -208,17 +208,15 @@ tarball: build
 rpm:
 	@OUTDIR="$(OUTDIR)" TAG="$(TAG)" BUILD="$(BUILD)" ./script/rpm/build-rpm.sh
 
-# If you want detailed test output run 'go test -v ./...'
+# If you want detailed test output run "GO_TEST_OPTS=-v make test"
 test: | go-check
-	go test ./...
+	go test $(GO_TEST_OPTS) ./...
 
+# Invoke the test suite by cross-compiling for Windows and running with
+# Wine. If in future tests are added that run on real win32 but not wine
+# a -tags wine could be added here.
 test-wine: | go-check
-	# compile the tests in their respective directories, rather than 'go
-	# test -c ./...' which would compile all tests in the same directory.
-	for testdir in $$(find -name \*_test.go -printf '%h\n' | sort -u); do (cd $$testdir && GOOS=windows GOARCH=amd64 go test -c .); done
-	# run the tests with wine, in their respective directories so they
-	# can find test fixtures by relative path.
-	set -e -u && for test in $$(find -name \*.test.exe); do ( cd "$$(dirname $$test)" && $(WINE) ./"$$(basename $$test)" "-test.v" ); done
+	GOOS=windows go test  $(GO_TEST_OPTS) -exec $(WINE) ./...
 
 clean: | go-check
 	go clean ./cmd/spiffe-helper
