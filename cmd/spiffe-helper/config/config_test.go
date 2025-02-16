@@ -18,6 +18,7 @@ func TestParseConfig(t *testing.T) {
 	c, err := ParseConfigFile("testdata/helper.conf")
 
 	assert.NoError(t, err)
+	assert.NoError(t, c.checkForUnknownConfig())
 
 	expectedAgentAddress := "/tmp/spire-agent/public/api.sock"
 	expectedCmd := "hot-restarter.py"
@@ -74,6 +75,13 @@ func TestValidateConfig(t *testing.T) {
 					JWTSVIDFilename: "jwt.token",
 					JWTAudience:     "your-audience",
 				}},
+				JWTBundleFilename: "bundle.json",
+			},
+		},
+		{
+			name: "no error",
+			config: &Config{
+				AgentAddress:      "path",
 				JWTBundleFilename: "bundle.json",
 			},
 		},
