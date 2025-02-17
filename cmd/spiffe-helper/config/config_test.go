@@ -358,7 +358,7 @@ func TestNewSidecarConfig(t *testing.T) {
 
 	// Ensure JWT Config was populated correctly
 	require.Equal(t, len(config.JWTSVIDs), len(sidecarConfig.JWTSVIDs))
-	for i := 0; i < len(config.JWTSVIDs); i++ {
+	for i := range config.JWTSVIDs {
 		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWTSVIDs[i].JWTAudience)
 		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFilename, sidecarConfig.JWTSVIDs[i].JWTSVIDFilename)
 	}
