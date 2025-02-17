@@ -18,6 +18,7 @@ func TestParseConfig(t *testing.T) {
 	c, err := ParseConfigFile("testdata/helper.conf")
 
 	assert.NoError(t, err)
+	assert.NoError(t, c.checkForUnknownConfig())
 
 	expectedAgentAddress := "/tmp/spire-agent/public/api.sock"
 	expectedCmd := "hot-restarter.py"
@@ -78,6 +79,23 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "no error",
+			config: &Config{
+				AgentAddress:      "path",
+				JWTBundleFilename: "bundle.json",
+			},
+		},
+		{
+			name: "no error in oneshot mode",
+			config: &Config{
+				DaemonMode:         &[]bool{false}[0],
+				AgentAddress:       "path",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
+			},
+		},
+		{
 			name: "no set specified",
 			config: &Config{
 				AgentAddress: "path",
@@ -111,6 +129,55 @@ func TestValidateConfig(t *testing.T) {
 				}},
 			},
 			expectError: "'jwt_file_name' is required in 'jwt_svids'",
+		},
+		{
+			name: "no error with pid_file_name and renew_signal",
+			config: &Config{
+				PIDFileName:        "pidfile",
+				RenewSignal:        "SIGHUP",
+				AgentAddress:       "path",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
+			},
+		},
+		{
+			// There's no test for 'cmd' and 'renew_signal' set in
+			// daemon_mode here because they just log warnings
+			name: "pid_file_name set in !daemon_mode",
+			config: &Config{
+				DaemonMode:  &[]bool{false}[0],
+				PIDFileName: "pidfile",
+			},
+			expectError: "pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode",
+		},
+		{
+			// renew_signal is required if setting a pid_file_name.
+			// It is NOT required for 'cmd' since that would break
+			// the mode where spiffe-helper calls a reloader
+			// command when certs are renewed.
+			name: "renew_signal required if pid_file_name set",
+			config: &Config{
+				PIDFileName: "pidfile",
+				RenewSignal: "",
+			},
+			expectError: "Must specify renew_signal when using pid_file_name",
+		},
+		{
+			// A renew_signal is allowed without a pid_file_name
+			// because it can also be sent to the 'cmd' process if
+			// one is configured. We could raise a warning if
+			// renew_signal is set but neither cmd or pid_file_name
+			// are, but presently do not.
+			name: "renew_signal allowed without pid_file_name",
+			config: &Config{
+				Cmd:                "echo",
+				RenewSignal:        "SIGHUP",
+				AgentAddress:       "path",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
+			},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

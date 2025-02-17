@@ -128,6 +128,21 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		}
 	}
 
+	if c.DaemonMode != nil && !*c.DaemonMode {
+		if c.Cmd != "" {
+			log.Warn("cmd is set but daemon_mode is false. cmd will be ignored. This may become an error in a future release.")
+		}
+		if c.RenewSignal != "" {
+			log.Warn("renew_signal is set but daemon_mode is false. renew_signal will be ignored. This may become an error in a future release.")
+		}
+		// pid_file_name is new enough that there should not be existing configurations that use it without daemon_mode
+		// so we can error here without backcompat worries. In future we may support one-shot signalling of a process, but
+		// it's ignored at the moment so we shouldn't allow the user to think it's doing something.
+		if c.PIDFileName != "" {
+			return errors.New("pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode")
+		}
+	}
+
 	if c.PIDFileName != "" && c.RenewSignal == "" {
 		return errors.New("Must specify renew_signal when using pid_file_name")
 	}
@@ -249,7 +264,7 @@ func validateX509Config(c *Config) (bool, error) {
 }
 
 func validateJWTConfig(c *Config) (bool, bool) {
-	jwtBundleEmptyCount := countEmpty(c.SVIDBundleFileName)
+	jwtBundleEmptyCount := countEmpty(c.JWTBundleFilename)
 
 	return jwtBundleEmptyCount == 0, len(c.JWTSVIDs) > 0
 }
