@@ -26,7 +26,7 @@ services:
     command: ["-config", "/opt/spire/conf/agent/agent.conf"]
     pid: "host"
     healthcheck:
-      test: ["CMD", "/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/opt/spire/sockets/workload_api.sock", "-verbose"]
+      test: ["CMD", "/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/tmp/spire-agent/public/api.sock", "-verbose"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -47,6 +47,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+#      dockerfile: debug.Dockerfile
     platform: linux/amd64
     depends_on:
       spire-agent:
@@ -59,6 +60,7 @@ services:
     command: ["-config", "/etc/spiffe-helper/helper.conf"]
     ports:
       - "8080:8081"
+      - "4000:4000"
 
 volumes:
   agent-socket:
