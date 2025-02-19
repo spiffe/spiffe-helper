@@ -1,0 +1,64 @@
+services:
+  spire-server:
+    hostname: spire-server
+    image: ghcr.io/spiffe/spire-server:${SPIRE_VERSION}
+    platform: linux/amd64
+    volumes:
+      - ./integrationTest/conf/server:/opt/spire/conf/server:r
+    command: ["-config", "/opt/spire/conf/server/server.conf"]
+    privileged: true
+    healthcheck:
+      test: ["CMD", "/opt/spire/bin/spire-server", "healthcheck", "-verbose"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  spire-agent:
+    hostname: spire-agent
+    image: ghcr.io/spiffe/spire-agent:${SPIRE_VERSION}
+    platform: linux/amd64
+    depends_on:
+      spire-server:
+        condition: service_healthy
+    volumes:
+      - ./integrationTest/conf/agent:/opt/spire/conf/agent:r
+      - agent-socket:/opt/spire/sockets:rw
+      - /var/run/docker.sock:/var/run/docker.sock:r
+    command: ["-config", "/opt/spire/conf/agent/agent.conf"]
+    pid: "host"
+    healthcheck:
+      test: ["CMD", "/opt/spire/bin/spire-agent", "healthcheck", "-socketPath", "/opt/spire/sockets/workload_api.sock", "-verbose"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  create-entries:
+    image: ghcr.io/spiffe/spire-server:${SPIRE_VERSION}
+    platform: linux/amd64
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+    entrypoint: ["/opt/spire/bin/spire-server"]
+    command:
+      - entry create
+      - -selector docker:label:com.docker.compose.service:spiffe-helper
+      - -spiffeID spiffe://example.org/workload/spiffe-helper
+      - -parentID spiffe://example.org/spire/agent/x509pop/02b8e7713492fdf93d43369e9c6f50d28bef9fa8
+  spiffe-helper:
+    hostname: spiffe-helper
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+      create-entries:
+        condition: service_completed_successfully
+    volumes:
+      - ./integrationTest/conf/spiffe-helper:/etc/spiffe-helper:r
+      - agent-socket:/opt/spire/sockets:r
+    command: ["-config", "/etc/spiffe-helper/helper.conf"]
+    ports:
+      - "8080:8081"
+
+volumes:
+  agent-socket:
