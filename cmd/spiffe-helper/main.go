@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
 	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
+	"github.com/spiffe/spire/pkg/common/util"
 )
 
 const (
@@ -50,18 +52,25 @@ func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if *hclConfig.DaemonMode && hclConfig.HealthCheck.ListenerEnabled {
-		log.Info("Starting health server")
-		if err := health.StartHealthServer(hclConfig.HealthCheck, log, spiffeSidecar); err != nil {
-			return err
-		}
-	}
-
 	if !*hclConfig.DaemonMode {
 		log.Info("Daemon mode disabled")
 		return spiffeSidecar.Run(ctx)
 	}
 
 	log.Info("Launching daemon")
-	return spiffeSidecar.RunDaemon(ctx)
+	tasks := []func(context.Context) error{
+		spiffeSidecar.RunDaemon,
+	}
+
+	if hclConfig.HealthCheck.ListenerEnabled {
+		healthServer := health.New(&hclConfig.HealthCheck, log, spiffeSidecar)
+		tasks = append(tasks, healthServer.Start)
+	}
+
+	err := util.RunTasks(ctx, tasks...)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return err
+	}
+
+	return nil
 }
