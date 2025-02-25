@@ -171,7 +171,10 @@ endif
 lint: lint-code
 
 lint-code: $(golangci_lint_bin) | go-check
-	$(E)PATH="$(PATH):$(go_bin_dir)" $(golangci_lint_bin) run ./...
+	$(E)if PATH="$(PATH):$(go_bin_dir)" $(golangci_lint_bin) run ./...; then : ; else ecode=$$?; echo 1>&2 "golangci-lint failed with $$ecode; try make lint-fix or use $(golangci_lint_bin) to investigate"; exit $$ecode; fi
+
+lint-fix: $(golangci_lint_bin) | go-check
+	$(E)PATH="$(PATH):$(go_bin_dir)" $(golangci_lint_bin) run --fix ./...
 
 ############################################################################
 # Build targets
