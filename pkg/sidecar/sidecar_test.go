@@ -273,3 +273,29 @@ func TestGetCmdArgs(t *testing.T) {
 		})
 	}
 }
+
+// TestSignalProcess makes sure only one copy of the process is started. It uses a small script that creates a file
+// where the name is the process ID of the script. If more then one file exists, then multiple processes were started
+func TestSignalProcess(t *testing.T) {
+	tempDir := t.TempDir()
+	config := &Config{
+		Cmd:         "./sidecar_test.sh",
+		CmdArgs:     tempDir,
+		RenewSignal: "SIGWINCH",
+	}
+	sidecar := New(config)
+	require.NotNil(t, sidecar)
+
+	// Run signalProcess() twice. The second should only signal the process with SIGWINCH which is basically a no op.
+	err := sidecar.signalProcess()
+	require.NoError(t, err)
+	err = sidecar.signalProcess()
+	require.NoError(t, err)
+
+	// Give the script some time to run
+	time.Sleep(1 * time.Second)
+
+	files, err := os.ReadDir(tempDir)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(files))
+}
