@@ -5,6 +5,7 @@ package sidecar
 
 import (
 	"errors"
+	"os"
 
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 )

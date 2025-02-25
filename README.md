@@ -221,3 +221,13 @@ svid_bundle_file_name = "svid_bundle.pem"
 jwt_svids = [{jwt_audience="your-audience",jwt_extra_audiences=["your-extra-audience-1", "your-extra-audience-2"], jwt_svid_file_name="jwt_svid.token"}]
 jwt_bundle_file_name = "bundle.json"
 ```
+
+## Development and testing
+
+This is a pretty straightforward Go project. You can use the standard Go tools
+to build and test it.
+
+Please run the tests for Windows for your PRs. `wine` is sufficient if you
+don't have a convenient Windows machine or VM, and you don't need the Windows
+Go SDK to cross-compile the test suite and run it. Install `wine` with
+`sudo apt-get install wine` or similar, then run the tests with `make test-wine`.
