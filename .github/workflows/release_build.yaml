@@ -58,18 +58,23 @@ jobs:
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build artifact
+      - name: Build artifact (x86_64)
         run: make build
+      - name: Compress artifact (x86_64)
+        run: tar -czvf spiffe-helper_${{ github.ref_name }}_Linux-x86_64.tar.gz spiffe-helper
+      - name: Build artifact (arm64)
+        run: GOARCH=arm64 make build
+      - name: Compress artifact (arm64)
+        run: tar -czvf spiffe-helper_${{ github.ref_name }}_Linux-arm64.tar.gz spiffe-helper
       - name: Build docker artifact
         run: make docker-build
-      - name: Compress artifact
-        run: tar -czvf spiffe-helper-${{ github.ref_name }}.tar.gz spiffe-helper
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
           name: spiffe-helper
           path: |
-            spiffe-helper-${{ github.ref_name }}.tar.gz
+            spiffe-helper_${{ github.ref_name }}_Linux-x86_64.tar.gz
+            spiffe-helper_${{ github.ref_name }}_Linux-arm64.tar.gz
             spiffe-helper-image.tar
 
   release:
@@ -102,4 +107,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Create the release using the version number as the title
-        run: gh release create "${GITHUB_REF#refs/tags/}" ./spiffe-helper-${{ github.ref_name }}.tar.gz --title "${GITHUB_REF#refs/tags/}"
+        run: gh release create "${GITHUB_REF#refs/tags/}" ./spiffe-helper_${{ github.ref_name }}_Linux-x86_64.tar.gz ./spiffe-helper_${{ github.ref_name }}_Linux-arm64.tar.gz --title "${GITHUB_REF#refs/tags/}"
