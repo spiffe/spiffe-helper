@@ -1,4 +1,9 @@
-package main
+//go:build windows
+// +build windows
+
+package config
+
+import "errors"
 
 func validateOSConfig(c *Config) error {
 	if c.RenewSignal != "" {

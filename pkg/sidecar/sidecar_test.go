@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 	"time"
 
@@ -190,6 +191,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
+			if testCase.renewSignal != "" && runtime.GOOS == "windows" {
+				t.Skip("Skipping test on Windows because it does not support signals")
+			}
 			sidecar.config.AddIntermediatesToBundle = testCase.intermediateInBundle
 			sidecar.config.RenewSignal = testCase.renewSignal
 			sidecar.config.IncludeFederatedDomains = testCase.federatedDomains
