@@ -216,7 +216,7 @@ test: | go-check
 # Wine. If in future tests are added that run on real win32 but not wine
 # a -tags wine could be added here.
 test-wine: | go-check
-	GOOS=windows go test  $(GO_TEST_OPTS) -exec $(WINE) ./...
+	GOOS=windows go test $(GO_TEST_OPTS) -exec $(WINE) ./...
 
 clean: | go-check
 	go clean ./cmd/spiffe-helper
