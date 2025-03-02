@@ -77,6 +77,10 @@ const (
 
 // New creates a new SPIFFE sidecar
 func New(config *Config) *Sidecar {
+	// This log message also serves to assert that we can log later, so we
+	// crash here if Log is nil, not when we're trying to report an error
+	// later.
+	config.Log.Debug("Creating new sidecar")
 	sidecar := &Sidecar{
 		config:        config,
 		certReadyChan: make(chan *workloadapi.X509Context, 1),
