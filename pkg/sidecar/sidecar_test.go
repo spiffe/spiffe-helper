@@ -612,11 +612,19 @@ func TestGetCmdArgs(t *testing.T) {
 // TestSignalProcess makes sure only one copy of the process is started. It uses a small script that creates a file
 // where the name is the process ID of the script. If more then one file exists, then multiple processes were started
 func TestSignalProcess(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// This test's implementation relies on signals. It could be adapted to run
+		// on Windows by invoking a pwsh script that creates a file with the process
+		// ID and tests if just one exists, but for now we'll skip it.
+		t.Skip("Skipping tests that invoke unix shell commands on Windows")
+	}
 	tempDir := t.TempDir()
+	log, _ := test.NewNullLogger()
 	config := &Config{
 		Cmd:         "./sidecar_test.sh",
 		CmdArgs:     tempDir,
 		RenewSignal: "SIGWINCH",
+		Log:         log,
 	}
 	sidecar := New(config)
 	require.NotNil(t, sidecar)
