@@ -256,6 +256,61 @@ func TestGetCmdArgs(t *testing.T) {
 			in:          `-flag1 "value 1`,
 			expectedErr: `missing " in quoted-field`,
 		},
+		// Single quotes are not special to the parser
+		{
+			name:         "Single quotes in double quotes",
+			in:           `-c "echo 'hello world'"`,
+			expectedArgs: []string{"-c", "echo 'hello world'"},
+		},
+		{
+			name:         "Unpaired single quote",
+			in:           `echo Mc'Gougall`,
+			expectedArgs: []string{"echo", "Mc'Gougall"},
+		},
+		// Unlike a shell, spiffe-helper will parse this argument
+		// string without considering the single quoted range as a
+		// single argument.
+		{
+			name:         "single quotes do not protect spaces",
+			in:           `-c 'echo hello world'`,
+			expectedArgs: []string{"-c", "'echo", "hello", "world'"},
+		},
+		// Unlike a shell, spiffe-helper double quotes within single quotes
+		// are not protected. In a bourne-like shell, this would parse
+		// as a single argument. A csv-parser sees this as a quoted field
+		// without a following delimiter and will return an error.
+		{
+			name:        "single quotes do not protect spaces",
+			in:          `-c "echo 'hello "cruel" world'"`,
+			expectedErr: `extraneous or missing " in quoted-field`,
+		},
+		// unpaired double quotes inside single quotes will result in a parse error
+		// for the same reason
+		{
+			name:        "unpaired double quotes in single quotes",
+			in:          `-c "echo 'hello "cruel" world'"`,
+			expectedErr: `extraneous or missing " in quoted-field`,
+		},
+		// backslash escaping of double quotes inside argument strings is not supported
+		// by spiffe-helper's parser, and will result in an error not the expected argument
+		// vector [`-c`, `echo "hello world"`]
+		{
+			name:        "Backslash-escaped double quotes in double quotes",
+			in:          `-c "echo \"hello world\""`,
+			expectedErr: `extraneous or missing " in quoted-field`,
+		},
+		// spiffe-helper's parser instead uses quote-pairing for escaping double quotes
+		{
+			name:         "Pair-escaped double quotes in double quotes",
+			in:           `-c "echo ""hello world"""`,
+			expectedArgs: []string{`-c`, `echo "hello world"`},
+		},
+		// The argument vector is not processed for metacharacter expansion
+		{
+			name:         "metacharacters are not special",
+			in:           `$$ $var $* ${var} {{var}} $(var) ${{var}} %VAR% %(var)% ${env:VAR}`,
+			expectedArgs: []string{`$$`, `$var`, `$*`, `${var}`, `{{var}}`, `$(var)`, `${{var}}`, `%VAR%`, `%(var)%`, `${env:VAR}`},
+		},
 	}
 
 	for _, c := range cases {
