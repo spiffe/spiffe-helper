@@ -40,19 +40,19 @@ type Health struct {
 }
 
 type FileWriteStatuses struct {
-	X509WriteStatus *string            `json:"x509_write_status,omitempty"`
+	X509WriteStatus *string           `json:"x509_write_status,omitempty"`
 	JWTWriteStatus  map[string]string `json:"jwt_write_status"`
 }
 
 const (
-	writeStatusUnwritten    = "unwritten"
-	writeStatusFailed       = "failed"
-	writeStatusWritten      = "written"
+	writeStatusUnwritten = "unwritten"
+	writeStatusFailed    = "failed"
+	writeStatusWritten   = "written"
 )
 
 // New creates a new SPIFFE sidecar
 func New(config *Config) *Sidecar {
-	var x509WriteStatus *string = nil
+	var x509WriteStatus *string
 	if config.SVIDFileName != "" || config.SVIDKeyFileName != "" || config.SVIDBundleFileName != "" {
 		writeStatus := writeStatusUnwritten
 		x509WriteStatus = &writeStatus
