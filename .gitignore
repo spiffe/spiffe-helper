@@ -8,6 +8,10 @@ rpm/*.rpm
 *.swo
 bootstrap.crt
 
+# for 'go test -c ./...' output
+*.test
+*.test.exe
+
 # oci image builds
 oci/
 *-image.tar

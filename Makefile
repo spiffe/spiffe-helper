@@ -100,10 +100,12 @@ else
 endif
 go_path := PATH="$(go_bin_dir):$(PATH)"
 
-golangci_lint_version = v1.62.2
+golangci_lint_version = v1.64.4
 golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
 golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
 golangci_lint_cache = $(golangci_lint_dir)/cache
+
+WINE ?= wine
 
 ############################################################################
 # Install toolchain
@@ -206,8 +208,15 @@ tarball: build
 rpm:
 	@OUTDIR="$(OUTDIR)" TAG="$(TAG)" BUILD="$(BUILD)" ./script/rpm/build-rpm.sh
 
+# If you want detailed test output run "GO_TEST_OPTS=-v make test"
 test: | go-check
-	go test ./...
+	go test $(GO_TEST_OPTS) ./...
+
+# Invoke the test suite by cross-compiling for Windows and running with
+# Wine. If in future tests are added that run on real win32 but not wine
+# a -tags wine could be added here.
+test-wine: | go-check
+	GOOS=windows go test $(GO_TEST_OPTS) -exec $(WINE) ./...
 
 clean: | go-check
 	go clean ./cmd/spiffe-helper
