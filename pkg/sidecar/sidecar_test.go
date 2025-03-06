@@ -95,7 +95,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		certReadyChan: make(chan struct{}, 1),
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnwritten,
+				X509WriteStatus: nil,
 				JWTWriteStatus:  make(map[string]string),
 			},
 		},
@@ -273,6 +273,7 @@ func TestGetCmdArgs(t *testing.T) {
 func TestNew(t *testing.T) {
 	log, _ := test.NewNullLogger()
 	tmpdir := t.TempDir()
+	unwrittenStatus := writeStatusUnwritten
 	cases := []struct {
 		certDir                   string
 		svidFileName              string
@@ -296,7 +297,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			expectedFileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnwritten,
+				X509WriteStatus: &unwrittenStatus,
 				JWTWriteStatus: map[string]string{
 					path.Join(tmpdir, "jwt_bundle.json"): writeStatusUnwritten,
 					path.Join(tmpdir, "jwt_svid.jwt"):    writeStatusUnwritten,
@@ -311,7 +312,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 			expectedFileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnconfigured,
+				X509WriteStatus: nil,
 				JWTWriteStatus: map[string]string{
 					path.Join(tmpdir, "jwt_svid.jwt"): writeStatusUnwritten,
 				},
@@ -343,7 +344,7 @@ func Test_CheckReadiness(t *testing.T) {
 	sidecar := Sidecar{
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnconfigured,
+				X509WriteStatus: nil,
 			},
 		},
 	}

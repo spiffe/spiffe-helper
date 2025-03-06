@@ -39,12 +39,11 @@ type Health struct {
 }
 
 type FileWriteStatuses struct {
-	X509WriteStatus string            `json:"x509_write_status"`
+	X509WriteStatus *string            `json:"x509_write_status,omitempty"`
 	JWTWriteStatus  map[string]string `json:"jwt_write_status"`
 }
 
 const (
-	writeStatusUnconfigured = "unconfigured"
 	writeStatusUnwritten    = "unwritten"
 	writeStatusFailed       = "failed"
 	writeStatusWritten      = "written"
@@ -52,9 +51,10 @@ const (
 
 // New creates a new SPIFFE sidecar
 func New(config *Config) *Sidecar {
-	x509WriteStatus := writeStatusUnconfigured
+	var x509WriteStatus *string = nil
 	if config.SVIDFileName != "" || config.SVIDKeyFileName != "" || config.SVIDBundleFileName != "" {
-		x509WriteStatus = writeStatusUnwritten
+		writeStatus := writeStatusUnwritten
+		x509WriteStatus = &writeStatus
 	}
 	sidecar := &Sidecar{
 		config:        config,
@@ -206,10 +206,12 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
 	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
-		s.health.FileWriteStatuses.X509WriteStatus = writeStatusFailed
+		writeStatus := writeStatusFailed
+		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 		return
 	}
-	s.health.FileWriteStatuses.X509WriteStatus = writeStatusWritten
+	status := writeStatusWritten
+	s.health.FileWriteStatuses.X509WriteStatus = &status
 	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
@@ -478,7 +480,7 @@ func (s *Sidecar) CheckLiveness() bool {
 			return false
 		}
 	}
-	return s.health.FileWriteStatuses.X509WriteStatus != writeStatusFailed
+	return s.health.FileWriteStatuses.X509WriteStatus != nil && *s.health.FileWriteStatuses.X509WriteStatus != writeStatusFailed
 }
 
 func (s *Sidecar) CheckReadiness() bool {
@@ -487,7 +489,7 @@ func (s *Sidecar) CheckReadiness() bool {
 			return false
 		}
 	}
-	return s.health.FileWriteStatuses.X509WriteStatus == writeStatusWritten || s.health.FileWriteStatuses.X509WriteStatus == writeStatusUnconfigured
+	return (s.health.FileWriteStatuses.X509WriteStatus != nil && *s.health.FileWriteStatuses.X509WriteStatus == writeStatusWritten) || s.health.FileWriteStatuses.X509WriteStatus == nil
 }
 
 func (s *Sidecar) GetHealth() Health {
