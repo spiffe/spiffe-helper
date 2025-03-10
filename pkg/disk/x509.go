@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"time"
 
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
@@ -16,7 +17,7 @@ import (
 // the Workload API, and calls writeCerts and writeKey to write to disk
 // the svid, key and bundle of certificates.
 // It is possible to change output setting `addIntermediatesToBundle` as true.
-func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBundle, includeFederatedDomains bool, certDir, svidFilename, svidKeyFilename, svidBundleFilename string, certFileMode, keyFileMode fs.FileMode, hint string) error {
+func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBundle, includeFederatedDomains, omitExpired bool, certDir, svidFilename, svidKeyFilename, svidBundleFilename string, certFileMode, keyFileMode fs.FileMode, hint string) error {
 	svidFile := path.Join(certDir, svidFilename)
 	svidKeyFile := path.Join(certDir, svidKeyFilename)
 	svidBundleFile := path.Join(certDir, svidBundleFilename)
@@ -57,7 +58,7 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 	}
 
 	// Write cert, key, and bundle to disk
-	if err := writeCerts(svidFile, certs, certFileMode); err != nil {
+	if err := writeCerts(svidFile, certs, certFileMode, omitExpired); err != nil {
 		return err
 	}
 
@@ -65,14 +66,17 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 		return err
 	}
 
-	return writeCerts(svidBundleFile, bundles, certFileMode)
+	return writeCerts(svidBundleFile, bundles, certFileMode, omitExpired)
 }
 
 // writeCerts takes an array of certificates,
 // and encodes them as PEM blocks, writing them to file
-func writeCerts(file string, certs []*x509.Certificate, certFileMode fs.FileMode) error {
+func writeCerts(file string, certs []*x509.Certificate, certFileMode fs.FileMode, omitExpired bool) error {
 	var pemData []byte
 	for _, cert := range certs {
+		if omitExpired && cert.NotAfter.Before(time.Now().UTC()) {
+			continue
+		}
 		b := &pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: cert.Raw,
