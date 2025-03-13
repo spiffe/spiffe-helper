@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 	"time"
 
@@ -190,6 +191,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
+			if testCase.renewSignal != "" && runtime.GOOS == "windows" {
+				t.Skip("Skipping test on Windows because it does not support signals")
+			}
 			sidecar.config.AddIntermediatesToBundle = testCase.intermediateInBundle
 			sidecar.config.RenewSignal = testCase.renewSignal
 			sidecar.config.IncludeFederatedDomains = testCase.federatedDomains
@@ -252,6 +256,61 @@ func TestGetCmdArgs(t *testing.T) {
 			in:          `-flag1 "value 1`,
 			expectedErr: `missing " in quoted-field`,
 		},
+		// Single quotes are not special to the parser
+		{
+			name:         "Single quotes in double quotes",
+			in:           `-c "echo 'hello world'"`,
+			expectedArgs: []string{"-c", "echo 'hello world'"},
+		},
+		{
+			name:         "Unpaired single quote",
+			in:           `echo Mc'Gougall`,
+			expectedArgs: []string{"echo", "Mc'Gougall"},
+		},
+		// Unlike a shell, spiffe-helper will parse this argument
+		// string without considering the single quoted range as a
+		// single argument.
+		{
+			name:         "single quotes do not protect spaces",
+			in:           `-c 'echo hello world'`,
+			expectedArgs: []string{"-c", "'echo", "hello", "world'"},
+		},
+		// Unlike a shell, spiffe-helper double quotes within single quotes
+		// are not protected. In a bourne-like shell, this would parse
+		// as a single argument. A csv-parser sees this as a quoted field
+		// without a following delimiter and will return an error.
+		{
+			name:        "single quotes do not protect spaces",
+			in:          `-c "echo 'hello "cruel" world'"`,
+			expectedErr: `extraneous or missing " in quoted-field`,
+		},
+		// unpaired double quotes inside single quotes will result in a parse error
+		// for the same reason
+		{
+			name:        "unpaired double quotes in single quotes",
+			in:          `-c "echo 'hello "cruel" world'"`,
+			expectedErr: `extraneous or missing " in quoted-field`,
+		},
+		// backslash escaping of double quotes inside argument strings is not supported
+		// by spiffe-helper's parser, and will result in an error not the expected argument
+		// vector [`-c`, `echo "hello world"`]
+		{
+			name:        "Backslash-escaped double quotes in double quotes",
+			in:          `-c "echo \"hello world\""`,
+			expectedErr: `extraneous or missing " in quoted-field`,
+		},
+		// spiffe-helper's parser instead uses quote-pairing for escaping double quotes
+		{
+			name:         "Pair-escaped double quotes in double quotes",
+			in:           `-c "echo ""hello world"""`,
+			expectedArgs: []string{`-c`, `echo "hello world"`},
+		},
+		// The argument vector is not processed for metacharacter expansion
+		{
+			name:         "metacharacters are not special",
+			in:           `$$ $var $* ${var} {{var}} $(var) ${{var}} %VAR% %(var)% ${env:VAR}`,
+			expectedArgs: []string{`$$`, `$var`, `$*`, `${var}`, `{{var}}`, `$(var)`, `${{var}}`, `%VAR%`, `%(var)%`, `${env:VAR}`},
+		},
 	}
 
 	for _, c := range cases {
@@ -268,4 +327,30 @@ func TestGetCmdArgs(t *testing.T) {
 			assert.Equal(t, c.expectedArgs, args)
 		})
 	}
+}
+
+// TestSignalProcess makes sure only one copy of the process is started. It uses a small script that creates a file
+// where the name is the process ID of the script. If more then one file exists, then multiple processes were started
+func TestSignalProcess(t *testing.T) {
+	tempDir := t.TempDir()
+	config := &Config{
+		Cmd:         "./sidecar_test.sh",
+		CmdArgs:     tempDir,
+		RenewSignal: "SIGWINCH",
+	}
+	sidecar := New(config)
+	require.NotNil(t, sidecar)
+
+	// Run signalProcess() twice. The second should only signal the process with SIGWINCH which is basically a no op.
+	err := sidecar.signalProcess()
+	require.NoError(t, err)
+	err = sidecar.signalProcess()
+	require.NoError(t, err)
+
+	// Give the script some time to run
+	time.Sleep(1 * time.Second)
+
+	files, err := os.ReadDir(tempDir)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(files))
 }

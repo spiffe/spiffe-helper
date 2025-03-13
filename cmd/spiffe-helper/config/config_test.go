@@ -57,6 +57,7 @@ func TestValidateConfig(t *testing.T) {
 		name        string
 		config      *Config
 		expectError string
+		skipWindows bool
 	}{
 		{
 			name: "no error",
@@ -140,6 +141,7 @@ func TestValidateConfig(t *testing.T) {
 				SVIDKeyFileName:    "key.pem",
 				SVIDBundleFileName: "bundle.pem",
 			},
+			skipWindows: true,
 		},
 		{
 			// There's no test for 'cmd' and 'renew_signal' set in
@@ -150,6 +152,7 @@ func TestValidateConfig(t *testing.T) {
 				PIDFileName: "pidfile",
 			},
 			expectError: "pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode",
+			skipWindows: true,
 		},
 		{
 			// renew_signal is required if setting a pid_file_name.
@@ -162,6 +165,7 @@ func TestValidateConfig(t *testing.T) {
 				RenewSignal: "",
 			},
 			expectError: "Must specify renew_signal when using pid_file_name",
+			skipWindows: true,
 		},
 		{
 			// A renew_signal is allowed without a pid_file_name
@@ -178,9 +182,13 @@ func TestValidateConfig(t *testing.T) {
 				SVIDKeyFileName:    "key.pem",
 				SVIDBundleFileName: "bundle.pem",
 			},
+			skipWindows: true,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipWindows && os.Getenv("GOOS") == "windows" {
+				t.Skip("skipping test on windows")
+			}
 			log, _ := test.NewNullLogger()
 			err := tt.config.ValidateConfig(log)
 
@@ -258,6 +266,9 @@ func TestDetectsUnknownConfig(t *testing.T) {
 			log, _ := test.NewNullLogger()
 			err = c.ValidateConfig(log)
 			require.EqualError(t, err, tt.expectError)
+
+			err = configFile.Close()
+			require.NoError(t, err)
 		})
 	}
 }
