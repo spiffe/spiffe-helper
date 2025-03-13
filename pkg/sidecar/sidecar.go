@@ -18,7 +18,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"github.com/spiffe/spiffe-helper/pkg/disk"
-	"github.com/spiffe/spire/pkg/common/util"
+	"github.com/spiffe/spiffe-helper/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -12,7 +12,7 @@ import (
 	"github.com/spiffe/spiffe-helper/cmd/spiffe-helper/config"
 	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
-	"github.com/spiffe/spire/pkg/common/util"
+	"github.com/spiffe/spiffe-helper/pkg/util"
 )
 
 const (
