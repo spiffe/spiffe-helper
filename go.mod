@@ -8,8 +8,8 @@ require (
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/sys v0.31.0
 	google.golang.org/grpc v1.71.0
-	k8s.io/apimachinery v0.32.2
-	k8s.io/client-go v0.32.2
+	k8s.io/apimachinery v0.32.3
+	k8s.io/client-go v0.32.3
 )
 
 require (
