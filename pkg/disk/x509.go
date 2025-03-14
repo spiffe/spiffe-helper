@@ -16,10 +16,10 @@ import (
 // the Workload API, and calls writeCerts and writeKey to write to disk
 // the svid, key and bundle of certificates.
 // It is possible to change output setting `addIntermediatesToBundle` as true.
-func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBundle, includeFederatedDomains bool, certDir, svidFilename, svidKeyFilename, svidBundleFilename string, certFileMode, keyFileMode fs.FileMode, hint string) error {
-	svidFile := path.Join(certDir, svidFilename)
-	svidKeyFile := path.Join(certDir, svidKeyFilename)
-	svidBundleFile := path.Join(certDir, svidBundleFilename)
+func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBundle, includeFederatedDomains bool, certDir, svidFileName, svidKeyFileName, svidBundleFileName string, certFileMode, keyFileMode fs.FileMode, hint string) error {
+	svidFile := path.Join(certDir, svidFileName)
+	svidKeyFile := path.Join(certDir, svidKeyFileName)
+	svidBundleFile := path.Join(certDir, svidBundleFileName)
 
 	svid, err := getX509SVID(x509Context, hint)
 	if err != nil {

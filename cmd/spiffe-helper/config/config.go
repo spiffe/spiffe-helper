@@ -51,7 +51,7 @@ type Config struct {
 
 	// JWT configuration
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids"`
-	JWTBundleFilename string      `hcl:"jwt_bundle_file_name"`
+	JWTBundleFileName string      `hcl:"jwt_bundle_file_name"`
 
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
 }
@@ -59,7 +59,7 @@ type Config struct {
 type JWTConfig struct {
 	JWTAudience       string   `hcl:"jwt_audience"`
 	JWTExtraAudiences []string `hcl:"jwt_extra_audiences"`
-	JWTSVIDFilename   string   `hcl:"jwt_svid_file_name"`
+	JWTSVIDFileName   string   `hcl:"jwt_svid_file_name"`
 
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
 }
@@ -103,7 +103,7 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	}
 
 	for _, jwtConfig := range c.JWTSVIDs {
-		if jwtConfig.JWTSVIDFilename == "" {
+		if jwtConfig.JWTSVIDFileName == "" {
 			return errors.New("'jwt_file_name' is required in 'jwt_svids'")
 		}
 		if jwtConfig.JWTAudience == "" {
@@ -234,7 +234,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
 		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
-		JWTBundleFilename:        config.JWTBundleFilename,
+		JWTBundleFileName:        config.JWTBundleFileName,
 		Log:                      log,
 		RenewSignal:              config.RenewSignal,
 		SVIDFileName:             config.SVIDFileName,
@@ -247,7 +247,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
 			JWTAudience:       jwtSVID.JWTAudience,
 			JWTExtraAudiences: jwtSVID.JWTExtraAudiences,
-			JWTSVIDFilename:   jwtSVID.JWTSVIDFilename,
+			JWTSVIDFileName:   jwtSVID.JWTSVIDFileName,
 		})
 	}
 
