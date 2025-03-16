@@ -172,22 +172,31 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			svid := newTestX509SVID(t, s.rootCA)
 			s.MockUpdateX509Certificate(ctx, t, svid)
 
-			// Wait for 'cmd' to run and terminate, the overall test timeout to expire
-			// or the per-command timeout to expire.
+			// Wait for 'cmd' to run and terminate, the overall
+			// test timeout to expire or the per-command timeout to
+			// expire. The per-command timeout is not an error, it
+			// is used to allow a test to check the state of a
+			// command that is still running.
 			var commandDeadline <-chan time.Time
 			if tc.timeout != 0 {
+				// This test wants to examine sidecar state after a short
+				// delay, even if the command has not exited yet.
 				commandDeadline = time.After(tc.timeout)
 			}
 			exited := false
 			var processState os.ProcessState
 			select {
 			case <-commandDeadline:
-				// timeout has expired, check that the state observed at
-				// this moment matches what we're expecting. This isn't
-				// usually an error, we're just checking that the command's
-				// state is consistent with what we expect.
+				// command-specific timeout has expired. Check
+				// that the state observed at this moment
+				// matches what we're expecting. This isn't
+				// usually an error, we're just checking that
+				// the command's state is consistent with what
+				// we expect at some point before the command
+				// exits.
 			case <-ctx.Done():
-				// overall context has expired; this will fail the test.
+				// overall test timeout context has expired;
+				// this will fail the test.
 				// The sidecar channels are not closed to prevent a race
 				// where the sidecar might try to write to the channels
 				// and panic before the test as a whole aborts.
