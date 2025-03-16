@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -54,10 +55,14 @@ type Sidecar struct {
 	// sent to this channel. Mainly for test purposes. Do not close.
 	pidFileSignalledChan chan pidFileSignalledResult
 
-	// stdio to connect to the 'cmd' to run
-	stdin  *os.File
-	stdout *os.File
-	stderr *os.File
+	// stdio to connect to the 'cmd' to run. These are used in tests to
+	// capture and/or redirect I/O from the guest command. In future they
+	// could also be exposed via Config to allow a user of this package to
+	// redirect I/O in custom sidecars. These have the same semantics as
+	// https://pkg.go.dev/os/exec#Cmd
+	stdin  io.Reader
+	stdout io.Writer
+	stderr io.Writer
 }
 
 type Health struct {
@@ -90,6 +95,10 @@ func New(config *Config) *Sidecar {
 				JWTWriteStatus:  make(map[string]string),
 			},
 		},
+		// There's currently no support for controlling stdio
+		// redirection in the spiffe-helper configuration or API, these
+		// are just used in tests that construct Sidecar directly. In
+		// regular use they're always passing through the OS's stdio.
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
@@ -291,9 +300,9 @@ func (s *Sidecar) signalProcess() error {
 		//
 		// If the caller doesn't want it attached, they can close stdin
 		// before forking spiffe-helper, same as stdout and stderr.
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdin = s.stdin
+		cmd.Stdout = s.stdout
+		cmd.Stderr = s.stderr
 		if err := cmd.Start(); err != nil {
 			return fmt.Errorf("error executing process \"%v\": %w", s.config.Cmd, err)
 		}

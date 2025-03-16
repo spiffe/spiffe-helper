@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -50,11 +51,10 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 		// A command to invoke
 		cmd     string
 		cmdArgs string
-		// Should stdio be redirected? nil means the test's stdio
-		// will be passed through.
-		stdin  *os.File
-		stdout *os.File
-		stderr *os.File
+		// Should stdout/error be captured and logged for verbose output only?
+		// The default is to passthrough the OS's stdio to the sidecar's stdio,
+		// but some tests produce "normal errors" we want to suppress.
+		logStdOutErr bool
 		// How long to run 'cmd' before checking results. If a timeout
 		// is set and expectTerminated is false, the command must NOT have
 		// exited before the timeout, so ensure it runs for long enough.
@@ -108,8 +108,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			cmd:     "sh",
 			cmdArgs: "-c \"kill -TERM $$\"",
 			// Suppress the "signal: hangup" from the shell
-			stdout:           nil,
-			stderr:           nil,
+			logStdOutErr:     true,
 			expectTerminated: true,
 			expectSignalExit: syscall.SIGTERM,
 		},
@@ -124,8 +123,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			cmdArgs: "-c 'kill -TERM $$'",
 			// Suppress the "TERM: 1: Syntax error: Unterminated
 			// quoted string" error message from the shell
-			stdout:           nil,
-			stderr:           nil,
+			logStdOutErr:     true,
 			expectTerminated: true,
 			expectExitStatus: 2,
 		},
@@ -150,22 +148,22 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			// writing to unclosed channels.
 			sidecar := s.Sidecar()
 
-			if tc.stdin != nil {
-				sidecar.stdin = tc.stdin
-			}
-			if tc.stdout != nil {
-				sidecar.stdout = tc.stdout
-			}
-			if tc.stderr != nil {
-				sidecar.stderr = tc.stderr
-			}
-
 			// There must be no testfile before the command runs when we're checking
 			// for command side-effects (test-file creation)
 			if tc.expectFileExists != "" {
 				testfile := path.Join(config.CertDir, "testfile")
 				_, err := os.Stat(testfile)
 				require.True(t, os.IsNotExist(err))
+			}
+
+			// Sidecars normally run with OS I/O passthorugh, so tests should
+			// too, unless we're capturing and logging unwanted output.
+			sidecar.stdin = os.Stdin
+			sidecar.stdout = os.Stdout
+			sidecar.stderr = os.Stderr
+			if tc.logStdOutErr {
+				sidecar.stdout = &strings.Builder{}
+				sidecar.stderr = sidecar.stdout
 			}
 
 			t.Logf("invoking cert update for sidecar with cmd %s %s", tc.cmd, tc.cmdArgs)
@@ -235,6 +233,12 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			if tc.expectFileExists != "" {
 				_, err := os.Stat(tc.expectFileExists)
 				require.NoError(t, err)
+			}
+
+			// Consume and log any stdout/stderr. There's no test facility
+			// for making assertions about it yet, or passing stdin.
+			if tc.logStdOutErr {
+				t.Logf("stdout/stderr: %s", sidecar.stdout.(*strings.Builder).String())
 			}
 
 			// If a process was left running the sidecar will still
