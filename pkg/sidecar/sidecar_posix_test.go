@@ -296,9 +296,14 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		require.NoError(t, ctx.Err())
 	case <-sidecar.cmdExitChan:
 		require.Fail(t, "command should not have exited")
+	case forwardedSignal := <-sigListener:
+		// No signal should be delivered on the first iteration, since the
+		// helper was just launched.
+		require.Fail(t, "unexpected signal %s", SignalName(forwardedSignal.(syscall.Signal)))
 	case <-time.After(100 * time.Millisecond):
-		// We should have received a signal by now if we were going to
-		// so all is well
+		// We didn't get a signal within a reasonable period. None was expected,
+		// so this indicates success, and we can proceed.
+		t.Logf("no signal received (expected)")
 	}
 
 	// Now we'll rotate the certs a few times and check that the process is still
