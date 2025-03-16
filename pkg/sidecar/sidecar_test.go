@@ -131,10 +131,6 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 	for _, tc := range testcases {
 		tc := tc
 		t.Run(tc.cmd, func(t *testing.T) {
-			if runtime.GOOS == "windows" && tc.expectSignalExit != 0 {
-				t.Skip("Signal handling is not supported on Windows")
-			}
-
 			// Set up the harness for this sidecar command run
 			s := newSidecarTest(t)
 			s.NewConfig(t)
