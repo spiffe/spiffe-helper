@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	jwtBundleFilename = "jwt_bundle.json"
-	jwtSVIDFilename   = "jwt.json"
+	jwtBundleFileName = "jwt_bundle.json"
+	jwtSVIDFileName   = "jwt.json"
 	jwtBundleFileMode = fs.FileMode(0600)
 	jwtSVIDFileMode   = fs.FileMode(0600)
 )
@@ -37,10 +37,10 @@ func TestWriteJWTBundleSet(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	err := WriteJWTBundleSet(jwtBundleSet, tempDir, jwtBundleFilename, jwtBundleFileMode)
+	err := WriteJWTBundleSet(jwtBundleSet, tempDir, jwtBundleFileName, jwtBundleFileMode)
 	require.NoError(t, err)
 
-	actualJWTBundle, err := jwtbundle.Load(td, path.Join(tempDir, jwtBundleFilename))
+	actualJWTBundle, err := jwtbundle.Load(td, path.Join(tempDir, jwtBundleFileName))
 	require.NoError(t, err)
 	require.Equal(t, jwtBundle, actualJWTBundle)
 }
@@ -70,11 +70,11 @@ func TestWriteJWTSVIDNoHint(t *testing.T) {
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, "")
+	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFileName, jwtSVIDFileMode, "")
 	require.NoError(t, err)
 
 	// Read back and check it's the same
-	actualToken, err := os.ReadFile(path.Join(tempDir, jwtSVIDFilename))
+	actualToken, err := os.ReadFile(path.Join(tempDir, jwtSVIDFileName))
 	require.NoError(t, err)
 	require.Equal(t, token, string(actualToken))
 }
@@ -120,11 +120,11 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, "other")
+	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFileName, jwtSVIDFileMode, "other")
 	require.NoError(t, err)
 
 	// Read back and check it's the same
-	actualToken, err := os.ReadFile(path.Join(tempDir, jwtSVIDFilename))
+	actualToken, err := os.ReadFile(path.Join(tempDir, jwtSVIDFileName))
 	require.NoError(t, err)
 	require.Equal(t, token, string(actualToken))
 }
