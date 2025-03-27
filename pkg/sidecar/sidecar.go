@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,6 +18,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"github.com/spiffe/spiffe-helper/pkg/disk"
+	"github.com/spiffe/spiffe-helper/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -76,8 +78,6 @@ func New(config *Config) *Sidecar {
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	var wg sync.WaitGroup
-
 	if err := s.setupClients(ctx); err != nil {
 		return err
 	}
@@ -88,44 +88,28 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		defer s.jwtSource.Close()
 	}
 
+	var tasks []func(context.Context) error
+
 	if s.x509Enabled() {
 		s.config.Log.Info("Watching for X509 Context")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := s.client.WatchX509Context(ctx, &x509Watcher{sidecar: s})
-			if err != nil && status.Code(err) != codes.Canceled {
-				s.config.Log.Fatalf("Error watching X.509 context: %v", err)
-			}
-		}()
+		tasks = append(tasks, s.watchX509Context)
 	}
 
 	if s.jwtBundleEnabled() {
 		s.config.Log.Info("Watching for JWT Bundles")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := s.client.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s})
-			if err != nil && status.Code(err) != codes.Canceled {
-				s.config.Log.Fatalf("Error watching JWT bundle updates: %v", err)
-			}
-		}()
+		tasks = append(tasks, s.watchJWTBundles)
 	}
 
 	if s.jwtSVIDsEnabled() {
-		for _, jwtConfig := range s.config.JWTSVIDs {
-			jwtConfig := jwtConfig
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTExtraAudiences, jwtConfig.JWTSVIDFilename)
-			}()
-		}
+		tasks = append(tasks, s.watchJWTSVIDs)
 	}
 
-	wg.Wait()
+	err := util.RunTasks(ctx, tasks...)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return nil
+	}
 
-	return nil
+	return err
 }
 
 func (s *Sidecar) Run(ctx context.Context) error {
