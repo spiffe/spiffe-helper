@@ -131,17 +131,14 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 		tc := tc
 		t.Run(tc.cmd, func(t *testing.T) {
 			// Set up the harness for this sidecar command run
-			s := newSidecarTest(t)
-			s.NewConfig(t)
-			config := s.Config()
-			config.Cmd = tc.cmd
-			config.CmdArgs = tc.cmdArgs
-
-			s.NewSidecar(t)
-			// deliberately does not defer s.Close() since we might be abandoning
+			// Deliberately does not defer s.Close() since we might be abandoning
 			// the sidecar when it is still running a command, and don't want panics
 			// writing to unclosed channels.
-			sidecar := s.Sidecar()
+			s := newSidecarTest(t)
+
+			config := s.sidecar.config
+			config.Cmd = tc.cmd
+			config.CmdArgs = tc.cmdArgs
 
 			// There must be no testfile before the command runs when we're checking
 			// for command side-effects (test-file creation)
@@ -153,12 +150,12 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 
 			// Sidecars normally run with OS I/O passthorugh, so tests should
 			// too, unless we're capturing and logging unwanted output.
-			sidecar.stdin = os.Stdin
-			sidecar.stdout = os.Stdout
-			sidecar.stderr = os.Stderr
+			s.sidecar.stdin = os.Stdin
+			s.sidecar.stdout = os.Stdout
+			s.sidecar.stderr = os.Stderr
 			if tc.logStdOutErr {
-				sidecar.stdout = &strings.Builder{}
-				sidecar.stderr = sidecar.stdout
+				s.sidecar.stdout = &strings.Builder{}
+				s.sidecar.stderr = s.sidecar.stdout
 			}
 
 			t.Logf("invoking cert update for sidecar with cmd %s %s", tc.cmd, tc.cmdArgs)
@@ -214,7 +211,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			// running.
 			if tc.expectTerminated {
 				// Sidecar monitor must agree it has exited
-				require.Equal(t, false, sidecar.processRunning)
+				require.Equal(t, false, s.sidecar.processRunning)
 				if tc.expectSignalExit > 0 {
 					// Does this need to be in a separate
 					// abstraction with a build guard for
@@ -230,7 +227,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 				// running. Make sure you allow enough time for
 				// the launched process to keep running before
 				// the test ends.
-				require.Equal(t, true, sidecar.processRunning)
+				require.Equal(t, true, s.sidecar.processRunning)
 			}
 
 			// The test file must have been created if expected
@@ -242,7 +239,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			// Consume and log any stdout/stderr. There's no test facility
 			// for making assertions about it yet, or passing stdin.
 			if tc.logStdOutErr {
-				t.Logf("stdout/stderr: %s", sidecar.stdout.(*strings.Builder).String())
+				t.Logf("stdout/stderr: %s", s.sidecar.stdout.(*strings.Builder).String())
 			}
 
 			// If a process was left running the sidecar will still
@@ -270,8 +267,9 @@ func TestSidecar_TestCmdRunsRelaunchShortlived(t *testing.T) {
 	defer cancel()
 
 	s := newSidecarTest(t)
-	s.NewConfig(t)
-	config := s.Config()
+	defer s.Close(t)
+
+	config := s.sidecar.config
 	if runtime.GOOS == "windows" {
 		config.Cmd = "cmd"
 		config.CmdArgs = "/c echo hello"
@@ -280,14 +278,10 @@ func TestSidecar_TestCmdRunsRelaunchShortlived(t *testing.T) {
 		config.CmdArgs = "hello"
 	}
 
-	s.NewSidecar(t)
-	sidecar := s.Sidecar()
-	defer s.Close(t)
-
 	var pid int
 	for range 3 {
-		if sidecar.process != nil {
-			pid = sidecar.process.Pid
+		if s.sidecar.process != nil {
+			pid = s.sidecar.process.Pid
 		}
 
 		svid := newTestX509SVID(t, s.rootCA)
@@ -300,8 +294,8 @@ func TestSidecar_TestCmdRunsRelaunchShortlived(t *testing.T) {
 		case <-s.cmdExitChan:
 		}
 
-		require.Equal(t, false, sidecar.processRunning)
-		require.NotEqual(t, pid, sidecar.process.Pid)
+		require.Equal(t, false, s.sidecar.processRunning)
+		require.NotEqual(t, pid, s.sidecar.process.Pid)
 	}
 }
 
@@ -449,22 +443,21 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			if testCase.renewSignal != "" && runtime.GOOS == "windows" {
 				t.Skip("Skipping test on Windows because it does not support signals")
 			}
+
 			s := newSidecarTest(t)
-			s.NewConfig(t)
-			s.Config().AddIntermediatesToBundle = testCase.intermediateInBundle
-			s.Config().RenewSignal = testCase.renewSignal
-			s.Config().IncludeFederatedDomains = testCase.federatedDomains
-			s.NewSidecar(t)
 			defer s.Close(t)
 
-			svidFile := path.Join(s.config.CertDir, s.config.SVIDFileName)
-			svidKeyFile := path.Join(s.config.CertDir, s.config.SVIDKeyFileName)
-			svidBundleFile := path.Join(s.config.CertDir, s.config.SVIDBundleFileName)
+			config := s.sidecar.config
+			config.AddIntermediatesToBundle = testCase.intermediateInBundle
+			config.RenewSignal = testCase.renewSignal
+			config.IncludeFederatedDomains = testCase.federatedDomains
 
-			w := x509Watcher{sidecar: s.Sidecar()}
+			svidFile := path.Join(config.CertDir, config.SVIDFileName)
+			svidKeyFile := path.Join(config.CertDir, config.SVIDKeyFileName)
+			svidBundleFile := path.Join(config.CertDir, config.SVIDBundleFileName)
 
 			// Push response to start updating process
-			w.OnX509ContextUpdate(testCase.response)
+			s.watcher.OnX509ContextUpdate(testCase.response)
 
 			// Wait until response is processed
 			select {
@@ -600,25 +593,23 @@ func TestSignalProcessWithScript(t *testing.T) {
 		// ID and tests if just one exists, but for now we'll skip it.
 		t.Skip("Skipping tests that invoke unix shell commands on Windows")
 	}
-	tempDir := t.TempDir()
 	s := newSidecarTest(t)
-	s.NewConfig(t)
-	s.Config().Cmd = "./sidecar_test.sh"
-	s.Config().CmdArgs = tempDir
-	s.Config().RenewSignal = "SIGWINCH"
-	s.NewSidecar(t)
-	require.NotNil(t, s.Sidecar())
+	require.NotNil(t, s.sidecar)
+
+	s.sidecar.config.Cmd = "./sidecar_test.sh"
+	s.sidecar.config.CmdArgs = s.sidecar.config.CertDir
+	s.sidecar.config.RenewSignal = "SIGWINCH"
 
 	// Run signalProcess() twice. The second should only signal the process with SIGWINCH which is basically a no op.
-	err := s.Sidecar().signalProcess()
+	err := s.sidecar.signalProcess()
 	require.NoError(t, err)
-	err = s.Sidecar().signalProcess()
+	err = s.sidecar.signalProcess()
 	require.NoError(t, err)
 
 	// Give the script some time to run
 	time.Sleep(1 * time.Second)
 
-	files, err := os.ReadDir(tempDir)
+	files, err := os.ReadDir(s.sidecar.config.CertDir)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(files))
 }

@@ -11,7 +11,6 @@ package sidecar
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"path"
@@ -153,16 +152,13 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 			}
 
 			// Set up the harness for this sidecar with the pid file
+			// Deliberately does not defer s.Close() since we might be abandoning
+			// the sidecar when it is still running a command
 			s := newSidecarTest(t)
-			s.NewConfig(t)
-			config := s.Config()
+
+			config := s.sidecar.config
 			config.PIDFileName = pidfile
 			config.RenewSignal = SignalName(tc.signal)
-			s.NewSidecar(t)
-			// deliberately does not defer s.Close() since we might be abandoning
-			// the sidecar when it is still running a command
-
-			t.Logf("invoking cert update for sidecar with pid_file_name %s", config.PIDFileName)
 
 			// Fake the workload api server issuing a new SVID. This will also
 			// check that the cert was round-tripped, but it doesn't check that
@@ -245,20 +241,15 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 	defer cancel()
 
 	s := newSidecarTest(t)
-	s.NewConfig(t)
-	config := s.Config()
+	defer s.Close(t)
+
 	// Run a helper command that sleeps until signalled with SIGUSR1 then forwards
 	// the signal to the specified pid (this test process). It runs as an alternate
 	// mode of this test executable; see TestMain
+	config := s.sidecar.config
 	config.Cmd = os.Args[0]
 	config.CmdArgs = fmt.Sprintf("%s %s %d", SignalHelperArg, SignalName(testsig), os.Getpid())
 	config.RenewSignal = SignalName(testsig)
-
-	log.Printf("will run: %+v", config)
-
-	s.NewSidecar(t)
-	sidecar := s.Sidecar()
-	defer s.Close(t)
 
 	// Listen for the signal we're going to send to the test helper, so we know when
 	// it gets forwarded to us
@@ -274,9 +265,9 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 	// It takes a moment for the test process to start up. We don't currently
 	// send a channel event for this, so we'll just busy-wait for the process
 	for {
-		sidecar.mu.Lock()
-		running := sidecar.processRunning
-		sidecar.mu.Unlock()
+		s.sidecar.mu.Lock()
+		running := s.sidecar.processRunning
+		s.sidecar.mu.Unlock()
 		if running {
 			break
 		}
@@ -285,8 +276,8 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	require.Equal(t, true, sidecar.processRunning)
-	firstPid := sidecar.process.Pid
+	require.Equal(t, true, s.sidecar.processRunning)
+	firstPid := s.sidecar.process.Pid
 	fmt.Printf("sidecar process running: %d\n", firstPid)
 
 	// There should be no signal sent to the test helper on the first iteration
@@ -314,7 +305,7 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		s.MockUpdateX509Certificate(ctx, t, svid)
 
 		// Command is still running
-		require.Equal(t, true, sidecar.processRunning)
+		require.Equal(t, true, s.sidecar.processRunning)
 
 		// On the second or later iteration, we should have received a signal
 		// from the test helper. No signal is delivered on the first iteration
@@ -337,13 +328,13 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		}
 
 		// Command started and is still running
-		require.Equal(t, true, sidecar.processRunning)
+		require.Equal(t, true, s.sidecar.processRunning)
 
 		if firstPid == -1 {
-			firstPid = sidecar.process.Pid
+			firstPid = s.sidecar.process.Pid
 		} else {
 			// Pid does not change between iterations
-			require.Equal(t, firstPid, sidecar.process.Pid)
+			require.Equal(t, firstPid, s.sidecar.process.Pid)
 		}
 
 		// Ensure there's enough time between cert updates to be sure we don't
@@ -353,5 +344,5 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 
 	// Terminate the signal helper so the goroutine monitoring it doesn't wait
 	// for it to time out. There's no need to wait here, the test is done.
-	require.NoError(t, sidecar.process.Signal(syscall.SIGTERM))
+	require.NoError(t, s.sidecar.process.Signal(syscall.SIGTERM))
 }

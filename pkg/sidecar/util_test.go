@@ -37,7 +37,6 @@ type pidFileSignalledResult struct {
 // Each should be used for one sidecar instance only, then disposed.
 type sidecarTest struct {
 	rootCA  *spiffetest.CA
-	config  *Config
 	sidecar *Sidecar
 	watcher *x509Watcher
 
@@ -57,97 +56,49 @@ type sidecarTest struct {
 // MockUpdateX509Certificate to simulate the workload API server sending a
 // response.
 func newSidecarTest(t *testing.T) *sidecarTest {
-	return &sidecarTest{
+	log, _ := test.NewNullLogger()
+	s := &sidecarTest{
 		rootCA: spiffetest.NewCA(t),
+
+		sidecar: New(&Config{
+			Cmd:                "echo",
+			CertDir:            t.TempDir(),
+			SVIDFileName:       "svid.pem",
+			SVIDKeyFileName:    "svid_key.pem",
+			SVIDBundleFileName: "svid_bundle.pem",
+			Log:                log,
+			CertFileMode:       os.FileMode(0644),
+			KeyFileMode:        os.FileMode(0600),
+			JWTBundleFileMode:  os.FileMode(0600),
+			JWTSVIDFileMode:    os.FileMode(0600),
+		}),
 
 		// Observers for internal state	transitions
 		cmdExitChan:          make(chan os.ProcessState, 2),
 		pidFileSignalledChan: make(chan pidFileSignalledResult, 2),
 		certReadyChan:        make(chan *workloadapi.X509Context, 2),
 	}
-}
 
-// This only supports x509 for now, should be updated to support
-// JWT too like RunDaemon. Probably helpers to inject configs for each
-// of x509, jwt, etc, since we can support combos of them. Then the
-// NewSidecar can check what is enabled.
-func (s *sidecarTest) NewConfig(t *testing.T) {
-	if s.config != nil {
-		panic("reuse of sidecarTest instance, config already exists")
-	}
-	tmpdir := t.TempDir()
-	log, _ := test.NewNullLogger()
-	s.config = &Config{
-		Cmd:                "echo",
-		CertDir:            tmpdir,
-		SVIDFileName:       "svid.pem",
-		SVIDKeyFileName:    "svid_key.pem",
-		SVIDBundleFileName: "svid_bundle.pem",
-		Log:                log,
-		CertFileMode:       os.FileMode(0644),
-		KeyFileMode:        os.FileMode(0600),
-		JWTBundleFileMode:  os.FileMode(0600),
-		JWTSVIDFileMode:    os.FileMode(0600),
-	}
-}
-
-// Create a new sidecar instance for testing.
-func (s *sidecarTest) NewSidecar(_ *testing.T) {
-	if s.config == nil {
-		panic("cannot create test sidecar without a config")
-	}
-	if s.sidecar != nil {
-		panic("reuse of sidecarTest instance, sidecar already exists")
-	}
-	s.sidecar = &Sidecar{
-		config: s.config,
-		health: Health{
-			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnwritten,
-				JWTWriteStatus:  make(map[string]string),
-			},
+	s.sidecar.hooks = hooks{
+		certReady: func(svids *workloadapi.X509Context) {
+			select {
+			case s.certReadyChan <- svids:
+			default:
+			}
 		},
-
-		hooks: hooks{
-			certReady: func(svids *workloadapi.X509Context) {
-				select {
-				case s.certReadyChan <- svids:
-				default:
-				}
-			},
-			cmdExit: func(state os.ProcessState) {
-				s.cmdExitChan <- state
-			},
-			pidFileSignalled: func(pid int, err error) {
-				s.pidFileSignalledChan <- pidFileSignalledResult{
-					pid: pid,
-					err: err,
-				}
-			},
+		cmdExit: func(state os.ProcessState) {
+			s.cmdExitChan <- state
+		},
+		pidFileSignalled: func(pid int, err error) {
+			s.pidFileSignalledChan <- pidFileSignalledResult{
+				pid: pid,
+				err: err,
+			}
 		},
 	}
 	s.watcher = &x509Watcher{s.sidecar}
-}
 
-func (s *sidecarTest) Config() *Config {
-	if s.config == nil {
-		panic("sidecarTest instance has no config")
-	}
-	return s.config
-}
-
-func (s *sidecarTest) Sidecar() *Sidecar {
-	if s.sidecar == nil {
-		panic("sidecarTest instance has no sidecar")
-	}
-	return s.sidecar
-}
-
-func (s *sidecarTest) Watcher() *x509Watcher {
-	if s.watcher == nil {
-		panic("sidecarTest instance has no watcher")
-	}
-	return s.watcher
+	return s
 }
 
 // Clean up the sidecar instance. Its channels will orphaned for the GC to
