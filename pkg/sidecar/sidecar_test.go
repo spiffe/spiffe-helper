@@ -1,9 +1,5 @@
 package sidecar
 
-/*
- * Test suite for common sidecar functionality
- */
-
 import (
 	"context"
 	"crypto"
@@ -128,7 +124,6 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 		},
 	}
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.cmd, func(t *testing.T) {
 			// Set up the harness for this sidecar command run
 			// Deliberately does not defer s.Close() since we might be abandoning
