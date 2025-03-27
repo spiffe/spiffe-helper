@@ -68,9 +68,9 @@ func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
 	}
 
 	err := util.RunTasks(ctx, tasks...)
-	if err != nil && !errors.Is(err, context.Canceled) {
-		return err
+	if errors.Is(err, context.Canceled) {
+		return nil
 	}
 
-	return nil
+	return err
 }
