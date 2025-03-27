@@ -54,30 +54,32 @@ const (
 
 // New creates a new SPIFFE sidecar
 func New(config *Config) *Sidecar {
-	var x509WriteStatus *string
-	if config.SVIDFileName != "" || config.SVIDKeyFileName != "" || config.SVIDBundleFileName != "" {
-		writeStatus := writeStatusUnwritten
-		x509WriteStatus = &writeStatus
-	}
 	sidecar := &Sidecar{
 		config:        config,
 		certReadyChan: make(chan struct{}, 1),
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: x509WriteStatus,
-				JWTWriteStatus:  make(map[string]string),
+				JWTWriteStatus: make(map[string]string),
 			},
 		},
 	}
-	for _, jwtConfig := range config.JWTSVIDs {
-		jwtSVIDFilename := path.Join(config.CertDir, jwtConfig.JWTSVIDFilename)
-		sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
-	}
-	if config.JWTBundleFilename != "" {
-		jwtBundleFilePath := path.Join(config.CertDir, config.JWTBundleFilename)
-		sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
-	}
+	sidecar.setupHealth()
 	return sidecar
+}
+
+func (s *Sidecar) setupHealth() {
+	if s.x509Enabled() {
+		writeStatus := writeStatusUnwritten
+		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
+	}
+	if s.jwtBundleEnabled() {
+		jwtBundleFilePath := path.Join(s.config.CertDir, s.config.JWTBundleFilename)
+		s.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+	}
+	for _, jwtConfig := range s.config.JWTSVIDs {
+		jwtSVIDFilename := path.Join(s.config.CertDir, jwtConfig.JWTSVIDFilename)
+		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
+	}
 }
 
 // RunDaemon starts the main loop
