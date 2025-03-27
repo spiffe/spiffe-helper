@@ -106,10 +106,10 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 
 	err := util.RunTasks(ctx, tasks...)
 	if err != nil && !errors.Is(err, context.Canceled) {
-		return err
+		return nil
 	}
 
-	return nil
+	return err
 }
 
 func (s *Sidecar) Run(ctx context.Context) error {
