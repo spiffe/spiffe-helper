@@ -28,21 +28,21 @@ const (
 )
 
 type Config struct {
-	AddIntermediatesToBundle bool               `hcl:"add_intermediates_to_bundle"`
-	AgentAddress             string             `hcl:"agent_address"`
-	Cmd                      string             `hcl:"cmd"`
-	CmdArgs                  string             `hcl:"cmd_args"`
-	PIDFileName              string             `hcl:"pid_file_name"`
-	CertDir                  string             `hcl:"cert_dir"`
-	CertFileMode             int                `hcl:"cert_file_mode"`
-	KeyFileMode              int                `hcl:"key_file_mode"`
-	JWTBundleFileMode        int                `hcl:"jwt_bundle_file_mode"`
-	JWTSVIDFileMode          int                `hcl:"jwt_svid_file_mode"`
-	IncludeFederatedDomains  bool               `hcl:"include_federated_domains"`
-	RenewSignal              string             `hcl:"renew_signal"`
-	DaemonMode               *bool              `hcl:"daemon_mode"`
-	HealthCheck              health.CheckConfig `hcl:"health_checks"`
-	Hint                     string             `hcl:"hint"`
+	AddIntermediatesToBundle bool          `hcl:"add_intermediates_to_bundle"`
+	AgentAddress             string        `hcl:"agent_address"`
+	Cmd                      string        `hcl:"cmd"`
+	CmdArgs                  string        `hcl:"cmd_args"`
+	PIDFileName              string        `hcl:"pid_file_name"`
+	CertDir                  string        `hcl:"cert_dir"`
+	CertFileMode             int           `hcl:"cert_file_mode"`
+	KeyFileMode              int           `hcl:"key_file_mode"`
+	JWTBundleFileMode        int           `hcl:"jwt_bundle_file_mode"`
+	JWTSVIDFileMode          int           `hcl:"jwt_svid_file_mode"`
+	IncludeFederatedDomains  bool          `hcl:"include_federated_domains"`
+	RenewSignal              string        `hcl:"renew_signal"`
+	DaemonMode               *bool         `hcl:"daemon_mode"`
+	HealthCheck              health.Config `hcl:"health_checks"`
+	Hint                     string        `hcl:"hint"`
 
 	// x509 configuration
 	SVIDFileName       string `hcl:"svid_file_name"`
