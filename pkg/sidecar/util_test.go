@@ -26,6 +26,13 @@ const (
 	exampleSpiffeID = "spiffe://example.test/workload"
 )
 
+// Whenever an attempt is made to signal pid_file_name, the outcome is sent
+// in messages on a channel with this type. Mainly for test purposes.
+type pidFileSignalledResult struct {
+	pid int
+	err error
+}
+
 // sidecarTest is a helper struct to create a sidecar instance for testing.
 // Each should be used for one sidecar instance only, then disposed.
 type sidecarTest struct {
@@ -33,6 +40,15 @@ type sidecarTest struct {
 	config  *Config
 	sidecar *Sidecar
 	watcher *x509Watcher
+
+	// Channel for receiving process exit states
+	cmdExitChan chan os.ProcessState
+
+	// Channel for receiving certificate updates
+	certReadyChan chan *workloadapi.X509Context
+
+	// Channel for receiving PID file signalling results
+	pidFileSignalledChan chan pidFileSignalledResult
 }
 
 // Create a new sidecar test instance. It needs to be configured
@@ -43,6 +59,11 @@ type sidecarTest struct {
 func newSidecarTest(t *testing.T) *sidecarTest {
 	return &sidecarTest{
 		rootCA: spiffetest.NewCA(t),
+
+		// Observers for internal state	transitions
+		cmdExitChan:          make(chan os.ProcessState, 2),
+		pidFileSignalledChan: make(chan pidFileSignalledResult, 2),
+		certReadyChan:        make(chan *workloadapi.X509Context, 2),
 	}
 }
 
@@ -79,17 +100,31 @@ func (s *sidecarTest) NewSidecar(_ *testing.T) {
 		panic("reuse of sidecarTest instance, sidecar already exists")
 	}
 	s.sidecar = &Sidecar{
-		config:        s.config,
-		certReadyChan: make(chan *workloadapi.X509Context, 2),
+		config: s.config,
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
 				X509WriteStatus: writeStatusUnwritten,
 				JWTWriteStatus:  make(map[string]string),
 			},
 		},
-		// Observers for internal state	transitions
-		cmdExitChan:          make(chan os.ProcessState, 2),
-		pidFileSignalledChan: make(chan pidFileSignalledResult, 2),
+
+		hooks: hooks{
+			certReady: func(svids *workloadapi.X509Context) {
+				select {
+				case s.certReadyChan <- svids:
+				default:
+				}
+			},
+			cmdExit: func(state os.ProcessState) {
+				s.cmdExitChan <- state
+			},
+			pidFileSignalled: func(pid int, err error) {
+				s.pidFileSignalledChan <- pidFileSignalledResult{
+					pid: pid,
+					err: err,
+				}
+			},
+		},
 	}
 	s.watcher = &x509Watcher{s.sidecar}
 }
@@ -138,7 +173,7 @@ func (s *sidecarTest) MockUpdateX509Certificate(ctx context.Context, t *testing.
 	// and wait for the sidecar to process it
 	for {
 		select {
-		case x509Context := <-s.sidecar.CertReadyChan():
+		case x509Context := <-s.certReadyChan:
 			// We must get the same context back as what we sent.
 			// We don't expect to be testing chains of multiple
 			// server responses here and the channel only has a 1

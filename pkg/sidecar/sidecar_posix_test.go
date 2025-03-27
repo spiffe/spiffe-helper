@@ -159,7 +159,6 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 			config.PIDFileName = pidfile
 			config.RenewSignal = SignalName(tc.signal)
 			s.NewSidecar(t)
-			sidecar := s.Sidecar()
 			// deliberately does not defer s.Close() since we might be abandoning
 			// the sidecar when it is still running a command
 
@@ -180,7 +179,7 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 				// overall context has expired; this will fail the test.
 				require.NoError(t, ctx.Err())
 				return
-			case pidFileResult = <-sidecar.pidFileSignalledChan:
+			case pidFileResult = <-s.pidFileSignalledChan:
 				t.Logf("sidecar reports it sent a signal: %+v", pidFileResult)
 			}
 
@@ -196,7 +195,7 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 					// overall context has expired; this will fail the test.
 					require.NoError(t, ctx.Err())
 					return
-				case pidFileResult = <-sidecar.pidFileSignalledChan:
+				case pidFileResult = <-s.pidFileSignalledChan:
 					t.Logf("sidecar reports it sent a signal: %+v", pidFileResult)
 					require.Fail(t, "should not have signalled, since we don't retry signals")
 				case <-time.After(200 * time.Millisecond):
@@ -210,7 +209,7 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 				case <-ctx.Done():
 					require.NoError(t, ctx.Err())
 					return
-				case pidFileResult = <-sidecar.pidFileSignalledChan:
+				case pidFileResult = <-s.pidFileSignalledChan:
 					t.Logf("sidecar reports it sent a signal: %+v", pidFileResult)
 					require.NoError(t, pidFileResult.err)
 				}
@@ -294,7 +293,7 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 	select {
 	case <-ctx.Done():
 		require.NoError(t, ctx.Err())
-	case <-sidecar.cmdExitChan:
+	case <-s.cmdExitChan:
 		require.Fail(t, "command should not have exited")
 	case forwardedSignal := <-sigListener:
 		// No signal should be delivered on the first iteration, since the
@@ -324,7 +323,7 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
-		case <-sidecar.cmdExitChan:
+		case <-s.cmdExitChan:
 			// we should never get an exit status report, since the
 			// proc should still be running
 			require.Fail(t, "command should not have exited")

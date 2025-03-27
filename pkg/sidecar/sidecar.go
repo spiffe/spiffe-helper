@@ -22,11 +22,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Whenever an attempt is made to signal pid_file_name, the outcome is sent
-// in messages on a channel with this type. Mainly for test purposes.
-type pidFileSignalledResult struct {
-	pid int
-	err error
+// Event hooks used by unit tests to coordinate goroutines
+type hooks struct {
+	certReady        func(svids *workloadapi.X509Context)
+	cmdExit          func(os.ProcessState)
+	pidFileSignalled func(pid int, err error)
 }
 
 // Sidecar is the component that consumes the Workload API and renews certs
@@ -43,18 +43,6 @@ type Sidecar struct {
 	// Health server
 	health Health
 
-	// When a new x.509 SVID is received, it is sent to this channel. Mainly
-	// for test purposes. Do not close.
-	certReadyChan chan *workloadapi.X509Context
-
-	// When 'cmd' exits and wait() returns, the exit status is sent to this
-	// channel. Mainly for test purposes. Do not close.
-	cmdExitChan chan os.ProcessState
-
-	// When the process is signaled to reload certificates the outcome is
-	// sent to this channel. Mainly for test purposes. Do not close.
-	pidFileSignalledChan chan pidFileSignalledResult
-
 	// stdio to connect to the 'cmd' to run. These are used in tests to
 	// capture and/or redirect I/O from the guest command. In future they
 	// could also be exposed via Config to allow a user of this package to
@@ -63,6 +51,9 @@ type Sidecar struct {
 	stdin  io.Reader
 	stdout io.Writer
 	stderr io.Writer
+
+	// Used for synchronization in unit tests
+	hooks hooks
 }
 
 type Health struct {
@@ -86,9 +77,8 @@ func New(config *Config) *Sidecar {
 	// crash here if Log is nil, not when we're trying to report an error
 	// later.
 	config.Log.Debug("Creating new sidecar")
-	sidecar := &Sidecar{
-		config:        config,
-		certReadyChan: make(chan *workloadapi.X509Context, 1),
+	s := &Sidecar{
+		config: config,
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
 				X509WriteStatus: writeStatusUnwritten,
@@ -102,14 +92,22 @@ func New(config *Config) *Sidecar {
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
+
+		// Initialize hooks with noop functions
+		hooks: hooks{
+			certReady:        func(*workloadapi.X509Context) {},
+			cmdExit:          func(os.ProcessState) {},
+			pidFileSignalled: func(int, error) {},
+		},
 	}
+
 	for _, jwtConfig := range config.JWTSVIDs {
 		jwtSVIDFilename := path.Join(config.CertDir, jwtConfig.JWTSVIDFilename)
-		sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
+		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
 	}
 	jwtBundleFilePath := path.Join(config.CertDir, config.JWTBundleFilename)
-	sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
-	return sidecar
+	s.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+	return s
 }
 
 // RunDaemon starts the main loop
@@ -210,11 +208,6 @@ func (s *Sidecar) Run(ctx context.Context) error {
 	return nil
 }
 
-// CertReadyChan returns a channel to know when the certificates are ready
-func (s *Sidecar) CertReadyChan() <-chan *workloadapi.X509Context {
-	return s.certReadyChan
-}
-
 // setupClients create the necessary workloadapi clients
 func (s *Sidecar) setupClients(ctx context.Context) error {
 	if s.x509Enabled() || s.jwtBundleEnabled() {
@@ -266,10 +259,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		}
 	}
 
-	select {
-	case s.certReadyChan <- svidResponse:
-	default:
-	}
+	s.hooks.certReady(svidResponse)
 }
 
 // signalProcessCMD sends the renew signal to the process or starts it if its first time
@@ -338,10 +328,7 @@ func (s *Sidecar) signalPID() error {
 
 		return pid, SignalProcess(pidProcess, s.config.RenewSignal)
 	}()
-	// Allow tests to observe the outcome of signalling the pid file
-	if s.pidFileSignalledChan != nil {
-		s.pidFileSignalledChan <- pidFileSignalledResult{pid: pid, err: err}
-	}
+	s.hooks.pidFileSignalled(pid, err)
 	return err
 }
 
@@ -370,11 +357,7 @@ func (s *Sidecar) checkProcessExit() {
 		s.config.Log.Errorf("error waiting for process exit: %v", err)
 	}
 
-	// Notify any listener that the process has exited. Channel must not be
-	// closed once created.
-	if s.cmdExitChan != nil {
-		s.cmdExitChan <- *state
-	}
+	s.hooks.cmdExit(*state)
 
 	s.mu.Lock()
 	s.processRunning = false

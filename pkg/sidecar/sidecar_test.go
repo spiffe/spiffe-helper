@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spiffe/go-spiffe/v2/bundle/x509bundle"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
@@ -202,7 +201,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 				// and panic before the test as a whole aborts.
 				require.NoError(t, ctx.Err())
 				return
-			case processState = <-sidecar.cmdExitChan:
+			case processState = <-s.cmdExitChan:
 				exited = true
 				t.Logf("Command exited with %s", processState.String())
 			}
@@ -298,7 +297,7 @@ func TestSidecar_TestCmdRunsRelaunchShortlived(t *testing.T) {
 		case <-ctx.Done():
 			require.NoError(t, ctx.Err())
 			return
-		case <-sidecar.cmdExitChan:
+		case <-s.cmdExitChan:
 		}
 
 		require.Equal(t, false, sidecar.processRunning)
@@ -362,35 +361,8 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	federatedSpiffeID, err := spiffeid.FromString("spiffe://foo.test/server")
 	require.NoError(t, err)
 
-	tmpdir := t.TempDir()
-
-	log, _ := test.NewNullLogger()
-
-	config := &Config{
-		Cmd:                "echo",
-		CertDir:            tmpdir,
-		SVIDFileName:       "svid.pem",
-		SVIDKeyFileName:    "svid_key.pem",
-		SVIDBundleFileName: "svid_bundle.pem",
-		Log:                log,
-		CertFileMode:       os.FileMode(0644),
-		KeyFileMode:        os.FileMode(0600),
-		JWTBundleFileMode:  os.FileMode(0600),
-		JWTSVIDFileMode:    os.FileMode(0600),
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	sidecar := Sidecar{
-		config:        config,
-		certReadyChan: make(chan *workloadapi.X509Context, 1),
-		health: Health{
-			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnwritten,
-				JWTWriteStatus:  make(map[string]string),
-			},
-		},
-	}
-	defer close(sidecar.certReadyChan)
+	defer cancel()
 
 	testCases := []struct {
 		name                 string
@@ -471,29 +443,32 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		},
 	}
 
-	svidFile := path.Join(tmpdir, config.SVIDFileName)
-	svidKeyFile := path.Join(tmpdir, config.SVIDKeyFileName)
-	svidBundleFile := path.Join(tmpdir, config.SVIDBundleFileName)
-
-	w := x509Watcher{&sidecar}
-
 	for _, testCase := range testCases {
 		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			if testCase.renewSignal != "" && runtime.GOOS == "windows" {
 				t.Skip("Skipping test on Windows because it does not support signals")
 			}
-			sidecar.config.AddIntermediatesToBundle = testCase.intermediateInBundle
-			sidecar.config.RenewSignal = testCase.renewSignal
-			sidecar.config.IncludeFederatedDomains = testCase.federatedDomains
+			s := newSidecarTest(t)
+			s.NewConfig(t)
+			s.Config().AddIntermediatesToBundle = testCase.intermediateInBundle
+			s.Config().RenewSignal = testCase.renewSignal
+			s.Config().IncludeFederatedDomains = testCase.federatedDomains
+			s.NewSidecar(t)
+			defer s.Close(t)
+
+			svidFile := path.Join(s.config.CertDir, s.config.SVIDFileName)
+			svidKeyFile := path.Join(s.config.CertDir, s.config.SVIDKeyFileName)
+			svidBundleFile := path.Join(s.config.CertDir, s.config.SVIDBundleFileName)
+
+			w := x509Watcher{sidecar: s.Sidecar()}
+
 			// Push response to start updating process
-			// updateMockChan <- testCase.response.ToProto(t)
 			w.OnX509ContextUpdate(testCase.response)
 
 			// Wait until response is processed
 			select {
-			case <-sidecar.CertReadyChan():
-			// continue
+			case <-s.certReadyChan:
 			case <-ctx.Done():
 				require.NoError(t, ctx.Err())
 			}
@@ -514,8 +489,6 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			require.Equal(t, testCase.bundle, bundles)
 		})
 	}
-
-	cancel()
 }
 
 func TestGetCmdArgs(t *testing.T) {
@@ -618,9 +591,9 @@ func TestGetCmdArgs(t *testing.T) {
 	}
 }
 
-// TestSignalProcess makes sure only one copy of the process is started. It uses a small script that creates a file
+// TestSignalProcessWithScript makes sure only one copy of the process is started. It uses a small script that creates a file
 // where the name is the process ID of the script. If more then one file exists, then multiple processes were started
-func TestSignalProcess(t *testing.T) {
+func TestSignalProcessWithScript(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// This test's implementation relies on signals. It could be adapted to run
 		// on Windows by invoking a pwsh script that creates a file with the process
@@ -628,20 +601,18 @@ func TestSignalProcess(t *testing.T) {
 		t.Skip("Skipping tests that invoke unix shell commands on Windows")
 	}
 	tempDir := t.TempDir()
-	log, _ := test.NewNullLogger()
-	config := &Config{
-		Cmd:         "./sidecar_test.sh",
-		CmdArgs:     tempDir,
-		RenewSignal: "SIGWINCH",
-		Log:         log,
-	}
-	sidecar := New(config)
-	require.NotNil(t, sidecar)
+	s := newSidecarTest(t)
+	s.NewConfig(t)
+	s.Config().Cmd = "./sidecar_test.sh"
+	s.Config().CmdArgs = tempDir
+	s.Config().RenewSignal = "SIGWINCH"
+	s.NewSidecar(t)
+	require.NotNil(t, s.Sidecar())
 
 	// Run signalProcess() twice. The second should only signal the process with SIGWINCH which is basically a no op.
-	err := sidecar.signalProcess()
+	err := s.Sidecar().signalProcess()
 	require.NoError(t, err)
-	err = sidecar.signalProcess()
+	err = s.Sidecar().signalProcess()
 	require.NoError(t, err)
 
 	// Give the script some time to run
