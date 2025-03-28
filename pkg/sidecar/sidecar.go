@@ -197,8 +197,8 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 		return
 	}
-	status := writeStatusWritten
-	s.health.FileWriteStatuses.X509WriteStatus = &status
+	writeStatus := writeStatusWritten
+	s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
