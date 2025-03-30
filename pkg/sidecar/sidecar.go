@@ -471,7 +471,10 @@ func (s *Sidecar) CheckLiveness() bool {
 			return false
 		}
 	}
-	return s.health.FileWriteStatuses.X509WriteStatus != nil && *s.health.FileWriteStatuses.X509WriteStatus != writeStatusFailed
+	if s.x509Enabled() && *s.health.FileWriteStatuses.X509WriteStatus == writeStatusFailed {
+		return false
+	}
+	return true
 }
 
 func (s *Sidecar) CheckReadiness() bool {
@@ -480,7 +483,7 @@ func (s *Sidecar) CheckReadiness() bool {
 			return false
 		}
 	}
-	return (s.health.FileWriteStatuses.X509WriteStatus != nil && *s.health.FileWriteStatuses.X509WriteStatus == writeStatusWritten) || s.health.FileWriteStatuses.X509WriteStatus == nil
+	return !s.x509Enabled() || *s.health.FileWriteStatuses.X509WriteStatus == writeStatusWritten
 }
 
 func (s *Sidecar) GetHealth() Health {

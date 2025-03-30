@@ -427,6 +427,7 @@ func TestNew(t *testing.T) {
 
 func Test_CheckReadiness(t *testing.T) {
 	sidecar := Sidecar{
+		config: &Config{},
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
 				X509WriteStatus: nil,
