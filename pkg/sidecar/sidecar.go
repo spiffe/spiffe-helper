@@ -42,7 +42,7 @@ type Health struct {
 }
 
 type FileWriteStatuses struct {
-	X509WriteStatus string            `json:"x509_write_status"`
+	X509WriteStatus *string           `json:"x509_write_status,omitempty"`
 	JWTWriteStatus  map[string]string `json:"jwt_write_status"`
 }
 
@@ -59,18 +59,27 @@ func New(config *Config) *Sidecar {
 		certReadyChan: make(chan struct{}, 1),
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnwritten,
-				JWTWriteStatus:  make(map[string]string),
+				JWTWriteStatus: make(map[string]string),
 			},
 		},
 	}
-	for _, jwtConfig := range config.JWTSVIDs {
-		jwtSVIDFilename := path.Join(config.CertDir, jwtConfig.JWTSVIDFilename)
-		sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
-	}
-	jwtBundleFilePath := path.Join(config.CertDir, config.JWTBundleFilename)
-	sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+	sidecar.setupHealth()
 	return sidecar
+}
+
+func (s *Sidecar) setupHealth() {
+	if s.x509Enabled() {
+		writeStatus := writeStatusUnwritten
+		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
+	}
+	if s.jwtBundleEnabled() {
+		jwtBundleFilePath := path.Join(s.config.CertDir, s.config.JWTBundleFilename)
+		s.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+	}
+	for _, jwtConfig := range s.config.JWTSVIDs {
+		jwtSVIDFilename := path.Join(s.config.CertDir, jwtConfig.JWTSVIDFilename)
+		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
+	}
 }
 
 // RunDaemon starts the main loop
@@ -184,10 +193,12 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
 	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
-		s.health.FileWriteStatuses.X509WriteStatus = writeStatusFailed
+		writeStatus := writeStatusFailed
+		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 		return
 	}
-	s.health.FileWriteStatuses.X509WriteStatus = writeStatusWritten
+	writeStatus := writeStatusWritten
+	s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
@@ -460,7 +471,10 @@ func (s *Sidecar) CheckLiveness() bool {
 			return false
 		}
 	}
-	return s.health.FileWriteStatuses.X509WriteStatus != writeStatusFailed
+	if s.x509Enabled() && *s.health.FileWriteStatuses.X509WriteStatus == writeStatusFailed {
+		return false
+	}
+	return true
 }
 
 func (s *Sidecar) CheckReadiness() bool {
@@ -469,7 +483,7 @@ func (s *Sidecar) CheckReadiness() bool {
 			return false
 		}
 	}
-	return s.health.FileWriteStatuses.X509WriteStatus != writeStatusWritten
+	return !s.x509Enabled() || *s.health.FileWriteStatuses.X509WriteStatus == writeStatusWritten
 }
 
 func (s *Sidecar) GetHealth() Health {

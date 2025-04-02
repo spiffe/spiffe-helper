@@ -96,7 +96,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 		certReadyChan: make(chan struct{}, 1),
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnwritten,
+				X509WriteStatus: nil,
 				JWTWriteStatus:  make(map[string]string),
 			},
 		},
@@ -353,4 +353,86 @@ func TestSignalProcess(t *testing.T) {
 	files, err := os.ReadDir(tempDir)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(files))
+}
+
+func TestNew(t *testing.T) {
+	log, _ := test.NewNullLogger()
+	tmpdir := t.TempDir()
+	unwrittenStatus := writeStatusUnwritten
+	cases := []struct {
+		certDir                   string
+		svidFileName              string
+		svidKeyFileName           string
+		svidBundleFileName        string
+		jwtBundleFilename         string
+		jwtSVIDs                  []JWTConfig
+		expectedErr               string
+		expectedFileWriteStatuses FileWriteStatuses
+	}{
+		{
+			certDir:            tmpdir,
+			svidFileName:       "svid.pem",
+			svidKeyFileName:    "svid_key.pem",
+			svidBundleFileName: "svid_bundle.pem",
+			jwtBundleFilename:  "jwt_bundle.json",
+			jwtSVIDs: []JWTConfig{
+				{
+					JWTAudience:     "my-audience",
+					JWTSVIDFilename: "jwt_svid.jwt",
+				},
+			},
+			expectedFileWriteStatuses: FileWriteStatuses{
+				X509WriteStatus: &unwrittenStatus,
+				JWTWriteStatus: map[string]string{
+					path.Join(tmpdir, "jwt_bundle.json"): writeStatusUnwritten,
+					path.Join(tmpdir, "jwt_svid.jwt"):    writeStatusUnwritten,
+				},
+			},
+		},
+		{
+			jwtSVIDs: []JWTConfig{
+				{
+					JWTAudience:     "my-audience",
+					JWTSVIDFilename: "jwt_svid.jwt",
+				},
+			},
+			expectedFileWriteStatuses: FileWriteStatuses{
+				X509WriteStatus: nil,
+				JWTWriteStatus: map[string]string{
+					path.Join(tmpdir, "jwt_svid.jwt"): writeStatusUnwritten,
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run("New Sidecar", func(t *testing.T) {
+			config := &Config{
+				CertDir:            tmpdir,
+				SVIDFileName:       c.svidFileName,
+				SVIDKeyFileName:    c.svidKeyFileName,
+				SVIDBundleFileName: c.svidBundleFileName,
+				JWTBundleFilename:  c.jwtBundleFilename,
+				JWTSVIDs:           c.jwtSVIDs,
+				Log:                log,
+			}
+			sidecar := New(config)
+			assert.NotNil(t, sidecar)
+			assert.Equal(t, config, sidecar.config)
+			assert.Equal(t, c.expectedFileWriteStatuses, sidecar.health.FileWriteStatuses)
+		})
+	}
+}
+
+func Test_CheckReadiness(t *testing.T) {
+	sidecar := Sidecar{
+		config: &Config{},
+		health: Health{
+			FileWriteStatuses: FileWriteStatuses{
+				X509WriteStatus: nil,
+			},
+		},
+	}
+	assert.True(t, sidecar.CheckReadiness())
 }
