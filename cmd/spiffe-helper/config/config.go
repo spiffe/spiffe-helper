@@ -144,7 +144,7 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	}
 
 	if c.PIDFilename != "" && c.RenewSignal == "" {
-		return errors.New("Must specify renew_signal when using pid_file_name")
+		return errors.New("must specify renew_signal when using pid_file_name")
 	}
 
 	x509Enabled, err := validateX509Config(c)

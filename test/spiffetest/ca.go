@@ -22,6 +22,8 @@ type CA struct {
 }
 
 func NewCA(tb testing.TB) *CA {
+	tb.Helper()
+
 	cert, key := CreateCACertificate(tb, nil, nil)
 	return &CA{
 		tb:   tb,
@@ -54,6 +56,8 @@ func (ca *CA) Roots() []*x509.Certificate {
 }
 
 func CreateCACertificate(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer) (*x509.Certificate, crypto.Signer) {
+	tb.Helper()
+
 	now := time.Now()
 	serial := NewSerial(tb)
 
@@ -76,6 +80,8 @@ func CreateCACertificate(tb testing.TB, parent *x509.Certificate, parentKey cryp
 }
 
 func CreateX509SVID(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer, spiffeID string) (*x509.Certificate, crypto.Signer) {
+	tb.Helper()
+
 	now := time.Now()
 	serial := NewSerial(tb)
 
@@ -96,6 +102,8 @@ func CreateX509SVID(tb testing.TB, parent *x509.Certificate, parentKey crypto.Si
 }
 
 func CreateCertificate(tb testing.TB, tmpl, parent *x509.Certificate, pub, priv interface{}) *x509.Certificate {
+	tb.Helper()
+
 	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, parent, pub, priv)
 	require.NoError(tb, err)
 	cert, err := x509.ParseCertificate(certDER)
@@ -104,6 +112,8 @@ func CreateCertificate(tb testing.TB, tmpl, parent *x509.Certificate, pub, priv 
 }
 
 func NewSerial(tb testing.TB) *big.Int {
+	tb.Helper()
+
 	b := make([]byte, 8)
 	_, err := rand.Read(b)
 	require.NoError(tb, err)

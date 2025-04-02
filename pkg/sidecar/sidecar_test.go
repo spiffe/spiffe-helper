@@ -31,7 +31,7 @@ import (
 // a cert is delivered, signalling long-running commands, commands exiting on a
 // signal, command stdio handling, etc.
 func TestSidecar_TestCmdRuns(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if onWindows() {
 		// If someone wants to write these to only invoke go helpers that
 		// are bundled with this test suite, so it can run on Windows, that
 		// would be fine. Or find Windows equivalents for the commands,
@@ -214,7 +214,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			// running.
 			if tc.expectTerminated {
 				// Sidecar monitor must agree it has exited
-				require.Equal(t, false, s.sidecar.processRunning)
+				require.False(t, s.sidecar.processRunning)
 				if tc.expectSignalExit > 0 {
 					// Does this need to be in a separate
 					// abstraction with a build guard for
@@ -230,7 +230,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 				// running. Make sure you allow enough time for
 				// the launched process to keep running before
 				// the test ends.
-				require.Equal(t, true, s.sidecar.processRunning)
+				require.True(t, s.sidecar.processRunning)
 			}
 
 			// The test file must have been created if expected
@@ -273,7 +273,7 @@ func TestSidecar_TestCmdRunsRelaunchShortlived(t *testing.T) {
 	defer s.Close(t)
 
 	config := s.sidecar.config
-	if runtime.GOOS == "windows" {
+	if onWindows() {
 		config.Cmd = "cmd"
 		config.CmdArgs = "/c echo hello"
 	} else {
@@ -297,7 +297,7 @@ func TestSidecar_TestCmdRunsRelaunchShortlived(t *testing.T) {
 		case <-s.cmdExitChan:
 		}
 
-		require.Equal(t, false, s.sidecar.processRunning)
+		require.False(t, s.sidecar.processRunning)
 		require.NotEqual(t, pid, s.sidecar.process.Pid)
 	}
 }
@@ -442,7 +442,7 @@ func TestSidecar_RunDaemon(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			if testCase.renewSignal != "" && runtime.GOOS == "windows" {
+			if testCase.renewSignal != "" && onWindows() {
 				t.Skip("Skipping test on Windows because it does not support signals")
 			}
 
@@ -574,7 +574,7 @@ func TestGetCmdArgs(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			args, err := getCmdArgs(c.in)
 			if c.expectedErr != "" {
-				require.NotNil(t, err)
+				require.Error(t, err)
 				require.Nil(t, args)
 				require.Contains(t, err.Error(), c.expectedErr)
 				return
@@ -588,7 +588,7 @@ func TestGetCmdArgs(t *testing.T) {
 // TestSignalProcessWithScript makes sure only one copy of the process is started. It uses a small script that creates a file
 // where the name is the process ID of the script. If more then one file exists, then multiple processes were started
 func TestSignalProcessWithScript(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if onWindows() {
 		// This test's implementation relies on signals. It could be adapted to run
 		// on Windows by invoking a pwsh script that creates a file with the process
 		// ID and tests if just one exists, but for now we'll skip it.
@@ -612,7 +612,7 @@ func TestSignalProcessWithScript(t *testing.T) {
 
 	files, err := os.ReadDir(s.sidecar.config.CertDir)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(files))
+	require.Len(t, files, 1)
 }
 
 func TestNew(t *testing.T) {
@@ -694,4 +694,8 @@ func Test_CheckReadiness(t *testing.T) {
 		},
 	}
 	assert.True(t, sidecar.CheckReadiness())
+}
+
+func onWindows() bool {
+	return runtime.GOOS == "windows"
 }
