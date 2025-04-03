@@ -1,13 +1,14 @@
 module github.com/spiffe/spiffe-helper
 
 go 1.23.6
+toolchain go1.24.1
 
 require (
 	github.com/hashicorp/hcl v1.0.1-vault-7
 	github.com/spiffe/go-spiffe/v2 v2.5.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/sys v0.31.0
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3
 )
