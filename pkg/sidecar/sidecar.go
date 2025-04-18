@@ -98,8 +98,8 @@ func New(config *Config) *Sidecar {
 		},
 	}
 
-	sidecar.setupHealth()
-	return sidecar
+	s.setupHealth()
+	return s
 }
 
 func (s *Sidecar) setupHealth() {
