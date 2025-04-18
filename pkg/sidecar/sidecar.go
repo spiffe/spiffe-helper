@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"github.com/spiffe/spiffe-helper/pkg/disk"
+	"github.com/spiffe/spiffe-helper/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -61,7 +63,7 @@ type Health struct {
 }
 
 type FileWriteStatuses struct {
-	X509WriteStatus string            `json:"x509_write_status"`
+	X509WriteStatus *string           `json:"x509_write_status,omitempty"`
 	JWTWriteStatus  map[string]string `json:"jwt_write_status"`
 }
 
@@ -77,8 +79,7 @@ func New(config *Config) *Sidecar {
 		config: config,
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
-				X509WriteStatus: writeStatusUnwritten,
-				JWTWriteStatus:  make(map[string]string),
+				JWTWriteStatus: make(map[string]string),
 			},
 		},
 		// There's currently no support for controlling stdio
@@ -97,13 +98,23 @@ func New(config *Config) *Sidecar {
 		},
 	}
 
-	for _, jwtConfig := range config.JWTSVIDs {
-		jwtSVIDFilename := path.Join(config.CertDir, jwtConfig.JWTSVIDFilename)
+	sidecar.setupHealth()
+	return sidecar
+}
+
+func (s *Sidecar) setupHealth() {
+	if s.x509Enabled() {
+		writeStatus := writeStatusUnwritten
+		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
+	}
+	if s.jwtBundleEnabled() {
+		jwtBundleFilePath := path.Join(s.config.CertDir, s.config.JWTBundleFilename)
+		s.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+	}
+	for _, jwtConfig := range s.config.JWTSVIDs {
+		jwtSVIDFilename := path.Join(s.config.CertDir, jwtConfig.JWTSVIDFilename)
 		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
 	}
-	jwtBundleFilePath := path.Join(config.CertDir, config.JWTBundleFilename)
-	s.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
-	return s
 }
 
 // RunDaemon starts the main loop
@@ -111,8 +122,6 @@ func New(config *Config) *Sidecar {
 // When a new SVID is received on the updateChan, the SVID certificates
 // are stored in disk and a restart signal is sent to the proxy's process
 func (s *Sidecar) RunDaemon(ctx context.Context) error {
-	var wg sync.WaitGroup
-
 	if err := s.setupClients(ctx); err != nil {
 		return err
 	}
@@ -123,44 +132,28 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 		defer s.jwtSource.Close()
 	}
 
+	var tasks []func(context.Context) error
+
 	if s.x509Enabled() {
 		s.config.Log.Info("Watching for X509 Context")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := s.client.WatchX509Context(ctx, &x509Watcher{sidecar: s})
-			if err != nil && status.Code(err) != codes.Canceled {
-				s.config.Log.Fatalf("Error watching X.509 context: %v", err)
-			}
-		}()
+		tasks = append(tasks, s.watchX509Context)
 	}
 
 	if s.jwtBundleEnabled() {
 		s.config.Log.Info("Watching for JWT Bundles")
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := s.client.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s})
-			if err != nil && status.Code(err) != codes.Canceled {
-				s.config.Log.Fatalf("Error watching JWT bundle updates: %v", err)
-			}
-		}()
+		tasks = append(tasks, s.watchJWTBundles)
 	}
 
 	if s.jwtSVIDsEnabled() {
-		for _, jwtConfig := range s.config.JWTSVIDs {
-			jwtConfig := jwtConfig
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTExtraAudiences, jwtConfig.JWTSVIDFilename)
-			}()
-		}
+		tasks = append(tasks, s.watchJWTSVIDs)
 	}
 
-	wg.Wait()
+	err := util.RunTasks(ctx, tasks...)
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return nil
+	}
 
-	return nil
+	return err
 }
 
 func (s *Sidecar) Run(ctx context.Context) error {
@@ -230,10 +223,12 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
 	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
-		s.health.FileWriteStatuses.X509WriteStatus = writeStatusFailed
+		writeStatus := writeStatusFailed
+		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 		return
 	}
-	s.health.FileWriteStatuses.X509WriteStatus = writeStatusWritten
+	writeStatus := writeStatusWritten
+	s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
@@ -532,7 +527,10 @@ func (s *Sidecar) CheckLiveness() bool {
 			return false
 		}
 	}
-	return s.health.FileWriteStatuses.X509WriteStatus != writeStatusFailed
+	if s.x509Enabled() && *s.health.FileWriteStatuses.X509WriteStatus == writeStatusFailed {
+		return false
+	}
+	return true
 }
 
 func (s *Sidecar) CheckReadiness() bool {
@@ -541,7 +539,7 @@ func (s *Sidecar) CheckReadiness() bool {
 			return false
 		}
 	}
-	return s.health.FileWriteStatuses.X509WriteStatus != writeStatusWritten
+	return !s.x509Enabled() || *s.health.FileWriteStatuses.X509WriteStatus == writeStatusWritten
 }
 
 func (s *Sidecar) GetHealth() Health {
