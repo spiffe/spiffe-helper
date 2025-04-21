@@ -24,6 +24,7 @@ import (
 
 const (
 	SignalHelperArg = "signal"
+	defaultTimeout  = 10 * time.Second
 )
 
 // We need a command we can run from the sidecar that will report on signals delivered.
@@ -65,8 +66,9 @@ func SignalListenerHelperMain(_ *testing.M) int {
 	}
 
 	// Ensure the helper doesn't run forever if orphaned
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
+
 	// listen for the signal requested
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, wantsig)
@@ -107,7 +109,7 @@ func TestMain(m *testing.M) {
 // Validate pid_file_name signalling behaviour, simulating daemon-mode execution with
 // workload api server responses. A signal is sent to the test case process itself.
 func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	tmpdir := t.TempDir()
@@ -171,45 +173,46 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 			// Wait for notification that the pid_file_name was signalled
 			var pidFileResult pidFileSignalledResult
 			select {
+			case pidFileResult = <-s.pidFileSignalledChan:
+				break
 			case <-ctx.Done():
 				// overall context has expired; this will fail the test.
 				require.NoError(t, ctx.Err())
 				return
-			case pidFileResult = <-s.pidFileSignalledChan:
-				t.Logf("sidecar reports it sent a signal: %+v", pidFileResult)
 			}
 
 			if tc.missingPidfile {
 				// The pid file was missing so signalling will fail.
 				require.Equal(t, 0, pidFileResult.pid)
-				require.Error(t, pidFileResult.err)
+				require.ErrorContains(t, pidFileResult.err, "failed to read pid file")
+
 				// Creating the pid file won't help now, so we're done
 				// until the next renew.
 				writePidFile()
 				select {
+				case <-time.After(200 * time.Millisecond):
+					// A signal retry would've arried by now if there was going to be one,
+					// but signals aren't retried.
+					break
+				case pidFileResult = <-s.pidFileSignalledChan:
+					require.Fail(t, "should not have signalled, since we don't retry signals")
 				case <-ctx.Done():
 					// overall context has expired; this will fail the test.
 					require.NoError(t, ctx.Err())
 					return
-				case pidFileResult = <-s.pidFileSignalledChan:
-					t.Logf("sidecar reports it sent a signal: %+v", pidFileResult)
-					require.Fail(t, "should not have signalled, since we don't retry signals")
-				case <-time.After(200 * time.Millisecond):
-					// A signal retry would've arried by now if there was going to be one,
-					// but signals aren't retried.
-					t.Logf("no signal re-delivery after pid file creation (expected)")
 				}
+
 				// A cert renewal will trigger another attempt to signal, which should succeed
 				s.MockUpdateX509Certificate(ctx, t, svid)
 				select {
+				case pidFileResult = <-s.pidFileSignalledChan:
+					require.NoError(t, pidFileResult.err)
 				case <-ctx.Done():
 					require.NoError(t, ctx.Err())
 					return
-				case pidFileResult = <-s.pidFileSignalledChan:
-					t.Logf("sidecar reports it sent a signal: %+v", pidFileResult)
-					require.NoError(t, pidFileResult.err)
 				}
 			}
+
 			// Since a valid pid file was supplied, signalling must succeed
 			// on the first attempt
 			require.Equal(t, pid, pidFileResult.pid)
@@ -217,12 +220,12 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 
 			// Did we actually receive the signal?
 			select {
+			case sig := <-sigListener:
+				require.Equal(t, tc.signal, sig)
 			case <-ctx.Done():
 				// overall context has expired; this will fail the test.
 				require.NoError(t, ctx.Err())
 				return
-			case sig := <-sigListener:
-				require.Equal(t, tc.signal, sig)
 			}
 		})
 	}
@@ -237,7 +240,7 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 	const testsig = syscall.SIGUSR1
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	s := newSidecarTest(t)
