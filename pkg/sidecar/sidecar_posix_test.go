@@ -259,7 +259,6 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 	sigListener := make(chan os.Signal, 1)
 	signal.Notify(sigListener, testsig)
 	defer signal.Stop(sigListener)
-	t.Logf("listening for signal %s", SignalName(testsig))
 
 	// Fake the cert issue, which will start the process
 	svid := newTestX509SVID(t, s.rootCA)
@@ -315,8 +314,9 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		// since the process is launched.
 		// Wait for the signal to be forwarded to the test helper
 		select {
-		case <-ctx.Done():
-			require.NoError(t, ctx.Err())
+		case forwardedSignal := <-sigListener:
+			// We should receive the signal we sent to the test helper
+			require.Equal(t, testsig, forwardedSignal)
 		case <-s.cmdExitChan:
 			// we should never get an exit status report, since the
 			// proc should still be running
@@ -324,10 +324,8 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			// We should have received a signal by now
 			require.Fail(t, "timed out waiting for signal")
-		case forwardedSignal := <-sigListener:
-			// We should receive the signal we sent to the test helper
-			t.Logf("got signal %s", SignalName(forwardedSignal.(syscall.Signal)))
-			require.Equal(t, testsig, forwardedSignal)
+		case <-ctx.Done():
+			require.NoError(t, ctx.Err())
 		}
 
 		// Command started and is still running
