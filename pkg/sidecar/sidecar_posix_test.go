@@ -62,7 +62,6 @@ func SignalListenerHelperMain(_ *testing.M) int {
 			fmt.Fprintf(os.Stderr, "signal helper: Failed to find process %d: %v\n", forwardToPid, err)
 			return 1
 		}
-		fmt.Fprintf(os.Stderr, "signal helper: Forwarding %s to %d\n", signame, forwardToPid)
 	}
 
 	// Ensure the helper doesn't run forever if orphaned
@@ -280,22 +279,21 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 	}
 	require.Equal(t, true, s.sidecar.processRunning)
 	firstPid := s.sidecar.process.Pid
-	fmt.Printf("sidecar process running: %d\n", firstPid)
 
 	// There should be no signal sent to the test helper on the first iteration
 	select {
-	case <-ctx.Done():
-		require.NoError(t, ctx.Err())
+	case <-time.After(100 * time.Millisecond):
+		// We didn't get a signal within a reasonable period. None was expected,
+		// so this indicates success, and we can proceed.
+		break
 	case <-s.cmdExitChan:
 		require.Fail(t, "command should not have exited")
 	case forwardedSignal := <-sigListener:
 		// No signal should be delivered on the first iteration, since the
 		// helper was just launched.
 		require.Fail(t, "unexpected signal %s", SignalName(forwardedSignal.(syscall.Signal)))
-	case <-time.After(100 * time.Millisecond):
-		// We didn't get a signal within a reasonable period. None was expected,
-		// so this indicates success, and we can proceed.
-		t.Logf("no signal received (expected)")
+	case <-ctx.Done():
+		require.NoError(t, ctx.Err())
 	}
 
 	// Now we'll rotate the certs a few times and check that the process is still
