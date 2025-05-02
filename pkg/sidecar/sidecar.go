@@ -221,7 +221,7 @@ func (s *Sidecar) setupClients(ctx context.Context) error {
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
-	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFileName, s.config.SVIDKeyFileName, s.config.SVIDBundleFileName, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint); err != nil {
+	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFilename, s.config.SVIDKeyFilename, s.config.SVIDBundleFilename, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		writeStatus := writeStatusFailed
 		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
@@ -237,7 +237,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		}
 	}
 
-	if s.config.PIDFileName != "" {
+	if s.config.PIDFilename != "" {
 		if err := s.signalPID(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal PID file")
 		}
@@ -302,14 +302,14 @@ func (s *Sidecar) signalProcess() error {
 // signalPID sends the renew signal to the PID file
 func (s *Sidecar) signalPID() error {
 	pid, err := func() (int, error) {
-		fileBytes, err := os.ReadFile(s.config.PIDFileName)
+		fileBytes, err := os.ReadFile(s.config.PIDFilename)
 		if err != nil {
-			return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
+			return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFilename, err)
 		}
 
 		pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
 		if err != nil {
-			return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
+			return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFilename, err)
 		}
 
 		pidProcess, err := os.FindProcess(pid)
@@ -446,7 +446,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtExtr
 }
 
 func (s *Sidecar) x509Enabled() bool {
-	return s.config.SVIDFileName != "" && s.config.SVIDKeyFileName != "" && s.config.SVIDBundleFileName != ""
+	return s.config.SVIDFilename != "" && s.config.SVIDKeyFilename != "" && s.config.SVIDBundleFilename != ""
 }
 
 func (s *Sidecar) jwtBundleEnabled() bool {
