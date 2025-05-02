@@ -285,7 +285,6 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		// We didn't get a signal within a reasonable period. None was expected,
 		// so this indicates success, and we can proceed.
-		break
 	case <-s.cmdExitChan:
 		require.Fail(t, "command should not have exited")
 	case forwardedSignal := <-sigListener:

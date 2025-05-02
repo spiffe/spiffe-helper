@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"fmt"
 	"os"
 	"testing"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"github.com/spiffe/spiffe-helper/test/spiffetest"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -106,14 +108,21 @@ func newSidecarTest(t *testing.T) *sidecarTest {
 // Any pending signals must have been delivered, and any running processes
 // must have exited.
 func (s *sidecarTest) Close(t *testing.T) {
-	s.sidecar.mu.Lock()
-	running := s.sidecar.processRunning
-	p := s.sidecar.process
-	defer s.sidecar.mu.Unlock()
+	err := retry.OnError(retry.DefaultRetry, func(err error) bool {
+		return err != nil
+	}, func() (err error) {
+		s.sidecar.mu.Lock()
+		running := s.sidecar.processRunning
+		p := s.sidecar.process
+		s.sidecar.mu.Unlock()
 
-	if running {
-		t.Logf("WARNING: sidecar process %d still running at end of test (%#v)", p.Pid, p)
-	}
+		if running {
+			return fmt.Errorf("sidecar process %d still running at end of test", p.Pid)
+		}
+		return nil
+	})
+
+	require.NoError(t, err)
 }
 
 // Trigger a certificate update on the sidecar instance to the passed new SVID.
