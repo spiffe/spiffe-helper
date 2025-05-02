@@ -193,7 +193,7 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 					// A signal retry would've arried by now if there was going to be one,
 					// but signals aren't retried.
 					break
-				case pidFileResult = <-s.pidFileSignalledChan:
+				case <-s.pidFileSignalledChan:
 					require.Fail(t, "should not have signalled, since we don't retry signals")
 				case <-ctx.Done():
 					// overall context has expired; this will fail the test.
