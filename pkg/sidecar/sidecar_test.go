@@ -44,6 +44,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 	touchTestFile := path.Join(tmpdir, "testfile")
 
 	testcases := []struct {
+		name string
 		// A command to invoke
 		cmd     string
 		cmdArgs string
@@ -71,6 +72,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 		{
 			// Check that the command runs and exits, and
 			// we can observe a side effect to prove it ran
+			name:             "Command runs and exits",
 			cmd:              "touch",
 			cmdArgs:          touchTestFile,
 			expectTerminated: true,
@@ -78,7 +80,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			expectFileExists: touchTestFile,
 		},
 		{
-			// check nonzero exit code handling
+			name:             "Non-zero exit code handling",
 			cmd:              "false",
 			expectTerminated: true,
 			expectExitStatus: 1,
@@ -87,12 +89,14 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			// run a sleep and wait for it to finish, ensuring that
 			// we actually wait for the exit of a process that takes
 			// a moment to run.
+			name:             "Sleep and wait for exit",
 			cmd:              "sleep",
 			cmdArgs:          "0.1",
 			expectTerminated: true,
 		},
 		{
 			// run a sleep and inspect state before it finishes
+			name:             "Sleep and inspect state",
 			cmd:              "sleep",
 			cmdArgs:          "1",
 			expectTerminated: false,
@@ -101,6 +105,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 		{
 			// signal exit handling - if a process exits with a signal
 			// we handle it gracefully
+			name:    "Handle signal exit gracefully",
 			cmd:     "sh",
 			cmdArgs: "-c \"kill -TERM $$\"",
 			// Suppress the "signal: hangup" from the shell
@@ -115,6 +120,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 			// ["-c", "'kill", "-TERM", "$$'"]. This shows that we
 			// should really be using an argument vector to accept
 			// commands, not a string.
+			name:    "Unterminated string error",
 			cmd:     "sh",
 			cmdArgs: "-c 'kill -TERM $$'",
 			// Suppress the "TERM: 1: Syntax error: Unterminated
@@ -125,7 +131,7 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 		},
 	}
 	for _, tc := range testcases {
-		t.Run(tc.cmd, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			// Set up the harness for this sidecar command run
 			// Deliberately does not defer s.Close() since we might be abandoning
 			// the sidecar when it is still running a command, and don't want panics
