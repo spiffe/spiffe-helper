@@ -132,7 +132,6 @@ func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 		},
 	}
 	for tcIndex, tc := range testcases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// install a signal handler and record when we receive the signal
 			sigListener := make(chan os.Signal, 1)

@@ -23,8 +23,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Validate basic sidecar command behaviour, simulating daemon-mode execution with
-// workload api server responses. These exercise behaviour after receiving the
+// TestSidecar_TestCmdRuns Validates basic sidecar command behaviour,
+// simulating daemon-mode execution with workload api server responses.
+// These exercise behaviour after receiving the cert.
 //
 // Further tests should be added for restarting short-lived commands each time
 // a cert is delivered, signalling long-running commands, commands exiting on a
@@ -440,7 +441,6 @@ func TestSidecar_RunDaemon(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			if testCase.renewSignal != "" && runtime.GOOS == "windows" {
 				t.Skip("Skipping test on Windows because it does not support signals")
@@ -571,7 +571,6 @@ func TestGetCmdArgs(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			args, err := getCmdArgs(c.in)
 			if c.expectedErr != "" {
@@ -667,7 +666,6 @@ func TestNew(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run("New Sidecar", func(t *testing.T) {
 			config := &Config{
 				CertDir:            tmpdir,
