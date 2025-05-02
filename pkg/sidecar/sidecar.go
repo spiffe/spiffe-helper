@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -23,18 +24,38 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Event hooks used by unit tests to coordinate goroutines
+type hooks struct {
+	certReady        func(svids *workloadapi.X509Context)
+	cmdExit          func(os.ProcessState)
+	pidFileSignalled func(pid int, err error)
+}
+
 // Sidecar is the component that consumes the Workload API and renews certs
-// implements the interface Sidecar
 type Sidecar struct {
 	config         *Config
 	client         *workloadapi.Client
 	jwtSource      *workloadapi.JWTSource
 	processRunning bool
 	process        *os.Process
-	certReadyChan  chan struct{}
-	health         Health
 
+	// Mutex to protect processRunning
 	mu sync.Mutex
+
+	// Health server
+	health Health
+
+	// stdio to connect to the 'cmd' to run. These are used in tests to
+	// capture and/or redirect I/O from the guest command. In future they
+	// could also be exposed via Config to allow a user of this package to
+	// redirect I/O in custom sidecars. These have the same semantics as
+	// https://pkg.go.dev/os/exec#Cmd
+	stdin  io.Reader
+	stdout io.Writer
+	stderr io.Writer
+
+	// Used for synchronization in unit tests
+	hooks hooks
 }
 
 type Health struct {
@@ -54,17 +75,31 @@ const (
 
 // New creates a new SPIFFE sidecar
 func New(config *Config) *Sidecar {
-	sidecar := &Sidecar{
-		config:        config,
-		certReadyChan: make(chan struct{}, 1),
+	s := &Sidecar{
+		config: config,
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
 				JWTWriteStatus: make(map[string]string),
 			},
 		},
+		// There's currently no support for controlling stdio
+		// redirection in the spiffe-helper configuration or API, these
+		// are just used in tests that construct Sidecar directly. In
+		// regular use they're always passing through the OS's stdio.
+		stdin:  os.Stdin,
+		stdout: os.Stdout,
+		stderr: os.Stderr,
+
+		// Initialize hooks with noop functions
+		hooks: hooks{
+			certReady:        func(*workloadapi.X509Context) {},
+			cmdExit:          func(os.ProcessState) {},
+			pidFileSignalled: func(int, error) {},
+		},
 	}
-	sidecar.setupHealth()
-	return sidecar
+
+	s.setupHealth()
+	return s
 }
 
 func (s *Sidecar) setupHealth() {
@@ -162,11 +197,6 @@ func (s *Sidecar) Run(ctx context.Context) error {
 	return nil
 }
 
-// CertReadyChan returns a channel to know when the certificates are ready
-func (s *Sidecar) CertReadyChan() <-chan struct{} {
-	return s.certReadyChan
-}
-
 // setupClients create the necessary workloadapi clients
 func (s *Sidecar) setupClients(ctx context.Context) error {
 	if s.x509Enabled() || s.jwtBundleEnabled() {
@@ -220,13 +250,12 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		}
 	}
 
-	select {
-	case s.certReadyChan <- struct{}{}:
-	default:
-	}
+	s.hooks.certReady(svidResponse)
 }
 
 // signalProcessCMD sends the renew signal to the process or starts it if its first time
+// In normal operation this will be called when the workload API client signals a new SVID;
+// it will NOT run as soon as an already-running process exits.
 func (s *Sidecar) signalProcess() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -238,6 +267,7 @@ func (s *Sidecar) signalProcess() error {
 		}
 
 		cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
+
 		// By attaching stdin we allow spiffe-helper to be used in a
 		// pipeline or as a simple passthrough. Because it consumes the
 		// child process's exit status and restarts the child process
@@ -251,9 +281,9 @@ func (s *Sidecar) signalProcess() error {
 		//
 		// If the caller doesn't want it attached, they can close stdin
 		// before forking spiffe-helper, same as stdout and stderr.
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdin = s.stdin
+		cmd.Stdout = s.stdout
+		cmd.Stderr = s.stderr
 		if err := cmd.Start(); err != nil {
 			return fmt.Errorf("error executing process \"%v\": %w", s.config.Cmd, err)
 		}
@@ -271,28 +301,54 @@ func (s *Sidecar) signalProcess() error {
 
 // signalPID sends the renew signal to the PID file
 func (s *Sidecar) signalPID() error {
-	fileBytes, err := os.ReadFile(s.config.PIDFileName)
-	if err != nil {
-		return fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
-	}
+	pid, err := func() (int, error) {
+		fileBytes, err := os.ReadFile(s.config.PIDFileName)
+		if err != nil {
+			return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFileName, err)
+		}
 
-	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
-	if err != nil {
-		return fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
-	}
+		pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFileName, err)
+		}
 
-	pidProcess, err := os.FindProcess(pid)
-	if err != nil {
-		return fmt.Errorf("failed to find process id %d: %w", pid, err)
-	}
+		pidProcess, err := os.FindProcess(pid)
+		if err != nil {
+			return pid, fmt.Errorf("failed to find process id %d: %w", pid, err)
+		}
 
-	return SignalProcess(pidProcess, s.config.RenewSignal)
+		return pid, SignalProcess(pidProcess, s.config.RenewSignal)
+	}()
+	s.hooks.pidFileSignalled(pid, err)
+	return err
 }
 
+// Goroutine to watch a running process until it exits and report its exit status.
+// Does NOT trigger a restart of a process when it exits.
 func (s *Sidecar) checkProcessExit() {
-	if _, err := s.process.Wait(); err != nil {
+	s.mu.Lock()
+	if !s.processRunning {
+		// This is the only function that should clear the processRunning flag
+		// and the routine should only be launched once, when a process has been
+		// started.
+		panic("checkProcessExit called with no process running")
+	}
+	// copy the Process object so we don't have to hold the lock while waiting;
+	// that would deadlock with signalProcess when there's a workload update.
+	proc := s.process
+	s.mu.Unlock()
+
+	state, err := proc.Wait()
+	if err != nil {
+		// We assume the process has exited here, but this could
+		// potentially be due to an error in the Wait call. We could
+		// look up the process by pid to see if it still exists, but
+		// that introduces a pid re-use wait condition. For now,
+		// assume that the process has exited.
 		s.config.Log.Errorf("error waiting for process exit: %v", err)
 	}
+
+	s.hooks.cmdExit(*state)
 
 	s.mu.Lock()
 	s.processRunning = false
