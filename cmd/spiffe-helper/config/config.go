@@ -32,7 +32,7 @@ type Config struct {
 	AgentAddress             string        `hcl:"agent_address"`
 	Cmd                      string        `hcl:"cmd"`
 	CmdArgs                  string        `hcl:"cmd_args"`
-	PIDFileName              string        `hcl:"pid_file_name"`
+	PIDFilename              string        `hcl:"pid_file_name"`
 	CertDir                  string        `hcl:"cert_dir"`
 	CertFileMode             int           `hcl:"cert_file_mode"`
 	KeyFileMode              int           `hcl:"key_file_mode"`
@@ -45,9 +45,9 @@ type Config struct {
 	Hint                     string        `hcl:"hint"`
 
 	// x509 configuration
-	SVIDFileName       string `hcl:"svid_file_name"`
-	SVIDKeyFileName    string `hcl:"svid_key_file_name"`
-	SVIDBundleFileName string `hcl:"svid_bundle_file_name"`
+	SVIDFilename       string `hcl:"svid_file_name"`
+	SVIDKeyFilename    string `hcl:"svid_key_file_name"`
+	SVIDBundleFilename string `hcl:"svid_bundle_file_name"`
 
 	// JWT configuration
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids"`
@@ -138,12 +138,12 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		// pid_file_name is new enough that there should not be existing configurations that use it without daemon_mode
 		// so we can error here without backcompat worries. In future we may support one-shot signalling of a process, but
 		// it's ignored at the moment so we shouldn't allow the user to think it's doing something.
-		if c.PIDFileName != "" {
+		if c.PIDFilename != "" {
 			return errors.New("pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode")
 		}
 	}
 
-	if c.PIDFileName != "" && c.RenewSignal == "" {
+	if c.PIDFilename != "" && c.RenewSignal == "" {
 		return errors.New("Must specify renew_signal when using pid_file_name")
 	}
 
@@ -227,7 +227,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		AgentAddress:             config.AgentAddress,
 		Cmd:                      config.Cmd,
 		CmdArgs:                  config.CmdArgs,
-		PIDFileName:              config.PIDFileName,
+		PIDFilename:              config.PIDFilename,
 		CertDir:                  config.CertDir,
 		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec
 		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec
@@ -237,9 +237,9 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,
 		RenewSignal:              config.RenewSignal,
-		SVIDFileName:             config.SVIDFileName,
-		SVIDKeyFileName:          config.SVIDKeyFileName,
-		SVIDBundleFileName:       config.SVIDBundleFileName,
+		SVIDFilename:             config.SVIDFilename,
+		SVIDKeyFilename:          config.SVIDKeyFilename,
+		SVIDBundleFilename:       config.SVIDBundleFilename,
 		Hint:                     config.Hint,
 	}
 
@@ -255,7 +255,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 }
 
 func validateX509Config(c *Config) (bool, error) {
-	x509EmptyCount := countEmpty(c.SVIDFileName, c.SVIDBundleFileName, c.SVIDKeyFileName)
+	x509EmptyCount := countEmpty(c.SVIDFilename, c.SVIDBundleFilename, c.SVIDKeyFilename)
 	if x509EmptyCount != 0 && x509EmptyCount != 3 {
 		return false, errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
 	}

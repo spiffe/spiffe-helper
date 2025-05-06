@@ -21,7 +21,7 @@ type Config struct {
 	CmdArgs string
 
 	// Signal external process via PID file
-	PIDFileName string
+	PIDFilename string
 
 	// The directory name to store the x509s and/or JWTs.
 	CertDir string
@@ -54,13 +54,13 @@ type Config struct {
 	RenewSignal string
 
 	// File name to be used to store the X.509 SVID public certificate in PEM format.
-	SVIDFileName string
+	SVIDFilename string
 
 	// File name to be used to store the X.509 SVID private key and public certificate in PEM format.
-	SVIDKeyFileName string
+	SVIDKeyFilename string
 
 	// File name to be used to store the X.509 SVID Bundle in PEM format.
-	SVIDBundleFileName string
+	SVIDBundleFilename string
 
 	// Hint: The hint to pass to the spiffe endpoint to help select SPIFFE IDs
 	Hint string

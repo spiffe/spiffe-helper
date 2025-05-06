@@ -454,9 +454,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			config.RenewSignal = testCase.renewSignal
 			config.IncludeFederatedDomains = testCase.federatedDomains
 
-			svidFile := path.Join(config.CertDir, config.SVIDFileName)
-			svidKeyFile := path.Join(config.CertDir, config.SVIDKeyFileName)
-			svidBundleFile := path.Join(config.CertDir, config.SVIDBundleFileName)
+			svidFile := path.Join(config.CertDir, config.SVIDFilename)
+			svidKeyFile := path.Join(config.CertDir, config.SVIDKeyFilename)
+			svidBundleFile := path.Join(config.CertDir, config.SVIDBundleFilename)
 
 			// Push response to start updating process
 			s.watcher.OnX509ContextUpdate(testCase.response)
@@ -621,9 +621,9 @@ func TestNew(t *testing.T) {
 	unwrittenStatus := writeStatusUnwritten
 	cases := []struct {
 		certDir                   string
-		svidFileName              string
-		svidKeyFileName           string
-		svidBundleFileName        string
+		svidFilename              string
+		svidKeyFilename           string
+		svidBundleFilename        string
 		jwtBundleFilename         string
 		jwtSVIDs                  []JWTConfig
 		expectedErr               string
@@ -631,9 +631,9 @@ func TestNew(t *testing.T) {
 	}{
 		{
 			certDir:            tmpdir,
-			svidFileName:       "svid.pem",
-			svidKeyFileName:    "svid_key.pem",
-			svidBundleFileName: "svid_bundle.pem",
+			svidFilename:       "svid.pem",
+			svidKeyFilename:    "svid_key.pem",
+			svidBundleFilename: "svid_bundle.pem",
 			jwtBundleFilename:  "jwt_bundle.json",
 			jwtSVIDs: []JWTConfig{
 				{
@@ -669,9 +669,9 @@ func TestNew(t *testing.T) {
 		t.Run("New Sidecar", func(t *testing.T) {
 			config := &Config{
 				CertDir:            tmpdir,
-				SVIDFileName:       c.svidFileName,
-				SVIDKeyFileName:    c.svidKeyFileName,
-				SVIDBundleFileName: c.svidBundleFileName,
+				SVIDFilename:       c.svidFilename,
+				SVIDKeyFilename:    c.svidKeyFilename,
+				SVIDBundleFilename: c.svidBundleFilename,
 				JWTBundleFilename:  c.jwtBundleFilename,
 				JWTSVIDs:           c.jwtSVIDs,
 				Log:                log,
