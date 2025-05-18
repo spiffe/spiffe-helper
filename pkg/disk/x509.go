@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 
@@ -64,7 +63,7 @@ func (d *Disk) WriteX509Context(x509Context *workloadapi.X509Context) error {
 		return err
 	}
 
-	return writeCerts(svidBundleFile, bundles)
+	return d.writeCerts(svidBundleFile, bundles)
 }
 
 // writeCerts takes an array of certificates,
@@ -84,13 +83,13 @@ func (d *Disk) writeCerts(file string, certs []*x509.Certificate) error {
 
 // writeKey takes a private key as a slice of bytes,
 // formats as PEM, and writes it to file
-func (d *Disk) writeKey(file string, data []byte, keyFileMode fs.FileMode) error {
+func (d *Disk) writeKey(data []byte) error {
 	b := &pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: data,
 	}
 
-	return os.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
+	return os.WriteFile(d.c.X509.SVIDKeyFileName, pem.EncodeToMemory(b), d.c.X509.KeyFileMode)
 }
 
 // getX509SVID extracts the x509 SVID that matches the hint or returns the default
