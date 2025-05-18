@@ -77,6 +77,12 @@ const (
 func New(config *Config) *Sidecar {
 	s := &Sidecar{
 		config: config,
+		disk: disk.New(disk.Config{
+			X509Config{
+				Dir: config.CertDir,
+				SVIDFileName
+			}
+		}
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
 				JWTWriteStatus: make(map[string]string),
