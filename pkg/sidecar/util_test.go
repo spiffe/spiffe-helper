@@ -28,11 +28,16 @@ const (
 	exampleSpiffeID = "spiffe://example.test/workload"
 )
 
-// Whenever an attempt is made to signal pid_file_name, the outcome is sent
-// in messages on a channel with this type. Mainly for test purposes.
-type pidFileSignalledResult struct {
-	pid int
-	err error
+// defaultTestConfig provides default configuration values for tests
+var defaultTestConfig = &Config{
+	Cmd:                "echo",
+	SVIDFileName:       "svid.pem",
+	SVIDKeyFileName:    "svid_key.pem",
+	SVIDBundleFileName: "svid_bundle.pem",
+	CertFileMode:       os.FileMode(0644),
+	KeyFileMode:        os.FileMode(0600),
+	JWTBundleFileMode:  os.FileMode(0600),
+	JWTSVIDFileMode:    os.FileMode(0600),
 }
 
 // sidecarTest is a helper struct to create a sidecar instance for testing.
@@ -52,32 +57,41 @@ type sidecarTest struct {
 	pidFileSignalledChan chan pidFileSignalledResult
 }
 
-// Create a new sidecar test instance. It needs to be configured
-// with NewConfig() and NewSidecar() before use. Then pass a
-// sidecarTestX509SVID instance from newTestX509SVID to
-// MockUpdateX509Certificate to simulate the workload API server sending a
+// pidFileSignalledResult is used to send the outcome whenever an attempt is made
+// to signal pid_file_name. Mainly for test purposes.
+type pidFileSignalledResult struct {
+	pid int
+	err error
+}
+
+// newSidecarTest creates a new sidecar test instance with optional configuration.
+// It creates a new SPIFFE CA, a sidecar instance, and sets up channels to observe
+// internal state transitions. The sidecar is configured to watch for X.509 context
+// updates and will call the certReady hook when it receives a new SVID
 // response.
-func newSidecarTest(t *testing.T) *sidecarTest {
+//
+// Usage:
+//   - newSidecarTest(t) - uses default configuration
+//   - newSidecarTest(t, withConfig(customConfig)) - uses custom configuration
+func newSidecarTest(t *testing.T, opts ...option) *sidecarTest {
 	t.Helper()
 
+	// Create a copy of the default config
+	config := *defaultTestConfig
+	config.CertDir = t.TempDir()
 	log, _ := test.NewNullLogger()
+	config.Log = log
+
+	// Apply any custom options
+	for _, opt := range opts {
+		opt(&config)
+	}
+
 	s := &sidecarTest{
-		rootCA: spiffetest.NewCA(t),
+		rootCA:  spiffetest.NewCA(t),
+		sidecar: New(&config),
 
-		sidecar: New(&Config{
-			Cmd:                "echo",
-			CertDir:            t.TempDir(),
-			SVIDFilename:       "svid.pem",
-			SVIDKeyFilename:    "svid_key.pem",
-			SVIDBundleFilename: "svid_bundle.pem",
-			Log:                log,
-			CertFileMode:       os.FileMode(0644),
-			KeyFileMode:        os.FileMode(0600),
-			JWTBundleFileMode:  os.FileMode(0600),
-			JWTSVIDFileMode:    os.FileMode(0600),
-		}),
-
-		// Observers for internal state	transitions
+		// Observers for internal state transitions
 		cmdExitChan:          make(chan os.ProcessState, 2),
 		pidFileSignalledChan: make(chan pidFileSignalledResult, 2),
 		certReadyChan:        make(chan *workloadapi.X509Context, 2),
@@ -151,6 +165,16 @@ func (s *sidecarTest) MockUpdateX509Certificate(ctx context.Context, t *testing.
 			require.NoError(t, ctx.Err())
 			return
 		}
+	}
+}
+
+// option is a functional option for configuring newSidecarTest
+type option func(*Config)
+
+// withConfig returns an Option that sets the config to the provided value
+func withConfig(cfg *Config) option {
+	return func(config *Config) {
+		*config = *cfg
 	}
 }
 
