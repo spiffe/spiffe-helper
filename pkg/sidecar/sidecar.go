@@ -49,6 +49,7 @@ type Sidecar struct {
 	jwtSource      *workloadapi.JWTSource
 	processRunning bool
 	process        *os.Process
+	disk           *disk.Disk
 
 	// Mutex to protect processRunning
 	mu sync.Mutex
@@ -88,6 +89,20 @@ const (
 func New(config *Config) *Sidecar {
 	s := &Sidecar{
 		config: config,
+		disk: disk.New(disk.Config{
+			X509: disk.X509Config{
+				Dir:                      config.CertDir,
+				SVIDFileName:             config.SVIDFileName,
+				SVIDKeyFileName:          config.SVIDKeyFileName,
+				SVIDBundleFileName:       config.SVIDBundleFileName,
+				CertFileMode:             config.CertFileMode,
+				KeyFileMode:              config.KeyFileMode,
+				AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+				IncludeFederatedDomains:  config.IncludeFederatedDomains,
+				OmitExpired:              config.OmitExpired,
+			},
+			Hint: config.Hint,
+		}),
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
 				JWTWriteStatus: make(map[string]string),
@@ -119,12 +134,12 @@ func (s *Sidecar) setupHealth() {
 		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 	}
 	if s.jwtBundleEnabled() {
-		jwtBundleFilePath := path.Join(s.config.CertDir, s.config.JWTBundleFilename)
+		jwtBundleFilePath := path.Join(s.config.CertDir, s.config.JWTBundleFileName)
 		s.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
 	}
 	for _, jwtConfig := range s.config.JWTSVIDs {
-		jwtSVIDFilename := path.Join(s.config.CertDir, jwtConfig.JWTSVIDFilename)
-		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFilename] = writeStatusUnwritten
+		jwtSVIDFileName := path.Join(s.config.CertDir, jwtConfig.JWTSVIDFileName)
+		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFileName] = writeStatusUnwritten
 	}
 }
 
@@ -232,7 +247,7 @@ func (s *Sidecar) setupClients(ctx context.Context) error {
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
-	if err := disk.WriteX509Context(svidResponse, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.OmitExpired, s.config.CertDir, s.config.SVIDFilename, s.config.SVIDKeyFilename, s.config.SVIDBundleFilename, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint); err != nil {
+	if err := s.disk.WriteX509Context(svidResponse); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		writeStatus := writeStatusFailed
 		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
@@ -248,7 +263,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		}
 	}
 
-	if s.config.PIDFilename != "" {
+	if s.config.PIDFileName != "" {
 		if err := s.signalPIDFileWithRetry(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal PID file")
 		}
@@ -319,14 +334,14 @@ func (s *Sidecar) signalPIDFileWithRetry() error {
 
 // signalPID sends the renew signal to the PID file
 func (s *Sidecar) signalPIDFile() (int, error) {
-	fileBytes, err := os.ReadFile(s.config.PIDFilename)
+	fileBytes, err := os.ReadFile(s.config.PIDFileName)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read pid file %q: %w", s.config.PIDFilename, err)
+		return 0, fmt.Errorf("failed to read pid file %q: %w", s.config.PIDFileName, err)
 	}
 
 	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse pid file %q: %w", s.config.PIDFilename, err)
+		return 0, fmt.Errorf("failed to parse pid file %q: %w", s.config.PIDFileName, err)
 	}
 
 	pidProcess, err := os.FindProcess(pid)
@@ -408,7 +423,7 @@ func getRefreshInterval(svid *jwtsvid.SVID) time.Duration {
 	return time.Until(svid.Expiry)/2 + time.Second
 }
 
-func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, jwtExtraAudiences []string, jwtSVIDFilename string) ([]*jwtsvid.SVID, error) {
+func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, jwtExtraAudiences []string, jwtSVIDFileName string) ([]*jwtsvid.SVID, error) {
 	s.config.Log.Debug("Updating JWT SVID")
 
 	jwtSVIDs, err := s.fetchJWTSVIDs(ctx, jwtAudience, jwtExtraAudiences)
@@ -417,8 +432,8 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 		return nil, err
 	}
 
-	jwtSVIDPath := path.Join(s.config.CertDir, jwtSVIDFilename)
-	if err = disk.WriteJWTSVID(jwtSVIDs, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode, s.config.Hint); err != nil {
+	jwtSVIDPath := path.Join(s.config.CertDir, jwtSVIDFileName)
+	if err = disk.WriteJWTSVID(jwtSVIDs, s.config.CertDir, jwtSVIDFileName, s.config.JWTSVIDFileMode, s.config.Hint); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDPath] = writeStatusFailed
 		return nil, err
@@ -429,10 +444,10 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 	return jwtSVIDs, nil
 }
 
-func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtExtraAudiences []string, jwtSVIDFilename string) {
+func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtExtraAudiences []string, jwtSVIDFileName string) {
 	retryInterval := createRetryIntervalFunc()
 	var initialInterval time.Duration
-	jwtSVIDs, err := s.performJWTSVIDUpdate(ctx, jwtAudience, jwtExtraAudiences, jwtSVIDFilename)
+	jwtSVIDs, err := s.performJWTSVIDUpdate(ctx, jwtAudience, jwtExtraAudiences, jwtSVIDFileName)
 	if err != nil {
 		// If the first update fails, use the retry interval
 		initialInterval = retryInterval()
@@ -448,7 +463,7 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtExtr
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			jwtSVIDs, err = s.performJWTSVIDUpdate(ctx, jwtAudience, jwtExtraAudiences, jwtSVIDFilename)
+			jwtSVIDs, err = s.performJWTSVIDUpdate(ctx, jwtAudience, jwtExtraAudiences, jwtSVIDFileName)
 			if err == nil {
 				retryInterval = createRetryIntervalFunc()
 				ticker.Reset(getRefreshInterval(jwtSVIDs[0]))
@@ -460,11 +475,11 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtExtr
 }
 
 func (s *Sidecar) x509Enabled() bool {
-	return s.config.SVIDFilename != "" && s.config.SVIDKeyFilename != "" && s.config.SVIDBundleFilename != ""
+	return s.config.SVIDFileName != "" && s.config.SVIDKeyFileName != "" && s.config.SVIDBundleFileName != ""
 }
 
 func (s *Sidecar) jwtBundleEnabled() bool {
-	return s.config.JWTBundleFilename != ""
+	return s.config.JWTBundleFileName != ""
 }
 
 func (s *Sidecar) jwtSVIDsEnabled() bool {
@@ -517,8 +532,8 @@ type JWTBundlesWatcher struct {
 // OnJWTBundlesUpdate is run every time a bundle is updated
 func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	w.sidecar.config.Log.Debug("Updating JWT bundle")
-	jwtBundleFilePath := path.Join(w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename)
-	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFilename, w.sidecar.config.JWTBundleFileMode); err != nil {
+	jwtBundleFilePath := path.Join(w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFileName)
+	if err := disk.WriteJWTBundleSet(jwkSet, w.sidecar.config.CertDir, w.sidecar.config.JWTBundleFileName, w.sidecar.config.JWTBundleFileMode); err != nil {
 		w.sidecar.config.Log.Errorf("Error writing JWT Bundle to disk: %v", err)
 		w.sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusFailed
 		return
