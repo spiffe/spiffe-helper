@@ -1,22 +1,12 @@
-run:
-  timeout: 10m
-
-issues:
-  exclude-dirs:
-    - testdata$
-    - test/mock
-  exclude-files:
-    - ".*\\.pb\\.go"
-
+version: "2"
 linters:
   enable:
     - bodyclose
     - dupword
     - durationcheck
     - errorlint
+    - goconst
     - gocritic
-    - gofmt
-    - goimports
     - gosec
     - intrange
     - misspell
@@ -25,12 +15,39 @@ linters:
     - nolintlint
     - prealloc
     - revive
+    - testifylint
+    - thelper
     - unconvert
     - unparam
     - wastedassign
     - whitespace
-
-linters-settings:
-  revive:
-    # minimal confidence for issues, default is 0.8
-    confidence: 0.0
+  settings:
+    revive:
+      confidence: 0
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - .*\.pb\.go
+      - testdata$
+      - test/mock
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.pb\.go
+      - testdata$
+      - test/mock
+      - third_party$
+      - builtin$
+      - examples$

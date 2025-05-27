@@ -58,6 +58,8 @@ type sidecarTest struct {
 // MockUpdateX509Certificate to simulate the workload API server sending a
 // response.
 func newSidecarTest(t *testing.T) *sidecarTest {
+	t.Helper()
+
 	log, _ := test.NewNullLogger()
 	s := &sidecarTest{
 		rootCA: spiffetest.NewCA(t),
@@ -108,6 +110,8 @@ func newSidecarTest(t *testing.T) *sidecarTest {
 // Any pending signals must have been delivered, and any running processes
 // must have exited.
 func (s *sidecarTest) Close(t *testing.T) {
+	t.Helper()
+
 	err := retry.OnError(retry.DefaultRetry, func(err error) bool {
 		return err != nil
 	}, func() (err error) {
@@ -128,6 +132,8 @@ func (s *sidecarTest) Close(t *testing.T) {
 // Trigger a certificate update on the sidecar instance to the passed new SVID.
 // The golang context passed should have a timeout set to avoid hanging tests.
 func (s *sidecarTest) MockUpdateX509Certificate(ctx context.Context, t *testing.T, svid testX509SVID) {
+	t.Helper()
+
 	// Send the new SVID to the sidecar
 	s.watcher.OnX509ContextUpdate(svid.x509Context())
 	// and wait for the sidecar to process it
@@ -163,6 +169,8 @@ type testX509SVID struct {
 // Create a single svid without intermediate, as if the workload api server
 // issued a cert from the specified root CA.
 func newTestX509SVID(t *testing.T, rootCA *spiffetest.CA) testX509SVID {
+	t.Helper()
+
 	spiffeID, err := spiffeid.FromString(exampleSpiffeID)
 	require.NoError(t, err)
 	svidChain, svidKey := rootCA.CreateX509SVID(spiffeID.String())

@@ -164,7 +164,7 @@ func TestValidateConfig(t *testing.T) {
 				PIDFilename: "pidfile",
 				RenewSignal: "",
 			},
-			expectError: "Must specify renew_signal when using pid_file_name",
+			expectError: "must specify renew_signal when using pid_file_name",
 			skipWindows: true,
 		},
 		{
@@ -333,7 +333,7 @@ func TestDefaultAgentAddress(t *testing.T) {
 			}
 			require.NoError(t, err)
 
-			assert.Equal(t, config.AgentAddress, tt.expectedAgentAddress)
+			assert.Equal(t, tt.expectedAgentAddress, config.AgentAddress)
 
 			if tt.envSPIREAgentAddress != "" && tt.envSPIFFEEndpointSocket == "" {
 				require.NotNil(t, hook.LastEntry())
@@ -368,15 +368,15 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
 
 	// Ensure JWT Config was populated correctly
-	require.Equal(t, len(config.JWTSVIDs), len(sidecarConfig.JWTSVIDs))
+	require.Len(t, sidecarConfig.JWTSVIDs, len(config.JWTSVIDs))
 	for i := range config.JWTSVIDs {
 		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWTSVIDs[i].JWTAudience)
 		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFilename, sidecarConfig.JWTSVIDs[i].JWTSVIDFilename)
 	}
 
 	// Ensure empty fields were not populated
-	assert.Equal(t, "", sidecarConfig.SVIDFilename)
-	assert.Equal(t, "", sidecarConfig.RenewSignal)
+	assert.Empty(t, sidecarConfig.SVIDFilename)
+	assert.Empty(t, sidecarConfig.RenewSignal)
 }
 
 func TestDaemonModeFlag(t *testing.T) {
@@ -394,5 +394,5 @@ func TestDaemonModeFlag(t *testing.T) {
 
 	config.ParseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
 	require.NotNil(t, config.DaemonMode)
-	assert.Equal(t, false, *config.DaemonMode)
+	assert.False(t, *config.DaemonMode)
 }

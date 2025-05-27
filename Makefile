@@ -100,7 +100,7 @@ else
 endif
 go_path := PATH="$(go_bin_dir):$(PATH)"
 
-golangci_lint_version = v1.64.8
+golangci_lint_version = v2.1.6
 golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
 golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
 golangci_lint_cache = $(golangci_lint_dir)/cache
@@ -135,7 +135,7 @@ $(golangci_lint_bin): | go-check
 	$(E)rm -rf $(dir $(golangci_lint_dir))
 	$(E)mkdir -p $(golangci_lint_dir)
 	$(E)mkdir -p $(golangci_lint_cache)
-	$(E)GOBIN=$(golangci_lint_dir) $(go_path) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(golangci_lint_version)
+	$(E)curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(golangci_lint_dir) $(golangci_lint_version)
 
 #############################################################################
 # Utility functions and targets

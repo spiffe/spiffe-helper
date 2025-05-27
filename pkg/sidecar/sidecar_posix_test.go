@@ -276,7 +276,7 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	require.Equal(t, true, s.sidecar.processRunning)
+	require.True(t, s.sidecar.processRunning)
 	firstPid := s.sidecar.process.Pid
 
 	// There should be no signal sent to the test helper on the first iteration
@@ -289,7 +289,7 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 	case forwardedSignal := <-sigListener:
 		// No signal should be delivered on the first iteration, since the
 		// helper was just launched.
-		require.Fail(t, "unexpected signal %s", SignalName(forwardedSignal.(syscall.Signal)))
+		require.Fail(t, "Test failed", "unexpected signal %s", SignalName(forwardedSignal.(syscall.Signal)))
 	case <-ctx.Done():
 		require.NoError(t, ctx.Err())
 	}
@@ -303,7 +303,7 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		s.MockUpdateX509Certificate(ctx, t, svid)
 
 		// Command is still running
-		require.Equal(t, true, s.sidecar.processRunning)
+		require.True(t, s.sidecar.processRunning)
 
 		// On the second or later iteration, we should have received a signal
 		// from the test helper. No signal is delivered on the first iteration
@@ -325,7 +325,7 @@ func TestSidecar_TestCmdRunsLongRunning(t *testing.T) {
 		}
 
 		// Command started and is still running
-		require.Equal(t, true, s.sidecar.processRunning)
+		require.True(t, s.sidecar.processRunning)
 
 		if firstPid == -1 {
 			firstPid = s.sidecar.process.Pid
