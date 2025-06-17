@@ -18,9 +18,9 @@ type X509Config struct {
 
 type JWTConfig struct {
 	Dir            string
-	SVIDFilename   string
+	SVIDFileName   string
 	SVIDFileMode   fs.FileMode
-	BundleFilename string
+	BundleFileName string
 	BundleFileMode fs.FileMode
 }
 
