@@ -364,7 +364,7 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, config.AgentAddress, sidecarConfig.AgentAddress)
 	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
 	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
-	assert.Equal(t, config.SVIDKeyFilename, sidecarConfig.SVIDKeyFilename)
+	assert.Equal(t, config.SVIDKeyFilename, sidecarConfig.SVIDKeyFileName)
 	assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
 
 	// Ensure JWT Config was populated correctly
@@ -377,6 +377,9 @@ func TestNewSidecarConfig(t *testing.T) {
 	// Ensure empty fields were not populated
 	assert.Empty(t, sidecarConfig.SVIDFilename)
 	assert.Empty(t, sidecarConfig.RenewSignal)
+
+	assert.Equal(t, config.SVIDBundleFilename, sidecarConfig.SVIDBundleFileName)
+	assert.Equal(t, config.JWTBundleFilename, sidecarConfig.JWTBundleFileName)
 }
 
 func TestDaemonModeFlag(t *testing.T) {

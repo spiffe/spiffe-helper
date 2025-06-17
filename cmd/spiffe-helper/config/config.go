@@ -234,12 +234,12 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
 		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
-		JWTBundleFilename:        config.JWTBundleFilename,
+		JWTBundleFileName:        config.JWTBundleFilename,
 		Log:                      log,
 		RenewSignal:              config.RenewSignal,
-		SVIDFilename:             config.SVIDFilename,
-		SVIDKeyFilename:          config.SVIDKeyFilename,
-		SVIDBundleFilename:       config.SVIDBundleFilename,
+		SVIDFileName:             config.SVIDFilename,
+		SVIDKeyFileName:          config.SVIDKeyFilename,
+		SVIDBundleFileName:       config.SVIDBundleFilename,
 		Hint:                     config.Hint,
 	}
 

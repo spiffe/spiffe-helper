@@ -454,9 +454,9 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			config.RenewSignal = testCase.renewSignal
 			config.IncludeFederatedDomains = testCase.federatedDomains
 
-			svidFile := path.Join(config.CertDir, config.SVIDFilename)
-			svidKeyFile := path.Join(config.CertDir, config.SVIDKeyFilename)
-			svidBundleFile := path.Join(config.CertDir, config.SVIDBundleFilename)
+			svidFile := path.Join(config.CertDir, config.SVIDFileName)
+			svidKeyFile := path.Join(config.CertDir, config.SVIDKeyFileName)
+			svidBundleFile := path.Join(config.CertDir, config.SVIDBundleFileName)
 
 			// Push response to start updating process
 			s.watcher.OnX509ContextUpdate(testCase.response)
@@ -669,10 +669,10 @@ func TestNew(t *testing.T) {
 		t.Run("New Sidecar", func(t *testing.T) {
 			config := &Config{
 				CertDir:            tmpdir,
-				SVIDFilename:       c.svidFilename,
-				SVIDKeyFilename:    c.svidKeyFilename,
-				SVIDBundleFilename: c.svidBundleFilename,
-				JWTBundleFilename:  c.jwtBundleFilename,
+				SVIDFileName:       c.svidFilename,
+				SVIDKeyFileName:    c.svidKeyFilename,
+				SVIDBundleFileName: c.svidBundleFilename,
+				JWTBundleFileName:  c.jwtBundleFilename,
 				JWTSVIDs:           c.jwtSVIDs,
 				Log:                log,
 			}

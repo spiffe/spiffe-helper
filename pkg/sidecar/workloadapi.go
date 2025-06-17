@@ -73,7 +73,7 @@ func (s *Sidecar) fetchAndWriteX509Context(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteX509Context(x509Context, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.CertDir, s.config.SVIDFilename, s.config.SVIDKeyFilename, s.config.SVIDBundleFilename, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint)
+	return s.disk.WriteX509Context(x509Context)
 }
 
 func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
@@ -90,7 +90,7 @@ func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteJWTBundleSet(jwtBundleSet, s.config.CertDir, s.config.JWTBundleFilename, s.config.JWTBundleFileMode)
+	return disk.WriteJWTBundleSet(jwtBundleSet, s.config.CertDir, s.config.JWTBundleFileName, s.config.JWTBundleFileMode)
 }
 
 func (s *Sidecar) fetchAndWriteJWTSVIDs(ctx context.Context) error {

@@ -67,9 +67,9 @@ func newSidecarTest(t *testing.T) *sidecarTest {
 		sidecar: New(&Config{
 			Cmd:                "echo",
 			CertDir:            t.TempDir(),
-			SVIDFilename:       "svid.pem",
-			SVIDKeyFilename:    "svid_key.pem",
-			SVIDBundleFilename: "svid_bundle.pem",
+			SVIDFileName:       "svid.pem",
+			SVIDKeyFileName:    "svid_key.pem",
+			SVIDBundleFileName: "svid_bundle.pem",
 			Log:                log,
 			CertFileMode:       os.FileMode(0644),
 			KeyFileMode:        os.FileMode(0600),

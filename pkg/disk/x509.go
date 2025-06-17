@@ -89,7 +89,8 @@ func (d *Disk) writeKey(data []byte) error {
 		Bytes: data,
 	}
 
-	return os.WriteFile(d.c.X509.SVIDKeyFileName, pem.EncodeToMemory(b), d.c.X509.KeyFileMode)
+	svidKeyFile := path.Join(d.c.X509.Dir, d.c.X509.SVIDKeyFileName)
+	return os.WriteFile(svidKeyFile, pem.EncodeToMemory(b), d.c.X509.KeyFileMode)
 }
 
 // getX509SVID extracts the x509 SVID that matches the hint or returns the default

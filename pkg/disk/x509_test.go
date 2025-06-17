@@ -150,7 +150,20 @@ func TestWriteX509Context(t *testing.T) {
 					}
 				}
 
-				err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename, certFileMode, keyFileMode, hint)
+				disk := New(Config{
+					X509: X509Config{
+						Dir:                      tempDir,
+						SVIDFileName:             svidFilename,
+						SVIDKeyFileName:          svidKeyFilename,
+						SVIDBundleFileName:       svidBundleFilename,
+						CertFileMode:             certFileMode,
+						KeyFileMode:              keyFileMode,
+						AddIntermediatesToBundle: test.intermediateInBundle,
+						IncludeFederatedDomains:  test.includeFederatedDomains,
+					},
+					Hint: hint,
+				})
+				err = disk.WriteX509Context(x509Context)
 				require.NoError(t, err)
 
 				// Load certificates from disk and validate it is expected
