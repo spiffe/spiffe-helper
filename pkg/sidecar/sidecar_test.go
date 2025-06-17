@@ -621,24 +621,24 @@ func TestNew(t *testing.T) {
 	unwrittenStatus := writeStatusUnwritten
 	cases := []struct {
 		certDir                   string
-		svidFilename              string
-		svidKeyFilename           string
-		svidBundleFilename        string
-		jwtBundleFilename         string
+		svidFileName              string
+		svidKeyFileName           string
+		svidBundleFileName        string
+		jwtBundleFileName         string
 		jwtSVIDs                  []JWTConfig
 		expectedErr               string
 		expectedFileWriteStatuses FileWriteStatuses
 	}{
 		{
 			certDir:            tmpdir,
-			svidFilename:       "svid.pem",
-			svidKeyFilename:    "svid_key.pem",
-			svidBundleFilename: "svid_bundle.pem",
-			jwtBundleFilename:  "jwt_bundle.json",
+			svidFileName:       "svid.pem",
+			svidKeyFileName:    "svid_key.pem",
+			svidBundleFileName: "svid_bundle.pem",
+			jwtBundleFileName:  "jwt_bundle.json",
 			jwtSVIDs: []JWTConfig{
 				{
 					JWTAudience:     "my-audience",
-					JWTSVIDFilename: "jwt_svid.jwt",
+					JWTSVIDFileName: "jwt_svid.jwt",
 				},
 			},
 			expectedFileWriteStatuses: FileWriteStatuses{
@@ -653,7 +653,7 @@ func TestNew(t *testing.T) {
 			jwtSVIDs: []JWTConfig{
 				{
 					JWTAudience:     "my-audience",
-					JWTSVIDFilename: "jwt_svid.jwt",
+					JWTSVIDFileName: "jwt_svid.jwt",
 				},
 			},
 			expectedFileWriteStatuses: FileWriteStatuses{
@@ -669,10 +669,10 @@ func TestNew(t *testing.T) {
 		t.Run("New Sidecar", func(t *testing.T) {
 			config := &Config{
 				CertDir:            tmpdir,
-				SVIDFileName:       c.svidFilename,
-				SVIDKeyFileName:    c.svidKeyFilename,
-				SVIDBundleFileName: c.svidBundleFilename,
-				JWTBundleFileName:  c.jwtBundleFilename,
+				SVIDFileName:       c.svidFileName,
+				SVIDKeyFileName:    c.svidKeyFileName,
+				SVIDBundleFileName: c.svidBundleFileName,
+				JWTBundleFileName:  c.jwtBundleFileName,
 				JWTSVIDs:           c.jwtSVIDs,
 				Log:                log,
 			}
