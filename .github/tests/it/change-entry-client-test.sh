@@ -15,7 +15,7 @@ restore-entry(){
         -parentID $PARENTID \
         -spiffeID spiffe://example.org/client \
         -selector unix:uid:72 \
-        -ttl 100 \
+        -x509SVIDTTL 100 \
         -dns client
 
     echo "Entry restored"
@@ -54,7 +54,7 @@ bad-entry(){
         -parentID $PARENTID \
         -spiffeID spiffe://example.org/client \
         -selector unix:uid:72 \
-        -ttl 100 \
+        -x509SVIDTTL 100 \
         -dns testuser1
     
     echo "Entry changed, now with dns=testuser1"
