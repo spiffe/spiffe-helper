@@ -22,6 +22,17 @@ import (
 	"github.com/spiffe/spiffe-helper/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
+)
+
+var (
+	pidBackoff = wait.Backoff{
+		Steps:    10,
+		Duration: 100 * time.Millisecond,
+		Factor:   2.0,
+		Jitter:   0.1,
+	}
 )
 
 // Event hooks used by unit tests to coordinate goroutines
@@ -238,7 +249,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 
 	if s.config.PIDFilename != "" {
-		if err := s.signalPID(); err != nil {
+		if err := s.signalPIDFileWithRetry(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal PID file")
 		}
 	}
@@ -299,8 +310,17 @@ func (s *Sidecar) signalProcess() error {
 	return nil
 }
 
+// signalPID sends the renew signal to the PID file retrying on error
+func (s *Sidecar) signalPIDFileWithRetry() error {
+	return retry.OnError(pidBackoff, func(err error) bool {
+		return err != nil
+	}, func() (err error) {
+		return s.signalPIDFile()
+	})
+}
+
 // signalPID sends the renew signal to the PID file
-func (s *Sidecar) signalPID() error {
+func (s *Sidecar) signalPIDFile() error {
 	pid, err := func() (int, error) {
 		fileBytes, err := os.ReadFile(s.config.PIDFilename)
 		if err != nil {
