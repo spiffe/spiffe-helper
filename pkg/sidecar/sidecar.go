@@ -22,6 +22,17 @@ import (
 	"github.com/spiffe/spiffe-helper/pkg/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
+)
+
+var (
+	pidBackoff = wait.Backoff{
+		Steps:    10,
+		Duration: 100 * time.Millisecond,
+		Factor:   2.0,
+		Jitter:   0.1,
+	}
 )
 
 // Event hooks used by unit tests to coordinate goroutines
@@ -149,7 +160,7 @@ func (s *Sidecar) RunDaemon(ctx context.Context) error {
 	}
 
 	err := util.RunTasks(ctx, tasks...)
-	if err != nil && !errors.Is(err, context.Canceled) {
+	if errors.Is(err, context.Canceled) {
 		return nil
 	}
 
@@ -238,7 +249,7 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	}
 
 	if s.config.PIDFilename != "" {
-		if err := s.signalPID(); err != nil {
+		if err := s.signalPIDFileWithRetry(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal PID file")
 		}
 	}
@@ -299,28 +310,38 @@ func (s *Sidecar) signalProcess() error {
 	return nil
 }
 
-// signalPID sends the renew signal to the PID file
-func (s *Sidecar) signalPID() error {
-	pid, err := func() (int, error) {
-		fileBytes, err := os.ReadFile(s.config.PIDFilename)
-		if err != nil {
-			return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFilename, err)
-		}
+// signalPID sends the renew signal to the PID file retrying on error
+func (s *Sidecar) signalPIDFileWithRetry() error {
+	var pid int
+	err := retry.OnError(pidBackoff, func(err error) bool {
+		return err != nil
+	}, func() (err error) {
+		pid, err = s.signalPIDFile()
+		return err
+	})
 
-		pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
-		if err != nil {
-			return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFilename, err)
-		}
-
-		pidProcess, err := os.FindProcess(pid)
-		if err != nil {
-			return pid, fmt.Errorf("failed to find process id %d: %w", pid, err)
-		}
-
-		return pid, SignalProcess(pidProcess, s.config.RenewSignal)
-	}()
 	s.hooks.pidFileSignalled(pid, err)
 	return err
+}
+
+// signalPID sends the renew signal to the PID file
+func (s *Sidecar) signalPIDFile() (int, error) {
+	fileBytes, err := os.ReadFile(s.config.PIDFilename)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFilename, err)
+	}
+
+	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFilename, err)
+	}
+
+	pidProcess, err := os.FindProcess(pid)
+	if err != nil {
+		return pid, fmt.Errorf("failed to find process id %d: %w", pid, err)
+	}
+
+	return pid, SignalProcess(pidProcess, s.config.RenewSignal)
 }
 
 // Goroutine to watch a running process until it exits and report its exit status.
