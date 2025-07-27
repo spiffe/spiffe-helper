@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 
@@ -16,12 +15,11 @@ import (
 // the Workload API, and calls writeCerts and writeKey to write to disk
 // the svid, key and bundle of certificates.
 // It is possible to change output setting `addIntermediatesToBundle` as true.
-func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBundle, includeFederatedDomains bool, certDir, svidFilename, svidKeyFilename, svidBundleFilename string, certFileMode, keyFileMode fs.FileMode, hint string) error {
-	svidFile := path.Join(certDir, svidFilename)
-	svidKeyFile := path.Join(certDir, svidKeyFilename)
-	svidBundleFile := path.Join(certDir, svidBundleFilename)
+func (d *Disk) WriteX509Context(x509Context *workloadapi.X509Context) error {
+	svidFile := path.Join(d.c.X509.Dir, d.c.X509.SVIDFileName)
+	svidBundleFile := path.Join(d.c.X509.Dir, d.c.X509.SVIDBundleFileName)
 
-	svid, err := getX509SVID(x509Context, hint)
+	svid, err := getX509SVID(x509Context, d.c.Hint)
 	if err != nil {
 		return err
 	}
@@ -41,13 +39,13 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 
 	// Add intermediates into bundles and remove them from certs
 	certs := svid.Certificates
-	if addIntermediatesToBundle {
+	if d.c.X509.AddIntermediatesToBundle {
 		bundles = append(bundles, certs[1:]...)
-		certs = []*x509.Certificate{certs[0]}
+		certs = certs[:1]
 	}
 
 	// If using federated domains, add them to the CA bundle
-	if includeFederatedDomains {
+	if d.c.X509.IncludeFederatedDomains {
 		for _, bundle := range x509Context.Bundles.Bundles() {
 			// The bundle corresponding to svid.ID.TrustDomain is already stored
 			if bundle.TrustDomain().Name() != svid.ID.TrustDomain().Name() {
@@ -57,20 +55,20 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 	}
 
 	// Write cert, key, and bundle to disk
-	if err := writeCerts(svidFile, certs, certFileMode); err != nil {
+	if err := d.writeCerts(svidFile, certs); err != nil {
 		return err
 	}
 
-	if err := writeKey(svidKeyFile, privateKey, keyFileMode); err != nil {
+	if err := d.writeKey(privateKey); err != nil {
 		return err
 	}
 
-	return writeCerts(svidBundleFile, bundles, certFileMode)
+	return d.writeCerts(svidBundleFile, bundles)
 }
 
 // writeCerts takes an array of certificates,
 // and encodes them as PEM blocks, writing them to file
-func writeCerts(file string, certs []*x509.Certificate, certFileMode fs.FileMode) error {
+func (d *Disk) writeCerts(file string, certs []*x509.Certificate) error {
 	var pemData []byte
 	for _, cert := range certs {
 		b := &pem.Block{
@@ -80,18 +78,19 @@ func writeCerts(file string, certs []*x509.Certificate, certFileMode fs.FileMode
 		pemData = append(pemData, pem.EncodeToMemory(b)...)
 	}
 
-	return os.WriteFile(file, pemData, certFileMode)
+	return os.WriteFile(file, pemData, d.c.X509.CertFileMode)
 }
 
 // writeKey takes a private key as a slice of bytes,
 // formats as PEM, and writes it to file
-func writeKey(file string, data []byte, keyFileMode fs.FileMode) error {
+func (d *Disk) writeKey(data []byte) error {
 	b := &pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: data,
 	}
 
-	return os.WriteFile(file, pem.EncodeToMemory(b), keyFileMode)
+	svidKeyFile := path.Join(d.c.X509.Dir, d.c.X509.SVIDKeyFileName)
+	return os.WriteFile(svidKeyFile, pem.EncodeToMemory(b), d.c.X509.KeyFileMode)
 }
 
 // getX509SVID extracts the x509 SVID that matches the hint or returns the default

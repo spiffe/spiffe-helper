@@ -21,7 +21,7 @@ type Config struct {
 	CmdArgs string
 
 	// Signal external process via PID file
-	PIDFilename string
+	PIDFileName string
 
 	// The directory name to store the x509s and/or JWTs.
 	CertDir string
@@ -45,7 +45,7 @@ type Config struct {
 	JWTSVIDs []JWTConfig
 
 	// File name to be used to store JWT Bundle in JSON format.
-	JWTBundleFilename string
+	JWTBundleFileName string
 
 	// The logger to use
 	Log logrus.FieldLogger
@@ -54,13 +54,13 @@ type Config struct {
 	RenewSignal string
 
 	// File name to be used to store the X.509 SVID public certificate in PEM format.
-	SVIDFilename string
+	SVIDFileName string
 
 	// File name to be used to store the X.509 SVID private key and public certificate in PEM format.
-	SVIDKeyFilename string
+	SVIDKeyFileName string
 
 	// File name to be used to store the X.509 SVID Bundle in PEM format.
-	SVIDBundleFilename string
+	SVIDBundleFileName string
 
 	// Hint: The hint to pass to the spiffe endpoint to help select SPIFFE IDs
 	Hint string
@@ -77,5 +77,5 @@ type JWTConfig struct {
 	JWTExtraAudiences []string
 
 	// The filename to save the JWT SVID to
-	JWTSVIDFilename string
+	JWTSVIDFileName string
 }
