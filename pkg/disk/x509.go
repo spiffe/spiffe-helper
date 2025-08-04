@@ -74,7 +74,7 @@ func WriteX509Context(x509Context *workloadapi.X509Context, addIntermediatesToBu
 func writeCerts(file string, certs []*x509.Certificate, certFileMode fs.FileMode, omitExpired bool) error {
 	var pemData []byte
 	for _, cert := range certs {
-		if omitExpired && cert.NotAfter.Before(time.Now().UTC()) {
+		if omitExpired && time.Now().UTC().After(cert.NotAfter) {
 			continue
 		}
 		b := &pem.Block{
