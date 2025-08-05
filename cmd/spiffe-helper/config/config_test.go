@@ -46,7 +46,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedJWTAudience, c.JWTSVIDs[0].JWTAudience)
 	assert.Equal(t, expectedJWTExtraAudiences, c.JWTSVIDs[0].JWTExtraAudiences)
 	assert.True(t, c.AddIntermediatesToBundle)
-	assert.True(t, c.OmitExpired)
+	assert.False(t, c.OmitExpired)
 	assert.Equal(t, 444, c.CertFileMode)
 	assert.Equal(t, 444, c.KeyFileMode)
 	assert.Equal(t, 444, c.JWTBundleFileMode)
