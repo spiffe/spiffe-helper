@@ -39,6 +39,7 @@ type Config struct {
 	JWTBundleFileMode        int           `hcl:"jwt_bundle_file_mode"`
 	JWTSVIDFileMode          int           `hcl:"jwt_svid_file_mode"`
 	IncludeFederatedDomains  bool          `hcl:"include_federated_domains"`
+	OmitExpired              bool          `hcl:"omit_expired"`
 	RenewSignal              string        `hcl:"renew_signal"`
 	DaemonMode               *bool         `hcl:"daemon_mode"`
 	HealthCheck              health.Config `hcl:"health_checks"`
@@ -234,6 +235,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
 		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
 		IncludeFederatedDomains:  config.IncludeFederatedDomains,
+		OmitExpired:              config.OmitExpired,
 		JWTBundleFilename:        config.JWTBundleFilename,
 		Log:                      log,
 		RenewSignal:              config.RenewSignal,
