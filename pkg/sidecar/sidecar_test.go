@@ -446,17 +446,29 @@ func TestSidecar_RunDaemon(t *testing.T) {
 				t.Skip("Skipping test on Windows because it does not support signals")
 			}
 
-			s := newSidecarTest(t)
+			log, _ := test.NewNullLogger()
+			config := &Config{
+				Cmd:                      "echo",
+				CertDir:                  t.TempDir(),
+				SVIDFileName:             "svid.pem",
+				SVIDKeyFileName:          "svid_key.pem",
+				SVIDBundleFileName:       "svid_bundle.pem",
+				Log:                      log,
+				CertFileMode:             os.FileMode(0644),
+				KeyFileMode:              os.FileMode(0600),
+				JWTBundleFileMode:        os.FileMode(0600),
+				JWTSVIDFileMode:          os.FileMode(0600),
+				AddIntermediatesToBundle: testCase.intermediateInBundle,
+				RenewSignal:              testCase.renewSignal,
+				IncludeFederatedDomains:  testCase.federatedDomains,
+			}
+
+			s := newSidecarTest(t, withConfig(config))
 			defer s.Close(t)
 
-			config := s.sidecar.config
-			config.AddIntermediatesToBundle = testCase.intermediateInBundle
-			config.RenewSignal = testCase.renewSignal
-			config.IncludeFederatedDomains = testCase.federatedDomains
-
-			svidFile := path.Join(config.CertDir, config.SVIDFilename)
-			svidKeyFile := path.Join(config.CertDir, config.SVIDKeyFilename)
-			svidBundleFile := path.Join(config.CertDir, config.SVIDBundleFilename)
+			svidFile := path.Join(config.CertDir, config.SVIDFileName)
+			svidKeyFile := path.Join(config.CertDir, config.SVIDKeyFileName)
+			svidBundleFile := path.Join(config.CertDir, config.SVIDBundleFileName)
 
 			// Push response to start updating process
 			s.watcher.OnX509ContextUpdate(testCase.response)
@@ -621,24 +633,24 @@ func TestNew(t *testing.T) {
 	unwrittenStatus := writeStatusUnwritten
 	cases := []struct {
 		certDir                   string
-		svidFilename              string
-		svidKeyFilename           string
-		svidBundleFilename        string
-		jwtBundleFilename         string
+		svidFileName              string
+		svidKeyFileName           string
+		svidBundleFileName        string
+		jwtBundleFileName         string
 		jwtSVIDs                  []JWTConfig
 		expectedErr               string
 		expectedFileWriteStatuses FileWriteStatuses
 	}{
 		{
 			certDir:            tmpdir,
-			svidFilename:       "svid.pem",
-			svidKeyFilename:    "svid_key.pem",
-			svidBundleFilename: "svid_bundle.pem",
-			jwtBundleFilename:  "jwt_bundle.json",
+			svidFileName:       "svid.pem",
+			svidKeyFileName:    "svid_key.pem",
+			svidBundleFileName: "svid_bundle.pem",
+			jwtBundleFileName:  "jwt_bundle.json",
 			jwtSVIDs: []JWTConfig{
 				{
 					JWTAudience:     "my-audience",
-					JWTSVIDFilename: "jwt_svid.jwt",
+					JWTSVIDFileName: "jwt_svid.jwt",
 				},
 			},
 			expectedFileWriteStatuses: FileWriteStatuses{
@@ -653,7 +665,7 @@ func TestNew(t *testing.T) {
 			jwtSVIDs: []JWTConfig{
 				{
 					JWTAudience:     "my-audience",
-					JWTSVIDFilename: "jwt_svid.jwt",
+					JWTSVIDFileName: "jwt_svid.jwt",
 				},
 			},
 			expectedFileWriteStatuses: FileWriteStatuses{
@@ -669,10 +681,10 @@ func TestNew(t *testing.T) {
 		t.Run("New Sidecar", func(t *testing.T) {
 			config := &Config{
 				CertDir:            tmpdir,
-				SVIDFilename:       c.svidFilename,
-				SVIDKeyFilename:    c.svidKeyFilename,
-				SVIDBundleFilename: c.svidBundleFilename,
-				JWTBundleFilename:  c.jwtBundleFilename,
+				SVIDFileName:       c.svidFileName,
+				SVIDKeyFileName:    c.svidKeyFileName,
+				SVIDBundleFileName: c.svidBundleFileName,
+				JWTBundleFileName:  c.jwtBundleFileName,
 				JWTSVIDs:           c.jwtSVIDs,
 				Log:                log,
 			}

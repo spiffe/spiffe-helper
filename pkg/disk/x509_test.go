@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	svidFilename       = "svid.pem"
-	svidKeyFilename    = "svid_key.pem"
-	svidBundleFilename = "svid_bundle.pem"
+	svidFileName       = "svid.pem"
+	svidKeyFileName    = "svid_key.pem"
+	svidBundleFileName = "svid_bundle.pem"
 	certFileMode       = fs.FileMode(0600)
 	keyFileMode        = fs.FileMode(0600)
 )
@@ -150,21 +150,34 @@ func TestWriteX509Context(t *testing.T) {
 					}
 				}
 
-				err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, tempDir, svidFilename, svidKeyFilename, svidBundleFilename, certFileMode, keyFileMode, hint)
+				disk := New(Config{
+					X509: X509Config{
+						Dir:                      tempDir,
+						SVIDFileName:             svidFileName,
+						SVIDKeyFileName:          svidKeyFileName,
+						SVIDBundleFileName:       svidBundleFileName,
+						CertFileMode:             certFileMode,
+						KeyFileMode:              keyFileMode,
+						AddIntermediatesToBundle: test.intermediateInBundle,
+						IncludeFederatedDomains:  test.includeFederatedDomains,
+					},
+					Hint: hint,
+				})
+				err = disk.WriteX509Context(x509Context)
 				require.NoError(t, err)
 
 				// Load certificates from disk and validate it is expected
-				actualCerts, err := util.LoadCertificates(path.Join(tempDir, svidFilename))
+				actualCerts, err := util.LoadCertificates(path.Join(tempDir, svidFileName))
 				require.NoError(t, err)
 				require.Equal(t, certs, actualCerts)
 
 				// Load key from disk and validate it is expected
-				actualKey, err := util.LoadPrivateKey(path.Join(tempDir, svidKeyFilename))
+				actualKey, err := util.LoadPrivateKey(path.Join(tempDir, svidKeyFileName))
 				require.NoError(t, err)
 				require.Equal(t, key, actualKey)
 
 				// Load bundle from disk and validate it is expected
-				actualBundle, err := util.LoadCertificates(path.Join(tempDir, svidBundleFilename))
+				actualBundle, err := util.LoadCertificates(path.Join(tempDir, svidBundleFileName))
 				require.NoError(t, err)
 				require.Equal(t, bundle, actualBundle)
 			})
