@@ -42,6 +42,16 @@ func (ca *CA) CreateCA() *CA {
 	}
 }
 
+func (ca *CA) CreateExpiredCA() *CA {
+	cert, key := CreateExpiredCACertificate(ca.tb, ca.cert, ca.key)
+	return &CA{
+		tb:     ca.tb,
+		parent: ca,
+		cert:   cert,
+		key:    key,
+	}
+}
+
 func (ca *CA) CreateX509SVID(spiffeID string) ([]*x509.Certificate, crypto.Signer) {
 	cert, key := CreateX509SVID(ca.tb, ca.cert, ca.key, spiffeID)
 	return append([]*x509.Certificate{cert}, ca.chain(false)...), key
@@ -55,10 +65,23 @@ func (ca *CA) Roots() []*x509.Certificate {
 	return []*x509.Certificate{root.cert}
 }
 
+func CreateExpiredCACertificate(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer) (*x509.Certificate, crypto.Signer) {
+	tb.Helper()
+
+	now := time.Now().UTC()
+	return createCACertificateWithOptions(tb, parent, parentKey, now.Add(-1*time.Hour), now)
+}
+
 func CreateCACertificate(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer) (*x509.Certificate, crypto.Signer) {
 	tb.Helper()
 
-	now := time.Now()
+	now := time.Now().UTC()
+	return createCACertificateWithOptions(tb, parent, parentKey, now, now.Add(time.Hour))
+}
+
+func createCACertificateWithOptions(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer, notBefore, notAfter time.Time) (*x509.Certificate, crypto.Signer) {
+	tb.Helper()
+
 	serial := NewSerial(tb)
 
 	key := NewEC256Key(tb)
@@ -69,8 +92,8 @@ func CreateCACertificate(tb testing.TB, parent *x509.Certificate, parentKey cryp
 		},
 		BasicConstraintsValid: true,
 		IsCA:                  true,
-		NotBefore:             now,
-		NotAfter:              now.Add(time.Hour),
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
 	}
 	if parent == nil {
 		parent = tmpl
