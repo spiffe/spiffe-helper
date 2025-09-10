@@ -7,7 +7,7 @@ require (
 	github.com/spiffe/go-spiffe/v2 v2.6.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sys v0.36.0
-	google.golang.org/grpc v1.75.0
+	google.golang.org/grpc v1.75.1
 	k8s.io/apimachinery v0.34.0
 	k8s.io/client-go v0.34.0
 )
