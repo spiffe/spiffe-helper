@@ -25,6 +25,7 @@ const (
 func TestWriteX509Context(t *testing.T) {
 	// Create root and intermediate CAs
 	rootCA := spiffetest.NewCA(t)
+	expiredItermediateCAChain := rootCA.CreateExpiredCA()
 	intermediateCA := rootCA.CreateCA()
 	federatedCA := spiffetest.NewCA(t)
 
@@ -36,6 +37,7 @@ func TestWriteX509Context(t *testing.T) {
 		federatedCA             *spiffetest.CA
 		spiffeIDString          string
 		chainLength             int
+		omitExpired             bool
 		includeFederatedDomains bool
 		intermediateInBundle    bool
 	}{
@@ -44,6 +46,7 @@ func TestWriteX509Context(t *testing.T) {
 			ca:                      rootCA,
 			spiffeIDString:          "spiffe://example.test/workload",
 			chainLength:             1,
+			omitExpired:             false,
 			includeFederatedDomains: false,
 			intermediateInBundle:    false,
 		},
@@ -52,6 +55,7 @@ func TestWriteX509Context(t *testing.T) {
 			ca:                      rootCA,
 			spiffeIDString:          "spiffe://example.test/workload2",
 			chainLength:             1,
+			omitExpired:             false,
 			includeFederatedDomains: false,
 			intermediateInBundle:    true,
 		},
@@ -60,6 +64,7 @@ func TestWriteX509Context(t *testing.T) {
 			ca:                      intermediateCA,
 			spiffeIDString:          "spiffe://example.test/workloadWithIntermediate",
 			chainLength:             2,
+			omitExpired:             false,
 			includeFederatedDomains: false,
 			intermediateInBundle:    false,
 		},
@@ -68,6 +73,16 @@ func TestWriteX509Context(t *testing.T) {
 			ca:                      intermediateCA,
 			spiffeIDString:          "spiffe://example.test/workloadWithIntermediate",
 			chainLength:             2,
+			omitExpired:             false,
+			includeFederatedDomains: false,
+			intermediateInBundle:    true,
+		},
+		{
+			name:                    "SVID with expired intermediate in bundle and omit expired certs",
+			ca:                      expiredItermediateCAChain,
+			spiffeIDString:          "spiffe://example.test/workloadWithIntermediate",
+			chainLength:             2,
+			omitExpired:             true,
 			includeFederatedDomains: false,
 			intermediateInBundle:    true,
 		},
@@ -77,6 +92,7 @@ func TestWriteX509Context(t *testing.T) {
 			federatedCA:             federatedCA,
 			spiffeIDString:          "spiffe://example.test/workload",
 			chainLength:             1,
+			omitExpired:             false,
 			includeFederatedDomains: true,
 			intermediateInBundle:    false,
 		},
@@ -86,6 +102,7 @@ func TestWriteX509Context(t *testing.T) {
 			federatedCA:             federatedCA,
 			spiffeIDString:          "spiffe://example.test/workload",
 			chainLength:             1,
+			omitExpired:             false,
 			includeFederatedDomains: false,
 			intermediateInBundle:    false,
 		},
@@ -95,6 +112,7 @@ func TestWriteX509Context(t *testing.T) {
 			federatedCA:             federatedCA,
 			spiffeIDString:          "spiffe://example.test/workload",
 			chainLength:             2,
+			omitExpired:             false,
 			includeFederatedDomains: true,
 			intermediateInBundle:    true,
 		},
@@ -141,6 +159,10 @@ func TestWriteX509Context(t *testing.T) {
 					certs = certs[:1]
 				}
 
+				if test.omitExpired {
+					bundle = bundle[:1]
+				}
+
 				if test.federatedCA != nil {
 					federatedTrustDomain := spiffeid.RequireTrustDomainFromString("federated.test")
 					x509Context.Bundles.Add(x509bundle.FromX509Authorities(federatedTrustDomain, test.federatedCA.Roots()))
@@ -160,6 +182,7 @@ func TestWriteX509Context(t *testing.T) {
 						KeyFileMode:              keyFileMode,
 						AddIntermediatesToBundle: test.intermediateInBundle,
 						IncludeFederatedDomains:  test.includeFederatedDomains,
+						OmitExpired:              test.omitExpired,
 					},
 					Hint: hint,
 				})

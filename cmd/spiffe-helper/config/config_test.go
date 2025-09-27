@@ -46,6 +46,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedJWTAudience, c.JWTSVIDs[0].JWTAudience)
 	assert.Equal(t, expectedJWTExtraAudiences, c.JWTSVIDs[0].JWTExtraAudiences)
 	assert.True(t, c.AddIntermediatesToBundle)
+	assert.False(t, c.OmitExpired)
 	assert.Equal(t, 444, c.CertFileMode)
 	assert.Equal(t, 444, c.KeyFileMode)
 	assert.Equal(t, 444, c.JWTBundleFileMode)
@@ -350,6 +351,7 @@ func TestNewSidecarConfig(t *testing.T) {
 		CertDir:                 "my-cert-dir",
 		SVIDKeyFileName:         "my-key",
 		IncludeFederatedDomains: true,
+		OmitExpired:             true,
 		JWTSVIDs: []JWTConfig{
 			{
 				JWTAudience:     "my-audience",
@@ -366,6 +368,7 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
 	assert.Equal(t, config.SVIDKeyFileName, sidecarConfig.SVIDKeyFileName)
 	assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
+	assert.Equal(t, config.OmitExpired, sidecarConfig.OmitExpired)
 
 	// Ensure JWT Config was populated correctly
 	require.Len(t, sidecarConfig.JWTSVIDs, len(config.JWTSVIDs))

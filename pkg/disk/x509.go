@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
@@ -71,6 +72,9 @@ func (d *Disk) WriteX509Context(x509Context *workloadapi.X509Context) error {
 func (d *Disk) writeCerts(file string, certs []*x509.Certificate) error {
 	var pemData []byte
 	for _, cert := range certs {
+		if d.c.X509.OmitExpired && time.Now().UTC().After(cert.NotAfter) {
+			continue
+		}
 		b := &pem.Block{
 			Type:  "CERTIFICATE",
 			Bytes: cert.Raw,

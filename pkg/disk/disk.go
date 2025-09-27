@@ -14,6 +14,7 @@ type X509Config struct {
 
 	AddIntermediatesToBundle bool
 	IncludeFederatedDomains  bool
+	OmitExpired              bool
 }
 
 type JWTConfig struct {

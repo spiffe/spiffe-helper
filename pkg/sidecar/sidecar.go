@@ -88,6 +88,7 @@ func New(config *Config) *Sidecar {
 				KeyFileMode:              config.KeyFileMode,
 				AddIntermediatesToBundle: config.AddIntermediatesToBundle,
 				IncludeFederatedDomains:  config.IncludeFederatedDomains,
+				OmitExpired:              config.OmitExpired,
 			},
 			Hint: config.Hint,
 		}),

@@ -46,6 +46,7 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
  | `jwt_bundle_file_mode`        | The octal file mode to use when saving a JWT Bundle file.                                                                         | `0600`                                                                                                                                                               |
  | `jwt_svid_file_mode`          | The octal file mode to use when saving a JWT SVID file.                                                                           | `0600`                                                                                                                                                               |
  | `hint`                        | Hint to use to pick the SPIFFE ID.                                                                                                | ``                                                                                                                                                                   |
+ | `omit_expired`                | Omits expired CA certificates from the SVID bundle when renewed. Defaults to `false`.                                             | `false`                                                                                                                                                              |
 
 **Notes**:
 
