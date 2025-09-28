@@ -73,7 +73,7 @@ func (s *Sidecar) fetchAndWriteX509Context(ctx context.Context) error {
 		return err
 	}
 
-	return s.disk.WriteX509Context(x509Context)
+	return s.x509Disk.WriteX509Context(x509Context)
 }
 
 func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {

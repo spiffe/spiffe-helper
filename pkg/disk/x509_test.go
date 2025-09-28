@@ -172,19 +172,17 @@ func TestWriteX509Context(t *testing.T) {
 					}
 				}
 
-				disk := New(Config{
-					X509: X509Config{
-						Dir:                      tempDir,
-						SVIDFileName:             svidFileName,
-						SVIDKeyFileName:          svidKeyFileName,
-						SVIDBundleFileName:       svidBundleFileName,
-						CertFileMode:             certFileMode,
-						KeyFileMode:              keyFileMode,
-						AddIntermediatesToBundle: test.intermediateInBundle,
-						IncludeFederatedDomains:  test.includeFederatedDomains,
-						OmitExpired:              test.omitExpired,
-					},
-					Hint: hint,
+				disk := NewX509(X509Config{
+					Dir:                      tempDir,
+					SVIDFileName:             svidFileName,
+					SVIDKeyFileName:          svidKeyFileName,
+					SVIDBundleFileName:       svidBundleFileName,
+					CertFileMode:             certFileMode,
+					KeyFileMode:              keyFileMode,
+					AddIntermediatesToBundle: test.intermediateInBundle,
+					IncludeFederatedDomains:  test.includeFederatedDomains,
+					OmitExpired:              test.omitExpired,
+					Hint:                     hint,
 				})
 				err = disk.WriteX509Context(x509Context)
 				require.NoError(t, err)

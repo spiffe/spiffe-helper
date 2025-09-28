@@ -38,7 +38,7 @@ type Sidecar struct {
 	jwtSource      *workloadapi.JWTSource
 	processRunning bool
 	process        *os.Process
-	disk           *disk.Disk
+	x509Disk       *disk.X509
 
 	// Mutex to protect processRunning
 	mu sync.Mutex
@@ -78,19 +78,17 @@ const (
 func New(config *Config) *Sidecar {
 	s := &Sidecar{
 		config: config,
-		disk: disk.New(disk.Config{
-			X509: disk.X509Config{
-				Dir:                      config.CertDir,
-				SVIDFileName:             config.SVIDFileName,
-				SVIDKeyFileName:          config.SVIDKeyFileName,
-				SVIDBundleFileName:       config.SVIDBundleFileName,
-				CertFileMode:             config.CertFileMode,
-				KeyFileMode:              config.KeyFileMode,
-				AddIntermediatesToBundle: config.AddIntermediatesToBundle,
-				IncludeFederatedDomains:  config.IncludeFederatedDomains,
-				OmitExpired:              config.OmitExpired,
-			},
-			Hint: config.Hint,
+		x509Disk: disk.NewX509(disk.X509Config{
+			Dir:                      config.CertDir,
+			SVIDFileName:             config.SVIDFileName,
+			SVIDKeyFileName:          config.SVIDKeyFileName,
+			SVIDBundleFileName:       config.SVIDBundleFileName,
+			CertFileMode:             config.CertFileMode,
+			KeyFileMode:              config.KeyFileMode,
+			AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+			IncludeFederatedDomains:  config.IncludeFederatedDomains,
+			OmitExpired:              config.OmitExpired,
+			Hint:                     config.Hint,
 		}),
 		health: Health{
 			FileWriteStatuses: FileWriteStatuses{
@@ -236,7 +234,7 @@ func (s *Sidecar) setupClients(ctx context.Context) error {
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
-	if err := s.disk.WriteX509Context(svidResponse); err != nil {
+	if err := s.x509Disk.WriteX509Context(svidResponse); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		writeStatus := writeStatusFailed
 		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
