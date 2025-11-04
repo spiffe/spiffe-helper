@@ -164,7 +164,7 @@ jobs:
       - name: Build images
         run: make build
       - name: Archive image
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: spiffe-helper
           path: spiffe-helper
