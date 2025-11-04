@@ -40,7 +40,13 @@ func TestWriteJWTBundleSet(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	err := WriteJWTBundleSet(jwtBundleSet, tempDir, jwtBundleFilename, jwtBundleFileMode)
+	jwtDisk := NewJWT(JWTConfig{
+		Dir:            tempDir,
+		BundleFileName: jwtBundleFilename,
+		BundleFileMode: jwtBundleFileMode,
+	})
+
+	err := jwtDisk.WriteJWTBundleSet(jwtBundleSet)
 	require.NoError(t, err)
 
 	actualJWTBundle, err := jwtbundle.Load(td, path.Join(tempDir, jwtBundleFilename))
@@ -73,7 +79,14 @@ func TestWriteJWTSVIDNoHint(t *testing.T) {
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, "")
+
+	jwtDisk := NewJWT(JWTConfig{
+		Dir:            tempDir,
+		BundleFileName: jwtBundleFilename,
+		BundleFileMode: jwtBundleFileMode,
+		SVIDFileMode:   jwtSVIDFileMode,
+	})
+	err = jwtDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFilename)
 	require.NoError(t, err)
 
 	// Read back and check it's the same
@@ -123,7 +136,15 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, testJWTSVIDHint)
+
+	jwtDisk := NewJWT(JWTConfig{
+		Dir:            tempDir,
+		BundleFileName: jwtBundleFilename,
+		BundleFileMode: jwtBundleFileMode,
+		SVIDFileMode:   jwtSVIDFileMode,
+		Hint:           testJWTSVIDHint,
+	})
+	err = jwtDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFilename)
 	require.NoError(t, err)
 
 	// Read back and check it's the same

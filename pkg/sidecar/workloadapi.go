@@ -10,7 +10,6 @@ import (
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	"github.com/spiffe/spiffe-helper/pkg/disk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -73,7 +72,7 @@ func (s *Sidecar) fetchAndWriteX509Context(ctx context.Context) error {
 		return err
 	}
 
-	return s.x509Disk.WriteX509Context(x509Context)
+	return s.config.X509Disk.WriteX509Context(x509Context)
 }
 
 func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
@@ -90,7 +89,7 @@ func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteJWTBundleSet(jwtBundleSet, s.config.CertDir, s.config.JWTBundleFileName, s.config.JWTBundleFileMode)
+	return s.config.JWTDisk.WriteJWTBundleSet(jwtBundleSet)
 }
 
 func (s *Sidecar) fetchAndWriteJWTSVIDs(ctx context.Context) error {
@@ -118,5 +117,5 @@ func (s *Sidecar) fetchAndWriteJWTSVID(ctx context.Context, audience, jwtSVIDFil
 		return err
 	}
 
-	return disk.WriteJWTSVID(jwtSVIDs, s.config.CertDir, jwtSVIDFileName, s.config.JWTSVIDFileMode, s.config.Hint)
+	return s.config.JWTDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFileName)
 }
