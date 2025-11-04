@@ -11,6 +11,7 @@ import (
 	"crypto"
 	"crypto/x509"
 	"fmt"
+	"io/fs"
 	"os"
 	"testing"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	"github.com/spiffe/spiffe-helper/pkg/disk"
 	"github.com/spiffe/spiffe-helper/test/spiffetest"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/util/retry"
@@ -28,24 +30,13 @@ const (
 	exampleSpiffeID = "spiffe://example.test/workload"
 )
 
-// defaultTestConfig provides default configuration values for tests
-var defaultTestConfig = &Config{
-	Cmd:                "echo",
-	SVIDFileName:       "svid.pem",
-	SVIDKeyFileName:    "svid_key.pem",
-	SVIDBundleFileName: "svid_bundle.pem",
-	CertFileMode:       os.FileMode(0644),
-	KeyFileMode:        os.FileMode(0600),
-	JWTBundleFileMode:  os.FileMode(0600),
-	JWTSVIDFileMode:    os.FileMode(0600),
-}
-
 // sidecarTest is a helper struct to create a sidecar instance for testing.
 // Each should be used for one sidecar instance only, then disposed.
 type sidecarTest struct {
 	rootCA  *spiffetest.CA
 	sidecar *Sidecar
 	watcher *x509Watcher
+	certDir string
 
 	// Channel for receiving process exit states
 	cmdExitChan chan os.ProcessState
@@ -76,20 +67,21 @@ type pidFileSignalledResult struct {
 func newSidecarTest(t *testing.T, opts ...option) *sidecarTest {
 	t.Helper()
 
-	// Create a copy of the default config
-	config := *defaultTestConfig
-	config.CertDir = t.TempDir()
+	// Create default config with temp directory
+	certDir := t.TempDir()
+	config := defaultTestConfig(certDir)
 	log, _ := test.NewNullLogger()
 	config.Log = log
 
 	// Apply any custom options
 	for _, opt := range opts {
-		opt(&config)
+		opt(config)
 	}
 
 	s := &sidecarTest{
 		rootCA:  spiffetest.NewCA(t),
-		sidecar: New(&config),
+		sidecar: New(config),
+		certDir: certDir,
 
 		// Observers for internal state transitions
 		cmdExitChan:          make(chan os.ProcessState, 2),
@@ -165,6 +157,26 @@ func (s *sidecarTest) MockUpdateX509Certificate(ctx context.Context, t *testing.
 			require.NoError(t, ctx.Err())
 			return
 		}
+	}
+}
+
+// defaultTestConfig provides default configuration values for tests
+func defaultTestConfig(certDir string) *Config {
+	return &Config{
+		Cmd: "echo",
+		X509Disk: disk.NewX509(disk.X509Config{
+			Dir:                certDir,
+			SVIDFileName:       "svid.pem",
+			SVIDKeyFileName:    "svid_key.pem",
+			SVIDBundleFileName: "svid_bundle.pem",
+			CertFileMode:       fs.FileMode(0644),
+			KeyFileMode:        fs.FileMode(0600),
+		}),
+		JWTDisk: disk.NewJWT(disk.JWTConfig{
+			Dir:            certDir,
+			BundleFileMode: fs.FileMode(0600),
+			SVIDFileMode:   fs.FileMode(0600),
+		}),
 	}
 }
 

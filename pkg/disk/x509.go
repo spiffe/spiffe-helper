@@ -122,6 +122,21 @@ func (x *X509) writeKey(data []byte) error {
 	return os.WriteFile(svidKeyFile, pem.EncodeToMemory(b), x.c.KeyFileMode)
 }
 
+// SVIDPath returns the full path for the SVID file
+func (x *X509) SVIDPath() string {
+	return path.Join(x.c.Dir, x.c.SVIDFileName)
+}
+
+// SVIDKeyPath returns the full path for the SVID key file
+func (x *X509) SVIDKeyPath() string {
+	return path.Join(x.c.Dir, x.c.SVIDKeyFileName)
+}
+
+// SVIDBundlePath returns the full path for the SVID bundle file
+func (x *X509) SVIDBundlePath() string {
+	return path.Join(x.c.Dir, x.c.SVIDBundleFileName)
+}
+
 // getX509SVID extracts the x509 SVID that matches the hint or returns the default
 // if hint is empty
 func (x *X509) getX509SVID(x509Context *workloadapi.X509Context) (*x509svid.SVID, error) {
