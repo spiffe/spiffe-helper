@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/sirupsen/logrus/hooks/test"
@@ -349,9 +350,12 @@ func TestNewSidecarConfig(t *testing.T) {
 		AgentAddress:            "my-agent-address",
 		Cmd:                     "my-cmd",
 		CertDir:                 "my-cert-dir",
+		SVIDFileName:            "my-svid",
 		SVIDKeyFileName:         "my-key",
+		SVIDBundleFileName:      "my-bundle",
 		IncludeFederatedDomains: true,
 		OmitExpired:             true,
+		JWTBundleFileName:       "jwt_bundle.json",
 		JWTSVIDs: []JWTConfig{
 			{
 				JWTAudience:     "my-audience",
@@ -365,12 +369,25 @@ func TestNewSidecarConfig(t *testing.T) {
 	// Ensure fields were populated correctly
 	assert.Equal(t, config.AgentAddress, sidecarConfig.AgentAddress)
 	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
-	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
-	assert.Equal(t, config.SVIDKeyFileName, sidecarConfig.SVIDKeyFileName)
-	assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
-	assert.Equal(t, config.OmitExpired, sidecarConfig.OmitExpired)
+
+	// Ensure X509Disk JWTDisk were created
+	require.NotNil(t, sidecarConfig.X509Disk)
+	require.NotNil(t, sidecarConfig.JWTDisk)
+
+	// Check X509 fields are set correctly
+	expectedSVIDPath := path.Join(config.CertDir, config.SVIDFileName)
+	require.Equal(t, expectedSVIDPath, sidecarConfig.X509Disk.SVIDPath())
+
+	expectedSVIDKeyPath := path.Join(config.CertDir, config.SVIDKeyFileName)
+	require.Equal(t, expectedSVIDKeyPath, sidecarConfig.X509Disk.SVIDKeyPath())
+
+	expectedSVIDBundlePath := path.Join(config.CertDir, config.SVIDBundleFileName)
+	require.Equal(t, expectedSVIDBundlePath, sidecarConfig.X509Disk.SVIDBundlePath())
 
 	// Ensure JWT Config was populated correctly
+	expectedBundlePath := path.Join(config.CertDir, config.JWTBundleFileName)
+	require.Equal(t, expectedBundlePath, sidecarConfig.JWTDisk.BundlePath())
+
 	require.Len(t, sidecarConfig.JWTSVIDs, len(config.JWTSVIDs))
 	for i := range config.JWTSVIDs {
 		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWTSVIDs[i].JWTAudience)
@@ -378,7 +395,6 @@ func TestNewSidecarConfig(t *testing.T) {
 	}
 
 	// Ensure empty fields were not populated
-	assert.Empty(t, sidecarConfig.SVIDFileName)
 	assert.Empty(t, sidecarConfig.RenewSignal)
 }
 

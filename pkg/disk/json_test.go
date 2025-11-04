@@ -110,8 +110,8 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 
 	// Create SVID
 	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{"audience"})
-	jwtSVID.Hint = "first"
 	require.NoError(t, err)
+	jwtSVID.Hint = "first"
 
 	// Generate Token2
 	claims = jwt.Claims{
@@ -125,8 +125,8 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 
 	// Create SVID
 	jwtSVID2, err := jwtsvid.ParseInsecure(token, []string{"audience"})
-	jwtSVID2.Hint = "other"
 	require.NoError(t, err)
+	jwtSVID2.Hint = "other"
 
 	// Create SVID array
 	jwtSVIDs := []*jwtsvid.SVID{jwtSVID, jwtSVID2}
