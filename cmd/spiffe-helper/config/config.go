@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/token"
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/spiffe-helper/pkg/disk"
 	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 )
@@ -148,14 +149,11 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		return errors.New("must specify renew_signal when using pid_file_name")
 	}
 
-	x509Enabled, err := validateX509Config(c)
-	if err != nil {
+	if err := c.validateX509Config(); err != nil {
 		return err
 	}
 
-	jwtBundleEnabled, jwtSVIDsEnabled := validateJWTConfig(c)
-
-	if !x509Enabled && !jwtBundleEnabled && !jwtSVIDsEnabled {
+	if !c.x509Enabled() && !c.jwtEnabled() {
 		return errors.New("at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
 	}
 
@@ -213,6 +211,23 @@ func (c *Config) checkForUnknownConfig() error {
 	return nil
 }
 
+func (c *Config) validateX509Config() error {
+	x509EmptyCount := countEmpty(c.SVIDFileName, c.SVIDBundleFileName, c.SVIDKeyFileName)
+	if x509EmptyCount != 0 && x509EmptyCount != 3 {
+		return errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
+	}
+
+	return nil
+}
+
+func (c *Config) x509Enabled() bool {
+	return c.SVIDFileName != "" && c.SVIDKeyFileName != "" && c.SVIDBundleFileName != ""
+}
+
+func (c *Config) jwtEnabled() bool {
+	return c.JWTBundleFileName != "" || len(c.JWTSVIDs) > 0
+}
+
 func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
 	hclConfig, err := ParseConfigFile(configFile)
 	if err != nil {
@@ -224,51 +239,50 @@ func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName stri
 
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	sidecarConfig := &sidecar.Config{
-		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
-		AgentAddress:             config.AgentAddress,
-		Cmd:                      config.Cmd,
-		CmdArgs:                  config.CmdArgs,
-		PIDFileName:              config.PIDFileName,
-		CertDir:                  config.CertDir,
-		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec
-		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec
-		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
-		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
-		IncludeFederatedDomains:  config.IncludeFederatedDomains,
-		OmitExpired:              config.OmitExpired,
-		JWTBundleFileName:        config.JWTBundleFileName,
-		Log:                      log,
-		RenewSignal:              config.RenewSignal,
-		SVIDFileName:             config.SVIDFileName,
-		SVIDKeyFileName:          config.SVIDKeyFileName,
-		SVIDBundleFileName:       config.SVIDBundleFileName,
-		Hint:                     config.Hint,
+		AgentAddress: config.AgentAddress,
+		Cmd:          config.Cmd,
+		CmdArgs:      config.CmdArgs,
+		PIDFileName:  config.PIDFileName,
+		Log:          log,
+		RenewSignal:  config.RenewSignal,
 	}
 
-	for _, jwtSVID := range config.JWTSVIDs {
-		sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
-			JWTAudience:       jwtSVID.JWTAudience,
-			JWTExtraAudiences: jwtSVID.JWTExtraAudiences,
-			JWTSVIDFileName:   jwtSVID.JWTSVIDFileName,
+	if config.x509Enabled() {
+		sidecarConfig.X509Disk = disk.NewX509(disk.X509Config{
+			Dir:                      config.CertDir,
+			CertFileMode:             fs.FileMode(config.CertFileMode), //nolint:gosec
+			KeyFileMode:              fs.FileMode(config.KeyFileMode),  //nolint:gosec
+			SVIDFileName:             config.SVIDFileName,
+			SVIDKeyFileName:          config.SVIDKeyFileName,
+			SVIDBundleFileName:       config.SVIDBundleFileName,
+			AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+			IncludeFederatedDomains:  config.IncludeFederatedDomains,
+			OmitExpired:              config.OmitExpired,
+			Hint:                     config.Hint,
 		})
 	}
 
-	return sidecarConfig
-}
+	if config.jwtEnabled() {
+		jwtDiskConfig := disk.JWTConfig{
+			Dir:            config.CertDir,
+			Hint:           config.Hint,
+			BundleFileName: config.JWTBundleFileName,
+			BundleFileMode: fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
+			SVIDFileMode:   fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
+		}
 
-func validateX509Config(c *Config) (bool, error) {
-	x509EmptyCount := countEmpty(c.SVIDFileName, c.SVIDBundleFileName, c.SVIDKeyFileName)
-	if x509EmptyCount != 0 && x509EmptyCount != 3 {
-		return false, errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
+		for _, jwtSVID := range config.JWTSVIDs {
+			sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
+				JWTAudience:       jwtSVID.JWTAudience,
+				JWTExtraAudiences: jwtSVID.JWTExtraAudiences,
+				JWTSVIDFileName:   jwtSVID.JWTSVIDFileName,
+			})
+		}
+
+		sidecarConfig.JWTDisk = disk.NewJWT(jwtDiskConfig)
 	}
 
-	return x509EmptyCount == 0, nil
-}
-
-func validateJWTConfig(c *Config) (bool, bool) {
-	jwtBundleEmptyCount := countEmpty(c.JWTBundleFileName)
-
-	return jwtBundleEmptyCount == 0, len(c.JWTSVIDs) > 0
+	return sidecarConfig
 }
 
 func countEmpty(configs ...string) int {
