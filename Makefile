@@ -105,6 +105,12 @@ golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
 golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
 golangci_lint_cache = $(golangci_lint_dir)/cache
 
+# There may be more than one tag. Only use one that starts with 'v' followed by
+# a number, e.g., v0.12.0.
+git_tag := $(shell git tag --points-at HEAD | grep '^v[0-9]*')
+git_hash := $(shell git rev-parse --short=7 HEAD)
+git_dirty := $(shell git status -s)
+
 WINE ?= wine
 
 ############################################################################
@@ -152,6 +158,25 @@ else
 	@echo "Git repository is clean."
 endif
 
+#############################################################################
+# Determine go flags
+#############################################################################
+
+# Determine the ldflags passed to the go linker. The git tag and hash will be
+# provided to the linker unless the git status is dirty.
+go_ldflags := -s -w
+ifeq ($(git_dirty),)
+	ifneq ($(git_tag),)
+		# Remove the "v" prefix from the git_tag for use as the version number.
+		# e.g. 0.7.0 instead of v0.7.0
+		git_version_tag := $(git_tag:v%=%)
+		go_ldflags += -X github.com/spiffe/spiffe-helper/pkg/version.gittag=$(git_version_tag)
+	endif
+	ifneq ($(git_hash),)
+		go_ldflags += -X github.com/spiffe/spiffe-helper/pkg/version.githash=$(git_hash)
+	endif
+endif
+
 
 #############################################################################
 # Code cleanliness
@@ -191,7 +216,7 @@ lint-fix: $(golangci_lint_bin) | go-check
 .PHONY: build test clean distclean artifact tarball rpm docker-build container-builder load-images
 
 build: | go-check
-	$(E)CGO_ENABLED=0 $(go_path) go build -o spiffe-helper${exe} ./cmd/spiffe-helper
+	$(E)CGO_ENABLED=0 $(go_path) go build -ldflags '$(go_ldflags)' -o spiffe-helper${exe} ./cmd/spiffe-helper
 
 docker-build: $(addsuffix -image.tar, spiffe-helper) ## Build docker image with spiffe-helper.
 
