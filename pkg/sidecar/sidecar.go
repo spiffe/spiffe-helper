@@ -310,7 +310,7 @@ func (s *Sidecar) signalProcess() error {
 	return nil
 }
 
-// signalPID sends the renew signal to the PID file retrying on error
+// signalPIDFileWithRetry sends the renew signal to the PID file retrying on error
 func (s *Sidecar) signalPIDFileWithRetry() error {
 	var pid int
 	err := retry.OnError(pidBackoff, func(err error) bool {
