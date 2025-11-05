@@ -328,7 +328,7 @@ func (s *Sidecar) signalPIDFileWithRetry() error {
 func (s *Sidecar) signalPIDFile() (int, error) {
 	fileBytes, err := os.ReadFile(s.config.PIDFilename)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read pid file \"%s\": %w", s.config.PIDFilename, err)
+		return 0, fmt.Errorf("failed to read pid file %q: %w", s.config.PIDFilename, err)
 	}
 
 	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
