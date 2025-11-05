@@ -24,6 +24,8 @@ linters:
   settings:
     revive:
       confidence: 0
+      rules:
+        - name: var-declaration
   exclusions:
     generated: lax
     presets:
