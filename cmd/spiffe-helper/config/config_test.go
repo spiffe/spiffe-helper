@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/sirupsen/logrus/hooks/test"
@@ -25,11 +26,11 @@ func TestParseConfig(t *testing.T) {
 	expectedCmdArgs := "start_envoy.sh"
 	expectedCertDir := "certs"
 	expectedRenewSignal := "SIGHUP"
-	expectedSVIDFilename := "svid.pem"
-	expectedKeyFilename := "svid_key.pem"
-	expectedSVIDBundleFilename := "svid_bundle.pem"
-	expectedJWTSVIDFilename := "jwt_svid.token"
-	expectedJWTBundleFilename := "jwt_bundle.json"
+	expectedSVIDFileName := "svid.pem"
+	expectedKeyFileName := "svid_key.pem"
+	expectedSVIDBundleFileName := "svid_bundle.pem"
+	expectedJWTSVIDFileName := "jwt_svid.token"
+	expectedJWTBundleFileName := "jwt_bundle.json"
 	expectedJWTAudience := "your-audience"
 	expectedJWTExtraAudiences := []string{"your-extra-audience-1", "your-extra-audience-2"}
 
@@ -38,11 +39,11 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedCmdArgs, c.CmdArgs)
 	assert.Equal(t, expectedCertDir, c.CertDir)
 	assert.Equal(t, expectedRenewSignal, c.RenewSignal)
-	assert.Equal(t, expectedSVIDFilename, c.SVIDFilename)
-	assert.Equal(t, expectedKeyFilename, c.SVIDKeyFilename)
-	assert.Equal(t, expectedSVIDBundleFilename, c.SVIDBundleFilename)
-	assert.Equal(t, expectedJWTSVIDFilename, c.JWTSVIDs[0].JWTSVIDFilename)
-	assert.Equal(t, expectedJWTBundleFilename, c.JWTBundleFilename)
+	assert.Equal(t, expectedSVIDFileName, c.SVIDFileName)
+	assert.Equal(t, expectedKeyFileName, c.SVIDKeyFileName)
+	assert.Equal(t, expectedSVIDBundleFileName, c.SVIDBundleFileName)
+	assert.Equal(t, expectedJWTSVIDFileName, c.JWTSVIDs[0].JWTSVIDFileName)
+	assert.Equal(t, expectedJWTBundleFileName, c.JWTBundleFileName)
 	assert.Equal(t, expectedJWTAudience, c.JWTSVIDs[0].JWTAudience)
 	assert.Equal(t, expectedJWTExtraAudiences, c.JWTSVIDs[0].JWTExtraAudiences)
 	assert.True(t, c.AddIntermediatesToBundle)
@@ -64,9 +65,9 @@ func TestValidateConfig(t *testing.T) {
 			name: "no error",
 			config: &Config{
 				AgentAddress:       "path",
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 		},
 		{
@@ -74,17 +75,17 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress: "path",
 				JWTSVIDs: []JWTConfig{{
-					JWTSVIDFilename: "jwt.token",
+					JWTSVIDFileName: "jwt.token",
 					JWTAudience:     "your-audience",
 				}},
-				JWTBundleFilename: "bundle.json",
+				JWTBundleFileName: "bundle.json",
 			},
 		},
 		{
 			name: "no error",
 			config: &Config{
 				AgentAddress:      "path",
-				JWTBundleFilename: "bundle.json",
+				JWTBundleFileName: "bundle.json",
 			},
 		},
 		{
@@ -92,9 +93,9 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				DaemonMode:         &[]bool{false}[0],
 				AgentAddress:       "path",
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 		},
 		{
@@ -108,7 +109,7 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing svid config",
 			config: &Config{
 				AgentAddress: "path",
-				SVIDFilename: "cert.pem",
+				SVIDFileName: "cert.pem",
 			},
 			expectError: "all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified",
 		},
@@ -117,7 +118,7 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress: "path",
 				JWTSVIDs: []JWTConfig{{
-					JWTSVIDFilename: "jwt.token",
+					JWTSVIDFileName: "jwt.token",
 				}},
 			},
 			expectError: "'jwt_audience' is required in 'jwt_svids'",
@@ -135,12 +136,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "no error with pid_file_name and renew_signal",
 			config: &Config{
-				PIDFilename:        "pidfile",
+				PIDFileName:        "pidfile",
 				RenewSignal:        "SIGHUP",
 				AgentAddress:       "path",
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 			skipWindows: true,
 		},
@@ -150,7 +151,7 @@ func TestValidateConfig(t *testing.T) {
 			name: "pid_file_name set in !daemon_mode",
 			config: &Config{
 				DaemonMode:  &[]bool{false}[0],
-				PIDFilename: "pidfile",
+				PIDFileName: "pidfile",
 			},
 			expectError: "pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode",
 			skipWindows: true,
@@ -162,7 +163,7 @@ func TestValidateConfig(t *testing.T) {
 			// command when certs are renewed.
 			name: "renew_signal required if pid_file_name set",
 			config: &Config{
-				PIDFilename: "pidfile",
+				PIDFileName: "pidfile",
 				RenewSignal: "",
 			},
 			expectError: "must specify renew_signal when using pid_file_name",
@@ -179,9 +180,9 @@ func TestValidateConfig(t *testing.T) {
 				Cmd:                "echo",
 				RenewSignal:        "SIGHUP",
 				AgentAddress:       "path",
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			},
 			skipWindows: true,
 		},
@@ -321,9 +322,9 @@ func TestDefaultAgentAddress(t *testing.T) {
 
 			config := &Config{
 				AgentAddress:       tt.agentAddress,
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				SVIDFileName:       "cert.pem",
+				SVIDKeyFileName:    "key.pem",
+				SVIDBundleFileName: "bundle.pem",
 			}
 
 			log, hook := test.NewNullLogger()
@@ -349,13 +350,16 @@ func TestNewSidecarConfig(t *testing.T) {
 		AgentAddress:            "my-agent-address",
 		Cmd:                     "my-cmd",
 		CertDir:                 "my-cert-dir",
-		SVIDKeyFilename:         "my-key",
+		SVIDFileName:            "my-svid",
+		SVIDKeyFileName:         "my-key",
+		SVIDBundleFileName:      "my-bundle",
 		IncludeFederatedDomains: true,
 		OmitExpired:             true,
+		JWTBundleFileName:       "jwt_bundle.json",
 		JWTSVIDs: []JWTConfig{
 			{
 				JWTAudience:     "my-audience",
-				JWTSVIDFilename: "my-jwt-filename",
+				JWTSVIDFileName: "my-jwt-filename",
 			},
 		},
 	}
@@ -365,28 +369,40 @@ func TestNewSidecarConfig(t *testing.T) {
 	// Ensure fields were populated correctly
 	assert.Equal(t, config.AgentAddress, sidecarConfig.AgentAddress)
 	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
-	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
-	assert.Equal(t, config.SVIDKeyFilename, sidecarConfig.SVIDKeyFilename)
-	assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
-	assert.Equal(t, config.OmitExpired, sidecarConfig.OmitExpired)
+
+	// Ensure X509Disk JWTDisk were created
+	require.NotNil(t, sidecarConfig.X509Disk)
+	require.NotNil(t, sidecarConfig.JWTDisk)
+
+	// Check X509 fields are set correctly
+	expectedSVIDPath := path.Join(config.CertDir, config.SVIDFileName)
+	require.Equal(t, expectedSVIDPath, sidecarConfig.X509Disk.SVIDPath())
+
+	expectedSVIDKeyPath := path.Join(config.CertDir, config.SVIDKeyFileName)
+	require.Equal(t, expectedSVIDKeyPath, sidecarConfig.X509Disk.SVIDKeyPath())
+
+	expectedSVIDBundlePath := path.Join(config.CertDir, config.SVIDBundleFileName)
+	require.Equal(t, expectedSVIDBundlePath, sidecarConfig.X509Disk.SVIDBundlePath())
 
 	// Ensure JWT Config was populated correctly
+	expectedBundlePath := path.Join(config.CertDir, config.JWTBundleFileName)
+	require.Equal(t, expectedBundlePath, sidecarConfig.JWTDisk.BundlePath())
+
 	require.Len(t, sidecarConfig.JWTSVIDs, len(config.JWTSVIDs))
 	for i := range config.JWTSVIDs {
 		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWTSVIDs[i].JWTAudience)
-		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFilename, sidecarConfig.JWTSVIDs[i].JWTSVIDFilename)
+		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFileName, sidecarConfig.JWTSVIDs[i].JWTSVIDFileName)
 	}
 
 	// Ensure empty fields were not populated
-	assert.Empty(t, sidecarConfig.SVIDFilename)
 	assert.Empty(t, sidecarConfig.RenewSignal)
 }
 
 func TestDaemonModeFlag(t *testing.T) {
 	config := &Config{
-		SVIDFilename:       "cert.pem",
-		SVIDKeyFilename:    "key.pem",
-		SVIDBundleFilename: "bundle.pem",
+		SVIDFileName:       "cert.pem",
+		SVIDKeyFileName:    "key.pem",
+		SVIDBundleFileName: "bundle.pem",
 	}
 
 	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
