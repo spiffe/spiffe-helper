@@ -333,7 +333,7 @@ func (s *Sidecar) signalPIDFile() (int, error) {
 
 	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse pid file \"%s\": %w", s.config.PIDFilename, err)
+		return 0, fmt.Errorf("failed to parse pid file %q: %w", s.config.PIDFilename, err)
 	}
 
 	pidProcess, err := os.FindProcess(pid)
