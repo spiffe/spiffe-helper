@@ -166,55 +166,50 @@ func TestSidecar_TestPidFilenameSignalling(t *testing.T) {
 			// This doesn't need to respect the command timeout, since we're not
 			// waiting for the command here.
 			svid := newTestX509SVID(t, s.rootCA)
-			s.MockUpdateX509Certificate(ctx, t, svid)
-
-			// Wait for notification that the pid_file_name was signalled
-			var pidFileResult pidFileSignalledResult
-			select {
-			case pidFileResult = <-s.pidFileSignalledChan:
-				break
-			case <-ctx.Done():
-				// overall context has expired; this will fail the test.
-				require.NoError(t, ctx.Err())
-				return
-			}
 
 			if tc.missingPidfile {
-				// The pid file was missing so signalling will fail.
-				require.Equal(t, 0, pidFileResult.pid)
-				require.ErrorContains(t, pidFileResult.err, "failed to read pid file")
+				// The pid file was missing initially, so the first attempt(s) will fail.
+				// The code should retry, and we should create the file during the retry period.
+				// Start a goroutine to create the file after a short delay to allow retries
+				go func() {
+					// Wait a short time to allow a few retry attempts to fail
+					time.Sleep(150 * time.Millisecond)
+					writePidFile()
+				}()
 
-				// Creating the pid file won't help now, so we're done
-				// until the next renew.
-				writePidFile()
+				// Trigger the certificate update which will start the retry loop
+				s.MockUpdateX509Certificate(ctx, t, svid)
+
+				// Wait for retries to complete - the hook is called once at the end
+				// with either success (if file was created during retries) or failure
+				var pidFileResult pidFileSignalledResult
 				select {
-				case <-time.After(200 * time.Millisecond):
-					// A signal retry would've arried by now if there was going to be one,
-					// but signals aren't retried.
-					break
-				case <-s.pidFileSignalledChan:
-					require.Fail(t, "should not have signalled, since we don't retry signals")
+				case pidFileResult = <-s.pidFileSignalledChan:
+					// Retry succeeded after file was created
+					require.Equal(t, pid, pidFileResult.pid)
+					require.NoError(t, pidFileResult.err)
 				case <-ctx.Done():
 					// overall context has expired; this will fail the test.
 					require.NoError(t, ctx.Err())
 					return
 				}
-
-				// A cert renewal will trigger another attempt to signal, which should succeed
+			} else {
+				// File exists, so signalling should succeed on the first attempt
 				s.MockUpdateX509Certificate(ctx, t, svid)
+
+				// Wait for notification that the pid_file_name was signalled
+				var pidFileResult pidFileSignalledResult
 				select {
 				case pidFileResult = <-s.pidFileSignalledChan:
+					// Success on first attempt
+					require.Equal(t, pid, pidFileResult.pid)
 					require.NoError(t, pidFileResult.err)
 				case <-ctx.Done():
+					// overall context has expired; this will fail the test.
 					require.NoError(t, ctx.Err())
 					return
 				}
 			}
-
-			// Since a valid pid file was supplied, signalling must succeed
-			// on the first attempt
-			require.Equal(t, pid, pidFileResult.pid)
-			require.NoError(t, pidFileResult.err)
 
 			// Did we actually receive the signal?
 			select {
