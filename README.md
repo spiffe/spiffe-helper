@@ -20,6 +20,7 @@ CLI options:
  | `-config`                       | Path to the configuration file                                      |
  | `-help`                         | Print interactive help                                              |
  | `-daemon-mode={true\|false}`    | Boolean true or false. Overrides `daemon_mode` in the config file.  |
+ | `-version`                      | Print version number                                                |
 
 ## Configuration
 
