@@ -26,7 +26,7 @@ func main() {
 	flag.Parse()
 
 	// Set initial log level from environment variable if provided (for early logging)
-	// This will be overridden by config value if set
+	// Environment variable takes precedence over config value
 	if logLevelStr := os.Getenv("SPIFFE_HLP_LOG_LEVEL"); logLevelStr != "" {
 		if level, err := logrus.ParseLevel(logLevelStr); err == nil {
 			logrus.SetLevel(level)
@@ -53,8 +53,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set log level from config if provided (overrides env var)
-	if helperConfig.LogLevel != "" {
+	// Set log level from config if provided (only if env var is not set)
+	if os.Getenv("SPIFFE_HLP_LOG_LEVEL") == "" && helperConfig.LogLevel != "" {
 		if level, err := logrus.ParseLevel(helperConfig.LogLevel); err == nil {
 			logrus.SetLevel(level)
 			log = logrus.WithField("system", "spiffe-helper") // Recreate logger with new level
