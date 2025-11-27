@@ -14,10 +14,10 @@ import (
 )
 
 type Config struct {
-	ListenerEnabled bool   `hcl:"listener_enabled"`
-	BindPort        int    `hcl:"bind_port"`
-	LivenessPath    string `hcl:"liveness_path"`
-	ReadinessPath   string `hcl:"readiness_path"`
+	ListenerEnabled bool   `hcl:"listener_enabled" json:"listener_enabled" yaml:"listener_enabled" env:"SPIFFE_HLP_LISTENER_ENABLED"`
+	BindPort        int    `hcl:"bind_port" json:"bind_port" yaml:"bind_port" env:"SPIFFE_HLP_BIND_PORT"`
+	LivenessPath    string `hcl:"liveness_path" json:"liveness_path" yaml:"liveness_path" env:"SPIFFE_HLP_LIVENESS_PATH"`
+	ReadinessPath   string `hcl:"readiness_path" json:"readiness_path" yaml:"readiness_path" env:"SPIFFE_HLP_READINESS_PATH"`
 }
 
 const (
