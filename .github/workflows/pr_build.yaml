@@ -22,7 +22,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Setup dep cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -45,12 +45,12 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Load cached deps
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
       - name: Setup build tool cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .build
           key: ${{ runner.os }}-tools-${{ github.sha }}
@@ -79,7 +79,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Load cached deps
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -150,12 +150,12 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Load cached deps
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
       - name: Setup build tool cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .build
           key: ${{ runner.os }}-tools-${{ github.sha }}
