@@ -7,24 +7,29 @@
 The SPIFFE Helper is a simple utility for fetching X.509 SVID certificates from the SPIFFE Workload API, launch a process that makes use of the certificates and continuously get new certificates before they expire. The launched process is signaled to reload the certificates when is needed.
 
 ## Usage
-`$ spiffe-helper -config <config_file>`
+`$ spiffe-helper -config <config_file> [-config-format <format>]`
 
-`<config_file>`: file path to the configuration file.
-
-If `-config` is not specified, the default value `helper.conf` is assumed. 
+`<config_file>`: file path to the configuration file. If not specified, the default value `helper.conf` is assumed. If the file does not exist or is empty, configuration will be loaded from environment variables.
 
 CLI options:
 
  | Flag name                       | Description                                                         |
  |---------------------------------|---------------------------------------------------------------------|
- | `-config`                       | Path to the configuration file                                      |
+ | `-config`                       | Path to the configuration file (default: `helper.conf`). If the file does not exist, configuration will be loaded from environment variables. |
+ | `-config-format`                | Configuration format: `hcl`, `json`, `yaml`, or `auto` (default: `auto`). Format is automatically detected from file extension when set to `auto`. |
  | `-help`                         | Print interactive help                                              |
  | `-daemon-mode={true\|false}`    | Boolean true or false. Overrides `daemon_mode` in the config file.  |
  | `-version`                      | Print version number                                                |
 
 ## Configuration
 
-The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted file that defines the following configurations:
+The configuration file can be in HCL, JSON, or YAML format. The format is automatically detected from the file extension (`.conf` for HCL, `.json` for JSON, `.yaml` or `.yml` for YAML), or can be explicitly specified using the `-config-format` flag.
+
+:warning: **HCL format is deprecated** and will be removed in version 0.11.0. Use JSON or YAML instead.
+
+If the configuration file is not specified, does not exist, or is empty, all configuration can be provided via environment variables (see [Environment Variables](#environment-variables) section below).
+
+The following configurations are available:
 
  | Configuration                 | Description                                                                                                                       | Example Value                                                                                                                                                        |
  |-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -54,6 +59,72 @@ The configuration file is an [HCL](https://github.com/hashicorp/hcl) formatted f
 * If `cmd` is specified, spiffe-helper will connect its `stdin`, `stdout` and
   `stderr` to that of the command it invokes. If this is not desired, close
   these file descriptors before invoking spiffe-helper.
+
+### Configuration Format
+
+The configuration file format can be specified using the `-config-format` flag or automatically detected from the file extension:
+
+ | Format | File Extensions | Description |
+ |--------|----------------|-------------|
+ | `hcl` | `.conf` | HashiCorp Configuration Language (deprecated, will be removed in 0.11.0) |
+ | `json` | `.json` | JSON format |
+ | `yaml` | `.yaml`, `.yml` | YAML format |
+ | `auto` | Any | Automatically detect format from file extension (default) |
+
+When using `auto` format (the default), the format is determined by the file extension:
+- `.conf` files are parsed as HCL
+- `.json` files are parsed as JSON
+- `.yaml` or `.yml` files are parsed as YAML
+
+If the configuration file is not specified, does not exist, or is empty, the configuration will be loaded entirely from environment variables (see [Environment Variables](#environment-variables) section below).
+
+### Environment Variables
+
+All configuration fields can be set via environment variables. Environment variables use the `SPIFFE_HLP_` prefix followed by the field name in UPPER_SNAKE_CASE format.
+
+For example:
+- `agent_address` → `SPIFFE_HLP_AGENT_ADDRESS`
+- `svid_file_name` → `SPIFFE_HLP_SVID_FILE_NAME`
+- `jwt_bundle_file_name` → `SPIFFE_HLP_JWT_BUNDLE_FILE_NAME`
+
+Environment variables override values from the configuration file. If a configuration file is provided, environment variables will override matching fields. If no configuration file is specified or the file does not exist, the entire configuration can be provided via environment variables.
+
+#### Special Handling for `jwt_svids`
+
+The `jwt_svids` array cannot be set directly via a single environment variable due to limitations with arrays of structs. Instead, use indexed environment variables with the following format:
+
+**Format 1: Count-based indices**
+Set `SPIFFE_HLP_JWT_SVIDS` to a count (e.g., `"2"`), which will use indices 0, 1, ..., count-1:
+
+```bash
+export SPIFFE_HLP_JWT_SVIDS="2"
+export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="audience-0"
+export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="file-0.token"
+export SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES="extra1,extra2"
+export SPIFFE_HLP_JWT_SVIDS_1_AUDIENCE="audience-1"
+export SPIFFE_HLP_JWT_SVIDS_1_SVID_FILE_NAME="file-1.token"
+```
+
+**Format 2: Comma-separated indices**
+Set `SPIFFE_HLP_JWT_SVIDS` to a comma-separated list of indices (e.g., `"0,2,5"`):
+
+```bash
+export SPIFFE_HLP_JWT_SVIDS="0,2,5"
+export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="audience-0"
+export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="file-0.token"
+export SPIFFE_HLP_JWT_SVIDS_2_AUDIENCE="audience-2"
+export SPIFFE_HLP_JWT_SVIDS_2_SVID_FILE_NAME="file-2.token"
+export SPIFFE_HLP_JWT_SVIDS_2_EXTRA_AUDIENCES="extra1,extra2,extra3"
+export SPIFFE_HLP_JWT_SVIDS_5_AUDIENCE="audience-5"
+export SPIFFE_HLP_JWT_SVIDS_5_SVID_FILE_NAME="file-5.token"
+```
+
+For each index `i`, the following environment variables are read:
+- `SPIFFE_HLP_JWT_SVIDS_i_AUDIENCE` - The JWT audience (required)
+- `SPIFFE_HLP_JWT_SVIDS_i_SVID_FILE_NAME` - The file name to store the JWT SVID
+- `SPIFFE_HLP_JWT_SVIDS_i_EXTRA_AUDIENCES` - Comma-separated list of extra audiences (optional)
+
+If `SPIFFE_HLP_JWT_SVIDS_i_AUDIENCE` is not set for an index, that index is skipped (allows sparse arrays).
 
 ### Health Checks Configuration
 
@@ -195,8 +266,12 @@ it via `pid_file_name`.
 external process in non-daemon mode, so it is recommended to leave `cmd`,
 `renew_signal` and `pid_file_name` blank if `daemon_mode` is false.
 
-### Configuration example
-```
+### Configuration Examples
+
+#### HCL Example
+
+:warning: **HCL format is deprecated** and will be removed in version 0.11.0. Use JSON or YAML instead.
+```hcl
 agent_address = "/tmp/spire-agent/public/api.sock"
 cmd = "ghostunnel"
 cmd_args = "server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
@@ -213,8 +288,86 @@ jwt_bundle_file_mode = 0444
 jwt_svid_file_mode = 0444
 ```
 
-### Windows example
+#### JSON Example
+
+```json
+{
+  "agent_address": "/tmp/spire-agent/public/api.sock",
+  "cmd": "ghostunnel",
+  "cmd_args": "server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database",
+  "cert_dir": "certs",
+  "renew_signal": "SIGUSR1",
+  "svid_file_name": "svid.pem",
+  "svid_key_file_name": "svid_key.pem",
+  "svid_bundle_file_name": "svid_bundle.pem",
+  "jwt_svids": [
+    {
+      "jwt_audience": "your-audience",
+      "jwt_extra_audiences": ["your-extra-audience-1", "your-extra-audience-2"],
+      "jwt_svid_file_name": "jwt_svid.token"
+    }
+  ],
+  "jwt_bundle_file_name": "bundle.json",
+  "cert_file_mode": 292,
+  "key_file_mode": 292,
+  "jwt_bundle_file_mode": 292,
+  "jwt_svid_file_mode": 292
+}
 ```
+
+#### YAML Example
+
+```yaml
+agent_address: "/tmp/spire-agent/public/api.sock"
+cmd: "ghostunnel"
+cmd_args: "server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
+cert_dir: "certs"
+renew_signal: "SIGUSR1"
+svid_file_name: "svid.pem"
+svid_key_file_name: "svid_key.pem"
+svid_bundle_file_name: "svid_bundle.pem"
+jwt_svids:
+  - jwt_audience: "your-audience"
+    jwt_extra_audiences:
+      - "your-extra-audience-1"
+      - "your-extra-audience-2"
+    jwt_svid_file_name: "jwt_svid.token"
+jwt_bundle_file_name: "bundle.json"
+cert_file_mode: 292
+key_file_mode: 292
+jwt_bundle_file_mode: 292
+jwt_svid_file_mode: 292
+```
+
+#### Environment Variables Example
+
+Configuration can be provided entirely via environment variables when no config file is specified or the file does not exist:
+
+```bash
+export SPIFFE_HLP_AGENT_ADDRESS="/tmp/spire-agent/public/api.sock"
+export SPIFFE_HLP_CMD="ghostunnel"
+export SPIFFE_HLP_CMD_ARGS="server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
+export SPIFFE_HLP_CERT_DIR="certs"
+export SPIFFE_HLP_RENEW_SIGNAL="SIGUSR1"
+export SPIFFE_HLP_SVID_FILE_NAME="svid.pem"
+export SPIFFE_HLP_SVID_KEY_FILE_NAME="svid_key.pem"
+export SPIFFE_HLP_SVID_BUNDLE_FILE_NAME="svid_bundle.pem"
+export SPIFFE_HLP_JWT_BUNDLE_FILE_NAME="bundle.json"
+export SPIFFE_HLP_CERT_FILE_MODE="292"
+export SPIFFE_HLP_KEY_FILE_MODE="292"
+export SPIFFE_HLP_JWT_BUNDLE_FILE_MODE="292"
+export SPIFFE_HLP_JWT_SVID_FILE_MODE="292"
+
+# JWT SVIDs using indexed environment variables
+export SPIFFE_HLP_JWT_SVIDS="1"
+export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="your-audience"
+export SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES="your-extra-audience-1,your-extra-audience-2"
+export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="jwt_svid.token"
+```
+
+### Windows Example
+
+```hcl
 agent_address = "spire-agent\\public\\api"
 cert_dir = "certs"
 svid_file_name = "svid.pem"

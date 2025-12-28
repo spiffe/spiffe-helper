@@ -28,6 +28,7 @@ help:
 	@echo
 	@echo "$(bold)Test:$(reset)"
 	@echo "  $(cyan)test$(reset)                          - run unit tests"
+	@echo "  $(cyan)test-integration-docker$(reset)       - run Docker-based integration tests for environment variable configuration"
 	@echo
 	@echo "$(bold)Code cleanliness:$(reset)"
 	@echo "  $(cyan)lint$(reset)                          - run linters aggregator"
@@ -213,7 +214,7 @@ lint-fix: $(golangci_lint_bin) | go-check
 # Build targets
 ############################################################################
 
-.PHONY: build test clean distclean artifact tarball rpm docker-build container-builder load-images
+.PHONY: build test test-integration-docker clean distclean artifact tarball rpm docker-build container-builder load-images
 
 build: | go-check
 	$(E)CGO_ENABLED=0 $(go_path) go build -ldflags '$(go_ldflags)' -o spiffe-helper${exe} ./cmd/spiffe-helper
@@ -245,6 +246,10 @@ rpm:
 # If you want detailed test output run "GO_TEST_OPTS=-v make test"
 test: | go-check
 	go test $(GO_TEST_OPTS) ./...
+
+test-integration-docker:
+	@echo "Running Docker-based integration tests for environment variable configuration..."
+	$(E)bash script/docker/test-env-vars.sh
 
 # Invoke the test suite by cross-compiling for Windows and running with
 # Wine. If in future tests are added that run on real win32 but not wine
