@@ -344,6 +344,115 @@ func TestDefaultAgentAddress(t *testing.T) {
 	}
 }
 
+func TestJWTSVIDEnvironmentVariables(t *testing.T) {
+	for _, tt := range []struct {
+		name            string
+		envJWTAudience  string
+		envJWTSVIDFile  string
+		existingJWTSVID []JWTConfig
+		expectJWTSVIDs  int
+		expectAudience  string
+		expectFilename  string
+		expectError     string
+	}{
+		{
+			name:           "Both env vars set populates JWTSVIDs",
+			envJWTAudience: "sts.amazonaws.com",
+			envJWTSVIDFile: "/var/run/spiffe/jwt.token",
+			expectJWTSVIDs: 1,
+			expectAudience: "sts.amazonaws.com",
+			expectFilename: "/var/run/spiffe/jwt.token",
+		},
+		{
+			name:           "Only SPIFFE_JWT_AUDIENCE set returns error",
+			envJWTAudience: "sts.amazonaws.com",
+			expectError:    "both SPIFFE_JWT_AUDIENCE and SPIFFE_JWT_SVID_FILE must be set when using environment variables",
+		},
+		{
+			name:           "Only SPIFFE_JWT_SVID_FILE set returns error",
+			envJWTSVIDFile: "/var/run/spiffe/jwt.token",
+			expectError:    "both SPIFFE_JWT_AUDIENCE and SPIFFE_JWT_SVID_FILE must be set when using environment variables",
+		},
+		{
+			name:           "Neither env var set leaves JWTSVIDs empty",
+			expectJWTSVIDs: 0,
+		},
+		{
+			name:           "Config file JWT takes precedence over env vars",
+			envJWTAudience: "env-audience",
+			envJWTSVIDFile: "/env/path.token",
+			existingJWTSVID: []JWTConfig{{
+				JWTAudience:     "file-audience",
+				JWTSVIDFilename: "/file/path.token",
+			}},
+			expectJWTSVIDs: 1,
+			expectAudience: "file-audience",
+			expectFilename: "/file/path.token",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("SPIFFE_JWT_AUDIENCE", tt.envJWTAudience)
+			t.Setenv("SPIFFE_JWT_SVID_FILE", tt.envJWTSVIDFile)
+
+			config := &Config{
+				AgentAddress:       "path",
+				SVIDFilename:       "cert.pem",
+				SVIDKeyFilename:    "key.pem",
+				SVIDBundleFilename: "bundle.pem",
+				JWTSVIDs:           tt.existingJWTSVID,
+			}
+
+			log, _ := test.NewNullLogger()
+			err := config.ValidateConfig(log)
+			if tt.expectError != "" {
+				require.EqualError(t, err, tt.expectError)
+				return
+			}
+			require.NoError(t, err)
+
+			require.Len(t, config.JWTSVIDs, tt.expectJWTSVIDs)
+			if tt.expectJWTSVIDs > 0 {
+				assert.Equal(t, tt.expectAudience, config.JWTSVIDs[0].JWTAudience)
+				assert.Equal(t, tt.expectFilename, config.JWTSVIDs[0].JWTSVIDFilename)
+			}
+		})
+	}
+}
+
+func TestConfigFileOptional(t *testing.T) {
+	t.Run("missing config file with env vars succeeds", func(t *testing.T) {
+		t.Setenv("SPIFFE_ENDPOINT_SOCKET", "unix:///tmp/agent.sock")
+		t.Setenv("SPIFFE_JWT_AUDIENCE", "sts.amazonaws.com")
+		t.Setenv("SPIFFE_JWT_SVID_FILE", "/var/run/spiffe/jwt.token")
+
+		config, err := ParseConfig("/nonexistent/path/helper.conf", true, daemonModeFlagName)
+		require.NoError(t, err)
+
+		log, _ := test.NewNullLogger()
+		err = config.ValidateConfig(log)
+		require.NoError(t, err)
+
+		assert.Equal(t, "unix:///tmp/agent.sock", config.AgentAddress)
+		require.Len(t, config.JWTSVIDs, 1)
+		assert.Equal(t, "sts.amazonaws.com", config.JWTSVIDs[0].JWTAudience)
+		assert.Equal(t, "/var/run/spiffe/jwt.token", config.JWTSVIDs[0].JWTSVIDFilename)
+	})
+
+	t.Run("missing config file without env vars fails validation", func(t *testing.T) {
+		t.Setenv("SPIFFE_JWT_AUDIENCE", "")
+		t.Setenv("SPIFFE_JWT_SVID_FILE", "")
+		t.Setenv("SPIFFE_ENDPOINT_SOCKET", "")
+		t.Setenv("SPIRE_AGENT_ADDRESS", "")
+
+		config, err := ParseConfig("/nonexistent/path/helper.conf", true, daemonModeFlagName)
+		require.NoError(t, err)
+
+		log, _ := test.NewNullLogger()
+		err = config.ValidateConfig(log)
+		require.EqualError(t, err, "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified")
+	})
+}
+
 func TestNewSidecarConfig(t *testing.T) {
 	config := &Config{
 		AgentAddress:            "my-agent-address",

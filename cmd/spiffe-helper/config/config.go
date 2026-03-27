@@ -103,6 +103,20 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		return err
 	}
 
+	// If no JWT SVIDs configured via file, check environment variables
+	if len(c.JWTSVIDs) == 0 {
+		jwtAudience := os.Getenv("SPIFFE_JWT_AUDIENCE")
+		jwtSVIDFile := os.Getenv("SPIFFE_JWT_SVID_FILE")
+		if jwtAudience != "" && jwtSVIDFile != "" {
+			c.JWTSVIDs = append(c.JWTSVIDs, JWTConfig{
+				JWTAudience:     jwtAudience,
+				JWTSVIDFilename: jwtSVIDFile,
+			})
+		} else if jwtAudience != "" || jwtSVIDFile != "" {
+			return errors.New("both SPIFFE_JWT_AUDIENCE and SPIFFE_JWT_SVID_FILE must be set when using environment variables")
+		}
+	}
+
 	for _, jwtConfig := range c.JWTSVIDs {
 		if jwtConfig.JWTSVIDFilename == "" {
 			return errors.New("'jwt_file_name' is required in 'jwt_svids'")
@@ -216,7 +230,11 @@ func (c *Config) checkForUnknownConfig() error {
 func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
 	hclConfig, err := ParseConfigFile(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
+		}
+		// Config file missing — allow env-var-only configuration
+		hclConfig = new(Config)
 	}
 	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
 	return hclConfig, nil
