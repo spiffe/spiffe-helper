@@ -25,8 +25,6 @@ CLI options:
 
 The configuration file can be in HCL, JSON, or YAML format. The format is automatically detected from the file extension (`.conf` for HCL, `.json` for JSON, `.yaml` or `.yml` for YAML), or can be explicitly specified using the `-config-format` flag.
 
-:warning: **HCL format is deprecated** and will be removed in version 0.11.0. Use JSON or YAML instead.
-
 If the configuration file is not specified, does not exist, or is empty, all configuration can be provided via environment variables (see [Environment Variables](#environment-variables) section below).
 
 The following configurations are available:
@@ -66,14 +64,14 @@ The configuration file format can be specified using the `-config-format` flag o
 
  | Format | File Extensions | Description |
  |--------|----------------|-------------|
- | `hcl` | `.conf` | HashiCorp Configuration Language (deprecated, will be removed in 0.11.0) |
- | `json` | `.json` | JSON format |
+ | `hcl` | `.conf` | HashiCorp Configuration Language |
+ | `json` | `.json` | JSON syntax |
  | `yaml` | `.yaml`, `.yml` | YAML format |
  | `auto` | Any | Automatically detect format from file extension (default) |
 
 When using `auto` format (the default), the format is determined by the file extension:
 - `.conf` files are parsed as HCL
-- `.json` files are parsed as JSON
+- `.json` files are parsed as JSON syntax
 - `.yaml` or `.yml` files are parsed as YAML
 
 If the configuration file is not specified, does not exist, or is empty, the configuration will be loaded entirely from environment variables (see [Environment Variables](#environment-variables) section below).
@@ -270,7 +268,6 @@ external process in non-daemon mode, so it is recommended to leave `cmd`,
 
 #### HCL Example
 
-:warning: **HCL format is deprecated** and will be removed in version 0.11.0. Use JSON or YAML instead.
 ```hcl
 agent_address = "/tmp/spire-agent/public/api.sock"
 cmd = "ghostunnel"
