@@ -774,7 +774,7 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 			}
 
 			// Load config from env vars only
-			config, err := ProcessConfigFileAndEnv("")
+			config, err := ParseAutoConfigFile("")
 			require.NoError(t, err)
 			require.NotNil(t, config)
 
@@ -1104,7 +1104,7 @@ jwt_svids:
 			}
 
 			// Load config from file (env vars will override)
-			config, err := ProcessConfigFileAndEnv(configFile.Name())
+			config, err := ParseConfigFile(configFile.Name(), tt.configFormat)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.expectErrorMsg != "" {

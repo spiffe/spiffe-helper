@@ -46,16 +46,12 @@ func main() {
 	log.Infof("Using configuration file: %q", *configFile)
 	log.Infof("Using configuration format: %q", *configFormat)
 
-	configFileToUse := *configFile
-	if _, err := os.Stat(*configFile); os.IsNotExist(err) {
-		log.Info("Configuration file not found, configuring via environment variables")
-		configFileToUse = ""
-	} else if *configFormat == "hcl" {
+	if *configFormat == "hcl" {
 		// TODO: remove this in 0.11.0
 		log.Warn("HCL format is deprecated and will be removed in 0.11.0. Use JSON or YAML instead.")
 	}
 
-	helperConfig, err := config.ParseConfig(configFileToUse, *configFormat, *daemonModeFlag, daemonModeFlagName)
+	helperConfig, err := config.ParseConfig(*configFile, *configFormat, *daemonModeFlag, daemonModeFlagName)
 	if err != nil {
 		log.WithError(err).Errorf("failed to parse configuration")
 		os.Exit(1)
