@@ -36,7 +36,6 @@ func main() {
 	log := logrus.WithField("system", "spiffe-helper")
 
 	log.Infof("Using configuration file: %q", *configFile)
-	log.Infof("Using configuration format: %q", *configFormat)
 
 	helperConfig, err := config.ParseConfig(*configFile, *configFormat, *daemonModeFlag, daemonModeFlagName)
 	if err != nil {
