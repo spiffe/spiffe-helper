@@ -89,40 +89,23 @@ Environment variables override values from the configuration file. If a configur
 
 #### Special Handling for `jwt_svids`
 
-The `jwt_svids` array cannot be set directly via a single environment variable due to limitations with arrays of structs. Instead, use indexed environment variables with the following format:
-
-**Format 1: Count-based indices**
-Set `SPIFFE_HLP_JWT_SVIDS` to a count (e.g., `"2"`), which will use indices 0, 1, ..., count-1:
+The `jwt_svids` array can be set using a single YAML/JSON array environment variable:
 
 ```bash
-export SPIFFE_HLP_JWT_SVIDS="2"
-export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="audience-0"
-export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="file-0.token"
-export SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES="extra1,extra2"
-export SPIFFE_HLP_JWT_SVIDS_1_AUDIENCE="audience-1"
-export SPIFFE_HLP_JWT_SVIDS_1_SVID_FILE_NAME="file-1.token"
+export SPIFFE_HLP_JWT_SVIDS='[
+  {
+    "jwt_audience": "audience-0",
+    "jwt_svid_file_name": "file-0.token",
+    "jwt_extra_audiences": ["extra1", "extra2"]
+  },
+  {
+    "jwt_audience": "audience-1",
+    "jwt_svid_file_name": "file-1.token"
+  }
+]'
 ```
 
-**Format 2: Comma-separated indices**
-Set `SPIFFE_HLP_JWT_SVIDS` to a comma-separated list of indices (e.g., `"0,2,5"`):
-
-```bash
-export SPIFFE_HLP_JWT_SVIDS="0,2,5"
-export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="audience-0"
-export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="file-0.token"
-export SPIFFE_HLP_JWT_SVIDS_2_AUDIENCE="audience-2"
-export SPIFFE_HLP_JWT_SVIDS_2_SVID_FILE_NAME="file-2.token"
-export SPIFFE_HLP_JWT_SVIDS_2_EXTRA_AUDIENCES="extra1,extra2,extra3"
-export SPIFFE_HLP_JWT_SVIDS_5_AUDIENCE="audience-5"
-export SPIFFE_HLP_JWT_SVIDS_5_SVID_FILE_NAME="file-5.token"
-```
-
-For each index `i`, the following environment variables are read:
-- `SPIFFE_HLP_JWT_SVIDS_i_AUDIENCE` - The JWT audience (required)
-- `SPIFFE_HLP_JWT_SVIDS_i_SVID_FILE_NAME` - The file name to store the JWT SVID
-- `SPIFFE_HLP_JWT_SVIDS_i_EXTRA_AUDIENCES` - Comma-separated list of extra audiences (optional)
-
-If `SPIFFE_HLP_JWT_SVIDS_i_AUDIENCE` is not set for an index, that index is skipped (allows sparse arrays).
+Setting `SPIFFE_HLP_JWT_SVIDS` replaces any `jwt_svids` entries from the config file.
 
 ### Health Checks Configuration
 
@@ -355,11 +338,14 @@ export SPIFFE_HLP_KEY_FILE_MODE="292"
 export SPIFFE_HLP_JWT_BUNDLE_FILE_MODE="292"
 export SPIFFE_HLP_JWT_SVID_FILE_MODE="292"
 
-# JWT SVIDs using indexed environment variables
-export SPIFFE_HLP_JWT_SVIDS="1"
-export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="your-audience"
-export SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES="your-extra-audience-1,your-extra-audience-2"
-export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="jwt_svid.token"
+# JWT SVIDs using YAML/JSON array environment variable
+export SPIFFE_HLP_JWT_SVIDS='[
+  {
+    "jwt_audience": "your-audience",
+    "jwt_extra_audiences": ["your-extra-audience-1", "your-extra-audience-2"],
+    "jwt_svid_file_name": "jwt_svid.token"
+  }
+]'
 ```
 
 ### Windows Example

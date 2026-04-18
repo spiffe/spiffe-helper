@@ -58,7 +58,7 @@ type Config struct {
 
 	// JWT configuration
 	// Note: JWTSVIDs does not have an env tag because cleanenv doesn't support arrays of structs.
-	// Instead, use indexed environment variables (see populateJWTSVIDsFromEnv for details).
+	// Instead, use SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array (see populateJWTSVIDsFromEnv for details).
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids" yaml:"jwt_svids"`
 	JWTBundleFilename string      `hcl:"jwt_bundle_file_name" yaml:"jwt_bundle_file_name" env:"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME"`
 
@@ -67,7 +67,7 @@ type Config struct {
 
 type JWTConfig struct {
 	// Note: JWTConfig fields do not have env tags because cleanenv doesn't support arrays of structs.
-	// Instead, use indexed environment variables (see populateJWTSVIDsFromEnv for details).
+	// Instead, use SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array (see populateJWTSVIDsFromEnv for details).
 	JWTAudience       string   `hcl:"jwt_audience" yaml:"jwt_audience"`
 	JWTExtraAudiences []string `hcl:"jwt_extra_audiences" yaml:"jwt_extra_audiences"`
 	JWTSVIDFilename   string   `hcl:"jwt_svid_file_name" yaml:"jwt_svid_file_name"`

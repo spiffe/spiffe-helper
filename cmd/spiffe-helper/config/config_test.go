@@ -626,17 +626,19 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 			},
 		},
 		{
-			name: "JWTSVIDs from indexed env vars using count",
+			name: "JWTSVIDs from YAML/JSON array env var",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":               "/tmp/test-agent.sock",
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME":        "test-bundle.json",
-				"SPIFFE_HLP_JWT_SVIDS":                   "2",
-				"SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE":        "audience-0",
-				"SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME":  "file-0.token",
-				"SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES": "extra0-1,extra0-2",
-				"SPIFFE_HLP_JWT_SVIDS_1_AUDIENCE":        "audience-1",
-				"SPIFFE_HLP_JWT_SVIDS_1_SVID_FILE_NAME":  "file-1.token",
-				"SPIFFE_HLP_JWT_SVIDS_1_EXTRA_AUDIENCES": "extra1-1",
+				"SPIFFE_HLP_AGENT_ADDRESS":        "/tmp/test-agent.sock",
+				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "test-bundle.json",
+				"SPIFFE_HLP_JWT_SVIDS": `[{
+					"jwt_audience": "audience-0",
+					"jwt_svid_file_name": "file-0.token",
+					"jwt_extra_audiences": ["extra0-1", "extra0-2"]
+				}, {
+					"jwt_audience": "audience-1",
+					"jwt_svid_file_name": "file-1.token",
+					"jwt_extra_audiences": ["extra1-1"]
+				}]`,
 			},
 			expectedConfig: func(c *Config) {
 				assert.Equal(t, "/tmp/test-agent.sock", c.AgentAddress)
@@ -648,58 +650,6 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 				assert.Equal(t, "audience-1", c.JWTSVIDs[1].JWTAudience)
 				assert.Equal(t, "file-1.token", c.JWTSVIDs[1].JWTSVIDFilename)
 				assert.Equal(t, []string{"extra1-1"}, c.JWTSVIDs[1].JWTExtraAudiences)
-			},
-		},
-		{
-			name: "JWTSVIDs from indexed env vars using index list",
-			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":               "/tmp/test-agent.sock",
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME":        "test-bundle.json",
-				"SPIFFE_HLP_JWT_SVIDS":                   "0,2,5",
-				"SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE":        "audience-0",
-				"SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME":  "file-0.token",
-				"SPIFFE_HLP_JWT_SVIDS_2_AUDIENCE":        "audience-2",
-				"SPIFFE_HLP_JWT_SVIDS_2_SVID_FILE_NAME":  "file-2.token",
-				"SPIFFE_HLP_JWT_SVIDS_2_EXTRA_AUDIENCES": "extra2-1,extra2-2,extra2-3",
-				"SPIFFE_HLP_JWT_SVIDS_5_AUDIENCE":        "audience-5",
-				"SPIFFE_HLP_JWT_SVIDS_5_SVID_FILE_NAME":  "file-5.token",
-			},
-			expectedConfig: func(c *Config) {
-				assert.Equal(t, "/tmp/test-agent.sock", c.AgentAddress)
-				assert.Equal(t, "test-bundle.json", c.JWTBundleFilename)
-				require.Len(t, c.JWTSVIDs, 3)
-				assert.Equal(t, "audience-0", c.JWTSVIDs[0].JWTAudience)
-				assert.Equal(t, "file-0.token", c.JWTSVIDs[0].JWTSVIDFilename)
-				assert.Empty(t, c.JWTSVIDs[0].JWTExtraAudiences)
-				assert.Equal(t, "audience-2", c.JWTSVIDs[1].JWTAudience)
-				assert.Equal(t, "file-2.token", c.JWTSVIDs[1].JWTSVIDFilename)
-				assert.Equal(t, []string{"extra2-1", "extra2-2", "extra2-3"}, c.JWTSVIDs[1].JWTExtraAudiences)
-				assert.Equal(t, "audience-5", c.JWTSVIDs[2].JWTAudience)
-				assert.Equal(t, "file-5.token", c.JWTSVIDs[2].JWTSVIDFilename)
-				assert.Empty(t, c.JWTSVIDs[2].JWTExtraAudiences)
-			},
-		},
-		{
-			name: "JWTSVIDs from indexed env vars with sparse array (missing index)",
-			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":              "/tmp/test-agent.sock",
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME":       "test-bundle.json",
-				"SPIFFE_HLP_JWT_SVIDS":                  "0,1,2",
-				"SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE":       "audience-0",
-				"SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME": "file-0.token",
-				// Index 1 is missing - should be skipped
-				"SPIFFE_HLP_JWT_SVIDS_2_AUDIENCE":       "audience-2",
-				"SPIFFE_HLP_JWT_SVIDS_2_SVID_FILE_NAME": "file-2.token",
-			},
-			expectedConfig: func(c *Config) {
-				assert.Equal(t, "/tmp/test-agent.sock", c.AgentAddress)
-				assert.Equal(t, "test-bundle.json", c.JWTBundleFilename)
-				// Only indices 0 and 2 should be present (1 is skipped because no AUDIENCE)
-				require.Len(t, c.JWTSVIDs, 2)
-				assert.Equal(t, "audience-0", c.JWTSVIDs[0].JWTAudience)
-				assert.Equal(t, "file-0.token", c.JWTSVIDs[0].JWTSVIDFilename)
-				assert.Equal(t, "audience-2", c.JWTSVIDs[1].JWTAudience)
-				assert.Equal(t, "file-2.token", c.JWTSVIDs[1].JWTSVIDFilename)
 			},
 		},
 		{
@@ -790,6 +740,19 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInvalidJWTSVIDsEnvVar(t *testing.T) {
+	os.Setenv("SPIFFE_HLP_AGENT_ADDRESS", "/tmp/test-agent.sock")
+	t.Cleanup(func() { os.Unsetenv("SPIFFE_HLP_AGENT_ADDRESS") })
+	os.Setenv("SPIFFE_HLP_JWT_BUNDLE_FILE_NAME", "test-bundle.json")
+	t.Cleanup(func() { os.Unsetenv("SPIFFE_HLP_JWT_BUNDLE_FILE_NAME") })
+	os.Setenv("SPIFFE_HLP_JWT_SVIDS", "not-a-list")
+	t.Cleanup(func() { os.Unsetenv("SPIFFE_HLP_JWT_SVIDS") })
+
+	_, err := ParseConfigFile("", "auto")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "invalid value for SPIFFE_HLP_JWT_SVIDS")
 }
 
 func TestConfigFileWithEnvOverrides(t *testing.T) {
@@ -1017,7 +980,7 @@ jwt_svids:
 			},
 		},
 		{
-			name:         "Override file-based JWTSVIDs with indexed env vars",
+			name:         "Override file-based JWTSVIDs with YAML/JSON array env var",
 			configFormat: "json",
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
@@ -1031,19 +994,21 @@ jwt_svids:
 				]
 			}`,
 			envVars: map[string]string{
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME":        "env-bundle.json",
-				"SPIFFE_HLP_JWT_SVIDS":                   "2",
-				"SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE":        "env-audience-0",
-				"SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME":  "env-file-0.token",
-				"SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES": "env-extra0-1,env-extra0-2",
-				"SPIFFE_HLP_JWT_SVIDS_1_AUDIENCE":        "env-audience-1",
-				"SPIFFE_HLP_JWT_SVIDS_1_SVID_FILE_NAME":  "env-file-1.token",
-				"SPIFFE_HLP_JWT_SVIDS_1_EXTRA_AUDIENCES": "env-extra1-1",
+				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "env-bundle.json",
+				"SPIFFE_HLP_JWT_SVIDS": `[{
+					"jwt_audience": "env-audience-0",
+					"jwt_svid_file_name": "env-file-0.token",
+					"jwt_extra_audiences": ["env-extra0-1", "env-extra0-2"]
+				}, {
+					"jwt_audience": "env-audience-1",
+					"jwt_svid_file_name": "env-file-1.token",
+					"jwt_extra_audiences": ["env-extra1-1"]
+				}]`,
 			},
 			expectedConfig: func(c *Config) {
 				// JWTBundleFilename should be overridden by env var
 				assert.Equal(t, "env-bundle.json", c.JWTBundleFilename)
-				// JWTSVIDs from indexed env vars should completely replace file-based JWTSVIDs
+				// JWTSVIDs from env var should completely replace file-based JWTSVIDs
 				require.Len(t, c.JWTSVIDs, 2)
 				assert.Equal(t, "env-audience-0", c.JWTSVIDs[0].JWTAudience)
 				assert.Equal(t, "env-file-0.token", c.JWTSVIDs[0].JWTSVIDFilename)
