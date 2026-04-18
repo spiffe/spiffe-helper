@@ -254,13 +254,6 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 		}
 	}
 
-	// TODO: is ReloadExternalProcess still used?
-	if s.config.ReloadExternalProcess != nil {
-		if err := s.config.ReloadExternalProcess(); err != nil {
-			s.config.Log.WithError(err).Error("Unable to reload external process")
-		}
-	}
-
 	s.hooks.certReady(svidResponse)
 }
 
