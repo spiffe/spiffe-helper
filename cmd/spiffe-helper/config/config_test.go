@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sirupsen/logrus/hooks/test"
@@ -51,6 +52,17 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, 444, c.KeyFileMode)
 	assert.Equal(t, 444, c.JWTBundleFileMode)
 	assert.Equal(t, 444, c.JWTSVIDFileMode)
+}
+
+func TestParseConfigFileMissingFile(t *testing.T) {
+	missingFile := filepath.Join(t.TempDir(), "missing.yaml")
+
+	for _, format := range []string{"hcl", "yaml", "json", "auto"} {
+		t.Run(format, func(t *testing.T) {
+			_, err := ParseConfigFile(missingFile, format)
+			require.EqualError(t, err, "configuration file does not exist: "+missingFile)
+		})
+	}
 }
 
 func TestValidateConfig(t *testing.T) {

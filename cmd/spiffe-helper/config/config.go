@@ -77,11 +77,11 @@ type JWTConfig struct {
 
 // ParseConfigFile parses the given HCL file into a Config struct
 func ParseConfigFile(file string, configFormat string) (*Config, error) {
-	if !configFileExists(file) {
-		if configFormat == "hcl" {
-			return nil, fmt.Errorf("HCL format requires a configuration file, but file does not exist: %s", file)
-		}
+	if file == "" {
 		return loadConfigFromEnv()
+	}
+	if !configFileExists(file) {
+		return nil, fmt.Errorf("configuration file does not exist: %s", file)
 	}
 
 	if configFormat == "auto" {
