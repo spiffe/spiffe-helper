@@ -774,7 +774,7 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 			}
 
 			// Load config from env vars only
-			config, err := ParseAutoConfigFile("")
+			config, err := ParseConfigFile("", "auto")
 			require.NoError(t, err)
 			require.NotNil(t, config)
 

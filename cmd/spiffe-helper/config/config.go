@@ -104,15 +104,6 @@ func ParseConfigFile(file string, configFormat string) (*Config, error) {
 	}
 }
 
-// ParseAutoConfigFile parses the given config file into a Config struct based on the file extension
-func ParseAutoConfigFile(file string) (*Config, error) {
-	if !configFileExists(file) {
-		return loadConfigFromEnv()
-	}
-
-	return ParseConfigFile(file, "auto")
-}
-
 // ParseYAMLConfigFile parses the given YAML file into a Config struct.
 // JSON config files can also use this path because JSON is valid YAML.
 func ParseYAMLConfigFile(file string) (*Config, error) {
