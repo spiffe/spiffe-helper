@@ -95,18 +95,16 @@ func ParseConfigFile(file string, configFormat string) (*Config, error) {
 	switch configFormat {
 	case "hcl":
 		return parseHCLFileAndApplyEnv(file)
-	case "json":
-		return ParseYAMLConfigFile(file)
-	case "yaml":
-		return ParseYAMLConfigFile(file)
+	case "json", "yaml":
+		return ParseStructuredConfigFile(file)
 	default:
 		return nil, fmt.Errorf("invalid config format: %s", configFormat)
 	}
 }
 
-// ParseYAMLConfigFile parses the given YAML file into a Config struct.
-// JSON config files can also use this path because JSON is valid YAML.
-func ParseYAMLConfigFile(file string) (*Config, error) {
+// ParseStructuredConfigFile parses YAML/JSON config into a Config struct.
+// JSON config files use this path because JSON is valid YAML.
+func ParseStructuredConfigFile(file string) (*Config, error) {
 	dat, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
