@@ -58,8 +58,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	helperConfig.LogConfig(log)
-
 	if err = startSidecar(helperConfig, log); err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
 		os.Exit(1)
