@@ -45,12 +45,14 @@ func main() {
 
 	// Log level is read from the reconciled config, which already includes env overrides.
 	if helperConfig.LogLevel != "" {
-		if level, err := logrus.ParseLevel(helperConfig.LogLevel); err == nil {
-			logrus.SetLevel(level)
-			log = logrus.WithField("system", "spiffe-helper") // Recreate logger with new level
-		} else {
-			log.Warnf("Invalid log level in config: %s, ignoring", helperConfig.LogLevel)
+		level, err := logrus.ParseLevel(helperConfig.LogLevel)
+		if err != nil {
+			log.WithError(err).Errorf("invalid log level in config: %s", helperConfig.LogLevel)
+			os.Exit(1)
 		}
+
+		logrus.SetLevel(level)
+		log = logrus.WithField("system", "spiffe-helper") // Recreate logger with new level
 	}
 
 	if err := helperConfig.ValidateConfig(log); err != nil {
