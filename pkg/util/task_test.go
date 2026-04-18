@@ -114,6 +114,8 @@ func testRunTasks(ctx context.Context, tasks ...func(context.Context) error) cha
 }
 
 func assertErrorChan(t *testing.T, ch chan error, expected error) {
+	t.Helper()
+
 	timer := time.NewTimer(time.Second)
 	select {
 	case <-timer.C:
@@ -126,6 +128,8 @@ func assertErrorChan(t *testing.T, ch chan error, expected error) {
 }
 
 func assertErrorChanContains(t *testing.T, ch chan error, contains string) {
+	t.Helper()
+
 	timer := time.NewTimer(time.Second)
 	select {
 	case <-timer.C:

@@ -41,6 +41,9 @@ type Config struct {
 	// If true, includes trust domains from federated servers in the CA bundle.
 	IncludeFederatedDomains bool
 
+	// If true, omits expired X509 certs from the bundle.
+	OmitExpired bool
+
 	// An array with the audience and file name to store the JWT SVIDs. File is Base64-encoded string.
 	JWTSVIDs []JWTConfig
 

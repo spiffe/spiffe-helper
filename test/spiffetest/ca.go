@@ -22,6 +22,8 @@ type CA struct {
 }
 
 func NewCA(tb testing.TB) *CA {
+	tb.Helper()
+
 	cert, key := CreateCACertificate(tb, nil, nil)
 	return &CA{
 		tb:   tb,
@@ -32,6 +34,16 @@ func NewCA(tb testing.TB) *CA {
 
 func (ca *CA) CreateCA() *CA {
 	cert, key := CreateCACertificate(ca.tb, ca.cert, ca.key)
+	return &CA{
+		tb:     ca.tb,
+		parent: ca,
+		cert:   cert,
+		key:    key,
+	}
+}
+
+func (ca *CA) CreateExpiredCA() *CA {
+	cert, key := CreateExpiredCACertificate(ca.tb, ca.cert, ca.key)
 	return &CA{
 		tb:     ca.tb,
 		parent: ca,
@@ -53,8 +65,23 @@ func (ca *CA) Roots() []*x509.Certificate {
 	return []*x509.Certificate{root.cert}
 }
 
+func CreateExpiredCACertificate(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer) (*x509.Certificate, crypto.Signer) {
+	tb.Helper()
+
+	now := time.Now().UTC()
+	return createCACertificateWithOptions(tb, parent, parentKey, now.Add(-1*time.Hour), now)
+}
+
 func CreateCACertificate(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer) (*x509.Certificate, crypto.Signer) {
-	now := time.Now()
+	tb.Helper()
+
+	now := time.Now().UTC()
+	return createCACertificateWithOptions(tb, parent, parentKey, now, now.Add(time.Hour))
+}
+
+func createCACertificateWithOptions(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer, notBefore, notAfter time.Time) (*x509.Certificate, crypto.Signer) {
+	tb.Helper()
+
 	serial := NewSerial(tb)
 
 	key := NewEC256Key(tb)
@@ -65,8 +92,8 @@ func CreateCACertificate(tb testing.TB, parent *x509.Certificate, parentKey cryp
 		},
 		BasicConstraintsValid: true,
 		IsCA:                  true,
-		NotBefore:             now,
-		NotAfter:              now.Add(time.Hour),
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
 	}
 	if parent == nil {
 		parent = tmpl
@@ -76,6 +103,8 @@ func CreateCACertificate(tb testing.TB, parent *x509.Certificate, parentKey cryp
 }
 
 func CreateX509SVID(tb testing.TB, parent *x509.Certificate, parentKey crypto.Signer, spiffeID string) (*x509.Certificate, crypto.Signer) {
+	tb.Helper()
+
 	now := time.Now()
 	serial := NewSerial(tb)
 
@@ -96,6 +125,8 @@ func CreateX509SVID(tb testing.TB, parent *x509.Certificate, parentKey crypto.Si
 }
 
 func CreateCertificate(tb testing.TB, tmpl, parent *x509.Certificate, pub, priv interface{}) *x509.Certificate {
+	tb.Helper()
+
 	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, parent, pub, priv)
 	require.NoError(tb, err)
 	cert, err := x509.ParseCertificate(certDER)
@@ -104,6 +135,8 @@ func CreateCertificate(tb testing.TB, tmpl, parent *x509.Certificate, pub, priv 
 }
 
 func NewSerial(tb testing.TB) *big.Int {
+	tb.Helper()
+
 	b := make([]byte, 8)
 	_, err := rand.Read(b)
 	require.NoError(tb, err)

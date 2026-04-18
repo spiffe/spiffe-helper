@@ -131,6 +131,8 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 
 // Generate generates a signed string token
 func generateToken(tb testing.TB, claims jwt.Claims, signer crypto.Signer, keyID string) string {
+	tb.Helper()
+
 	// Get signer algorithm
 	alg, err := getSignerAlgorithm(signer)
 	require.NoError(tb, err)

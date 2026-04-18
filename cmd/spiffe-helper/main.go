@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,6 +14,7 @@ import (
 	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 	"github.com/spiffe/spiffe-helper/pkg/util"
+	"github.com/spiffe/spiffe-helper/pkg/version"
 )
 
 const (
@@ -20,9 +22,16 @@ const (
 )
 
 func main() {
+	versionFlag := flag.Bool("version", false, "print version")
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
 	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Println(version.Version())
+		os.Exit(0)
+	}
+
 	log := logrus.WithField("system", "spiffe-helper")
 
 	log.Infof("Using configuration file: %q", *configFile)
