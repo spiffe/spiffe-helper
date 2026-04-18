@@ -333,7 +333,10 @@ func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, da
 		helperConfig, err = ParseConfigFile(configFile, configFormat)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
+		if configFile == "" {
+			return nil, fmt.Errorf("failed to load configuration from environment: %w", err)
+		}
+		return nil, fmt.Errorf("failed to parse configuration file %q: %w", configFile, err)
 	}
 	helperConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
 	return helperConfig, nil
