@@ -77,9 +77,6 @@ type JWTConfig struct {
 
 // ParseConfigFile parses the given HCL file into a Config struct
 func ParseConfigFile(file string, configFormat string) (*Config, error) {
-	if file == "" {
-		return loadConfigFromEnv()
-	}
 	if !configFileExists(file) {
 		return nil, fmt.Errorf("configuration file does not exist: %s", file)
 	}
@@ -149,7 +146,7 @@ func applyEnvOverrides(config *Config) error {
 }
 
 // loadConfigFromEnv loads configuration entirely from environment variables.
-// This is used when no config file is provided or the file doesn't exist.
+// This is used when no config file is provided.
 func loadConfigFromEnv() (*Config, error) {
 	config := new(Config)
 	if err := applyEnvOverrides(config); err != nil {
@@ -326,7 +323,15 @@ func (c *Config) checkForUnknownConfig() error {
 }
 
 func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
-	helperConfig, err := ParseConfigFile(configFile, configFormat)
+	var (
+		helperConfig *Config
+		err          error
+	)
+	if configFile == "" {
+		helperConfig, err = loadConfigFromEnv()
+	} else {
+		helperConfig, err = ParseConfigFile(configFile, configFormat)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
 	}

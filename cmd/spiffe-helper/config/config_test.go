@@ -730,7 +730,7 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 			}
 
 			// Load config from env vars only
-			config, err := ParseConfigFile("", "auto")
+			config, err := loadConfigFromEnv()
 			require.NoError(t, err)
 			require.NotNil(t, config)
 
@@ -762,7 +762,7 @@ func TestInvalidJWTSVIDsEnvVar(t *testing.T) {
 	os.Setenv("SPIFFE_HLP_JWT_SVIDS", "not-a-list")
 	t.Cleanup(func() { os.Unsetenv("SPIFFE_HLP_JWT_SVIDS") })
 
-	_, err := ParseConfigFile("", "auto")
+	_, err := loadConfigFromEnv()
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "invalid value for SPIFFE_HLP_JWT_SVIDS")
 }
