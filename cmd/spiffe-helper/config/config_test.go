@@ -277,9 +277,9 @@ func TestDetectsUnknownHCLConfig(t *testing.T) {
 func TestDetectsUnknownJSONConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	for _, tt := range []struct {
-		name        string
-		config      string
-		expectError string
+		name               string
+		config             string
+		expectErrorContain string
 	}{
 		{
 			name: "Unknown configuration at top level",
@@ -288,7 +288,7 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 				"foo": "bar",
 				"bar": "foo"
 			}`,
-			expectError: "unknown top level key(s): bar,foo",
+			expectErrorContain: "field foo not found",
 		},
 		{
 			name: "Unknown configuration in first jwt svid",
@@ -303,7 +303,7 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 					}
 				]
 			}`,
-			expectError: "unknown key(s) in jwt_svids[0]: bar,foo",
+			expectErrorContain: "field foo not found",
 		},
 		{
 			name: "Unknown configuration in second jwt svid",
@@ -322,7 +322,7 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 					}
 				]
 			}`,
-			expectError: "unknown key(s) in jwt_svids[1]: bar,foo",
+			expectErrorContain: "field foo not found",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -332,12 +332,9 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			c, err := ParseConfigFile(configFile.Name(), "json")
-			require.NoError(t, err)
-
-			log, _ := test.NewNullLogger()
-			err = c.ValidateConfig(log)
-			require.EqualError(t, err, tt.expectError)
+			_, err = ParseConfigFile(configFile.Name(), "json")
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.expectErrorContain)
 
 			err = configFile.Close()
 			require.NoError(t, err)
@@ -348,16 +345,16 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 func TestDetectsUnknownYAMLConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	for _, tt := range []struct {
-		name        string
-		config      string
-		expectError string
+		name               string
+		config             string
+		expectErrorContain string
 	}{
 		{
 			name: "Unknown configuration at top level",
 			config: `agent_address: "/tmp"
 foo: "bar"
 bar: "foo"`,
-			expectError: "unknown top level key(s): bar,foo",
+			expectErrorContain: "field foo not found",
 		},
 		{
 			name: "Unknown configuration in first jwt svid",
@@ -367,7 +364,7 @@ jwt_svids:
     jwt_svid_file_name: "jwt_svid.token"
     foo: "bar"
     bar: "foo"`,
-			expectError: "unknown key(s) in jwt_svids[0]: bar,foo",
+			expectErrorContain: "field foo not found",
 		},
 		{
 			name: "Unknown configuration in second jwt svid",
@@ -379,7 +376,7 @@ jwt_svids:
     jwt_svid_file_name: "jwt_svid-1.token"
     foo: "bar"
     bar: "foo"`,
-			expectError: "unknown key(s) in jwt_svids[1]: bar,foo",
+			expectErrorContain: "field foo not found",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -389,12 +386,9 @@ jwt_svids:
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			c, err := ParseConfigFile(configFile.Name(), "yaml")
-			require.NoError(t, err)
-
-			log, _ := test.NewNullLogger()
-			err = c.ValidateConfig(log)
-			require.EqualError(t, err, tt.expectError)
+			_, err = ParseConfigFile(configFile.Name(), "yaml")
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.expectErrorContain)
 
 			err = configFile.Close()
 			require.NoError(t, err)

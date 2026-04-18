@@ -1,12 +1,12 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
 	"os"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -111,17 +111,14 @@ func ParseYAMLConfigFile(file string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	config := new(Config)
-	if err := yaml.Unmarshal(dat, config); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(dat))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(config); err != nil {
 		return nil, err
 	}
 
-	var dataMap map[string]interface{}
-	if err := yaml.Unmarshal(dat, &dataMap); err != nil {
-		return nil, err
-	}
-
-	populateUnusedKeyPositions(config, dataMap)
 	if err := applyEnvOverrides(config); err != nil {
 		return nil, err
 	}
@@ -161,77 +158,6 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, err
 	}
 	return config, nil
-}
-
-// populateUnusedKeyPositions detects unknown keys in JSON/YAML configs and populates UnusedKeyPositions
-// to match the behavior of HCL configs
-func populateUnusedKeyPositions(config *Config, dataMap map[string]interface{}) {
-	// Detect unknown keys at top level
-	knownFields := getKnownFields(reflect.TypeOf(Config{}), "yaml")
-	for key := range dataMap {
-		if key == "jwt_svids" {
-			// Handle jwt_svids separately
-			continue
-		}
-		if !knownFields[key] {
-			if config.UnusedKeyPositions == nil {
-				config.UnusedKeyPositions = make(map[string][]token.Pos)
-			}
-			config.UnusedKeyPositions[key] = []token.Pos{}
-		}
-	}
-
-	// Detect unknown keys in jwt_svids
-	if jwtSVIDsData, ok := dataMap["jwt_svids"].([]interface{}); ok {
-		jwtKnownFields := getKnownFields(reflect.TypeOf(JWTConfig{}), "yaml")
-		for i, jwtSVIDData := range jwtSVIDsData {
-			if i >= len(config.JWTSVIDs) {
-				// Ensure the array is large enough
-				continue
-			}
-			if jwtMap, ok := jwtSVIDData.(map[string]interface{}); ok {
-				for key := range jwtMap {
-					if !jwtKnownFields[key] {
-						if config.JWTSVIDs[i].UnusedKeyPositions == nil {
-							config.JWTSVIDs[i].UnusedKeyPositions = make(map[string][]token.Pos)
-						}
-						config.JWTSVIDs[i].UnusedKeyPositions[key] = []token.Pos{}
-					}
-				}
-			}
-		}
-	}
-}
-
-// getKnownFields returns a map of known field names from a struct type based on the given tags.
-func getKnownFields(typ reflect.Type, tagNames ...string) map[string]bool {
-	knownFields := make(map[string]bool)
-	for i := range typ.NumField() {
-		field := typ.Field(i)
-		skip := false
-		for _, tagName := range tagNames {
-			tag := field.Tag.Get(tagName)
-			if tag == "-" {
-				skip = true
-				break
-			}
-		}
-		if skip {
-			continue
-		}
-
-		for _, tagName := range tagNames {
-			tag := field.Tag.Get(tagName)
-			if tag != "" && tag != "-" {
-				tagParts := strings.Split(tag, ",")
-				fieldName := tagParts[0]
-				if fieldName != "" {
-					knownFields[fieldName] = true
-				}
-			}
-		}
-	}
-	return knownFields
 }
 
 // ParseHCLConfigFile parses the given HCL file into a Config struct
