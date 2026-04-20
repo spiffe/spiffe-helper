@@ -24,7 +24,7 @@ const (
 func main() {
 	versionFlag := flag.Bool("version", false, "print version")
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
-	configFormat := flag.String("config-format", "auto", "Configuration format: hcl, json, yaml, or auto (default: auto)")
+	configFormat := flag.String("config-format", "auto", "Configuration format: hcl, yaml, or auto (default: auto)")
 	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
 	flag.Parse()
 
@@ -33,8 +33,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Set initial log level from environment variable if provided (for early logging)
-	// Environment variable takes precedence over config value
+	// Environment variable takes precedence over config value for early logging.
 	if logLevelStr := os.Getenv("SPIFFE_HLP_LOG_LEVEL"); logLevelStr != "" {
 		if level, err := logrus.ParseLevel(logLevelStr); err == nil {
 			logrus.SetLevel(level)
@@ -46,16 +45,7 @@ func main() {
 	log.Infof("Using configuration file: %q", *configFile)
 	log.Infof("Using configuration format: %q", *configFormat)
 
-	configFileToUse := *configFile
-	if _, err := os.Stat(*configFile); os.IsNotExist(err) {
-		log.Info("Configuration file not found, configuring via environment variables")
-		configFileToUse = ""
-	} else if *configFormat == "hcl" {
-		// TODO: remove this in 0.11.0
-		log.Warn("HCL format is deprecated and will be removed in 0.11.0. Use JSON or YAML instead.")
-	}
-
-	helperConfig, err := config.ParseConfig(configFileToUse, *configFormat, *daemonModeFlag, daemonModeFlagName)
+	helperConfig, err := config.ParseConfig(*configFile, *configFormat, *daemonModeFlag, daemonModeFlagName)
 	if err != nil {
 		log.WithError(err).Errorf("failed to parse configuration")
 		os.Exit(1)
