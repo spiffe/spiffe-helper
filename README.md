@@ -16,18 +16,16 @@ CLI options:
  | Flag name                       | Description                                                         |
  |---------------------------------|---------------------------------------------------------------------|
  | `-config`                       | Path to the configuration file (default: `helper.conf`). If the file does not exist, configuration will be loaded from environment variables. |
- | `-config-format`                | Configuration format: `hcl`, `json`, `yaml`, or `auto` (default: `auto`). Format is automatically detected from file extension when set to `auto`. |
+ | `-config-format`                | Configuration format: `hcl`, `yaml`, or `auto` (default: `auto`). Format is automatically detected from file extension when set to `auto`. |
  | `-help`                         | Print interactive help                                              |
  | `-daemon-mode={true\|false}`    | Boolean true or false. Overrides `daemon_mode` in the config file.  |
  | `-version`                      | Print version number                                                |
 
 ## Configuration
 
-The configuration file can be in HCL, JSON, or YAML format. The format is automatically detected from the file extension (`.conf` for HCL, `.json` for JSON, `.yaml` or `.yml` for YAML), or can be explicitly specified using the `-config-format` flag.
+The configuration file can be in HCL or YAML format. The format is automatically detected from the file extension (`.conf` or `.json` for HCL, `.yaml` or `.yml` for YAML), or can be explicitly specified using the `-config-format` flag. JSON is supported transparently through HCL's native JSON representation.
 
-:warning: **HCL format is deprecated** and will be removed in version 0.11.0. Use JSON or YAML instead.
-
-If the configuration file is not specified, does not exist, or is empty, all configuration can be provided via environment variables (see [Environment Variables](#environment-variables) section below).
+If the configuration file is not specified or does not exist, configuration can be provided via environment variables (see [Environment Variables](#environment-variables) section below).
 
 The following configurations are available:
 
@@ -66,17 +64,15 @@ The configuration file format can be specified using the `-config-format` flag o
 
  | Format | File Extensions | Description |
  |--------|----------------|-------------|
- | `hcl` | `.conf` | HashiCorp Configuration Language (deprecated, will be removed in 0.11.0) |
- | `json` | `.json` | JSON format |
+ | `hcl` | `.conf`, `.json` | HashiCorp Configuration Language (also parses its native JSON representation) |
  | `yaml` | `.yaml`, `.yml` | YAML format |
  | `auto` | Any | Automatically detect format from file extension (default) |
 
 When using `auto` format (the default), the format is determined by the file extension:
-- `.conf` files are parsed as HCL
-- `.json` files are parsed as JSON
+- `.conf` and `.json` files are parsed as HCL (HCL natively supports its JSON representation)
 - `.yaml` or `.yml` files are parsed as YAML
 
-If the configuration file is not specified, does not exist, or is empty, the configuration will be loaded entirely from environment variables (see [Environment Variables](#environment-variables) section below).
+If the configuration file is not specified or does not exist, the configuration will be loaded entirely from environment variables (see [Environment Variables](#environment-variables) section below).
 
 ### Environment Variables
 
@@ -87,7 +83,7 @@ For example:
 - `svid_file_name` → `SPIFFE_HLP_SVID_FILE_NAME`
 - `jwt_bundle_file_name` → `SPIFFE_HLP_JWT_BUNDLE_FILE_NAME`
 
-Environment variables override values from the configuration file. If a configuration file is provided, environment variables will override matching fields. If no configuration file is specified or the file does not exist, the entire configuration can be provided via environment variables.
+When a YAML configuration file is provided, environment variables override matching fields. If no configuration file is specified or the file does not exist, the entire configuration can be provided via environment variables.
 
 #### Special Handling for `jwt_svids`
 
@@ -270,7 +266,6 @@ external process in non-daemon mode, so it is recommended to leave `cmd`,
 
 #### HCL Example
 
-:warning: **HCL format is deprecated** and will be removed in version 0.11.0. Use JSON or YAML instead.
 ```hcl
 agent_address = "/tmp/spire-agent/public/api.sock"
 cmd = "ghostunnel"
@@ -289,6 +284,8 @@ jwt_svid_file_mode = 0444
 ```
 
 #### JSON Example
+
+HCL natively parses its JSON representation, so JSON configurations are supported without any additional flags:
 
 ```json
 {

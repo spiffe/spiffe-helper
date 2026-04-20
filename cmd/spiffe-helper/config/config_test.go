@@ -274,77 +274,6 @@ func TestDetectsUnknownHCLConfig(t *testing.T) {
 	}
 }
 
-func TestDetectsUnknownJSONConfig(t *testing.T) {
-	tempDir := t.TempDir()
-	for _, tt := range []struct {
-		name        string
-		config      string
-		expectError string
-	}{
-		{
-			name: "Unknown configuration at top level",
-			config: `{
-				"agent_address": "/tmp",
-				"foo": "bar",
-				"bar": "foo"
-			}`,
-			expectError: "unknown top level key(s): bar,foo",
-		},
-		{
-			name: "Unknown configuration in first jwt svid",
-			config: `{
-				"cmd": "echo",
-				"jwt_svids": [
-					{
-						"jwt_audience": "your-audience",
-						"jwt_svid_file_name": "jwt_svid.token",
-						"foo": "bar",
-						"bar": "foo"
-					}
-				]
-			}`,
-			expectError: "unknown key(s) in jwt_svids[0]: bar,foo",
-		},
-		{
-			name: "Unknown configuration in second jwt svid",
-			config: `{
-				"cmd": "echo",
-				"jwt_svids": [
-					{
-						"jwt_audience": "your-audience-0",
-						"jwt_svid_file_name": "jwt_svid-0.token"
-					},
-					{
-						"jwt_audience": "your-audience-1",
-						"jwt_svid_file_name": "jwt_svid-1.token",
-						"foo": "bar",
-						"bar": "foo"
-					}
-				]
-			}`,
-			expectError: "unknown key(s) in jwt_svids[1]: bar,foo",
-		},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			configFile, err := os.CreateTemp(tempDir, "spiffe-helper-*.json")
-			require.NoError(t, err)
-
-			_, err = configFile.WriteString(tt.config)
-			require.NoError(t, err)
-
-			c, err := ParseConfigFile(configFile.Name(), "json")
-			require.NoError(t, err)
-
-			log, _ := test.NewNullLogger()
-			err = c.ValidateConfig(log)
-			require.EqualError(t, err, tt.expectError)
-
-			err = configFile.Close()
-			require.NoError(t, err)
-		})
-	}
-}
-
 func TestDetectsUnknownYAMLConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	for _, tt := range []struct {
@@ -774,7 +703,7 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 			}
 
 			// Load config from env vars only
-			config, err := ProcessConfigFileAndEnv("")
+			config, err := ParseConfigFile("", "auto")
 			require.NoError(t, err)
 			require.NotNil(t, config)
 
@@ -810,16 +739,14 @@ func TestConfigFileWithEnvOverrides(t *testing.T) {
 		expectErrorMsg string
 	}{
 		{
-			name:         "JSON config file with string field override",
-			configFormat: "json",
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"svid_file_name": "file-svid.pem",
-				"svid_key_file_name": "file-key.pem",
-				"svid_bundle_file_name": "file-bundle.pem",
-				"cmd": "file-cmd",
-				"cert_dir": "file-certs"
-			}`,
+			name:         "YAML config file with string field override",
+			configFormat: "yaml",
+			configFile: `agent_address: "/tmp/file-agent.sock"
+svid_file_name: "file-svid.pem"
+svid_key_file_name: "file-key.pem"
+svid_bundle_file_name: "file-bundle.pem"
+cmd: "file-cmd"
+cert_dir: "file-certs"`,
 			envVars: map[string]string{
 				"SPIFFE_HLP_AGENT_ADDRESS": "/tmp/env-agent.sock",
 				"SPIFFE_HLP_CMD":           "env-cmd",
@@ -860,20 +787,17 @@ key_file_mode: 0600`,
 			},
 		},
 		{
-			name:         "JSON config file with nested HealthCheck override",
-			configFormat: "json",
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"svid_file_name": "file-svid.pem",
-				"svid_key_file_name": "file-key.pem",
-				"svid_bundle_file_name": "file-bundle.pem",
-				"health_checks": {
-					"listener_enabled": false,
-					"bind_port": 8080,
-					"liveness_path": "/file-live",
-					"readiness_path": "/file-ready"
-				}
-			}`,
+			name:         "YAML config file with nested HealthCheck override",
+			configFormat: "yaml",
+			configFile: `agent_address: "/tmp/file-agent.sock"
+svid_file_name: "file-svid.pem"
+svid_key_file_name: "file-key.pem"
+svid_bundle_file_name: "file-bundle.pem"
+health_checks:
+  listener_enabled: false
+  bind_port: 8080
+  liveness_path: "/file-live"
+  readiness_path: "/file-ready"`,
 			envVars: map[string]string{
 				// cleanenv reads nested field env tags directly (does not combine with parent)
 				"SPIFFE_HLP_LISTENER_ENABLED": "true",
@@ -913,19 +837,14 @@ renew_signal: "SIGUSR1"`,
 			},
 		},
 		{
-			name:         "JSON config file with JWTSVIDs and JWTExtraAudiences",
-			configFormat: "json",
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"jwt_bundle_file_name": "file-bundle.json",
-				"jwt_svids": [
-					{
-						"jwt_audience": "file-audience",
-						"jwt_svid_file_name": "file-jwt.token",
-						"jwt_extra_audiences": ["file-extra1", "file-extra2"]
-					}
-				]
-			}`,
+			name:         "YAML config file with JWTSVIDs and JWTExtraAudiences",
+			configFormat: "yaml",
+			configFile: `agent_address: "/tmp/file-agent.sock"
+jwt_bundle_file_name: "file-bundle.json"
+jwt_svids:
+  - jwt_audience: "file-audience"
+    jwt_svid_file_name: "file-jwt.token"
+    jwt_extra_audiences: ["file-extra1", "file-extra2"]`,
 			envVars: map[string]string{
 				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "env-bundle.json",
 			},
@@ -941,18 +860,13 @@ renew_signal: "SIGUSR1"`,
 		},
 		{
 			name:         "Attempt to override JWTSVIDs nested fields via env vars (file with override)",
-			configFormat: "json",
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"jwt_bundle_file_name": "file-bundle.json",
-				"jwt_svids": [
-					{
-						"jwt_audience": "file-audience",
-						"jwt_svid_file_name": "file-jwt.token",
-						"jwt_extra_audiences": ["file-extra1", "file-extra2"]
-					}
-				]
-			}`,
+			configFormat: "yaml",
+			configFile: `agent_address: "/tmp/file-agent.sock"
+jwt_bundle_file_name: "file-bundle.json"
+jwt_svids:
+  - jwt_audience: "file-audience"
+    jwt_svid_file_name: "file-jwt.token"
+    jwt_extra_audiences: ["file-extra1", "file-extra2"]`,
 			envVars: map[string]string{
 				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "env-bundle.json",
 				// Attempt to override nested fields within JWTSVIDs array
@@ -1024,18 +938,13 @@ jwt_svids:
 		},
 		{
 			name:         "Override file-based JWTSVIDs with indexed env vars",
-			configFormat: "json",
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"jwt_bundle_file_name": "file-bundle.json",
-				"jwt_svids": [
-					{
-						"jwt_audience": "file-audience",
-						"jwt_svid_file_name": "file-jwt.token",
-						"jwt_extra_audiences": ["file-extra1", "file-extra2"]
-					}
-				]
-			}`,
+			configFormat: "yaml",
+			configFile: `agent_address: "/tmp/file-agent.sock"
+jwt_bundle_file_name: "file-bundle.json"
+jwt_svids:
+  - jwt_audience: "file-audience"
+    jwt_svid_file_name: "file-jwt.token"
+    jwt_extra_audiences: ["file-extra1", "file-extra2"]`,
 			envVars: map[string]string{
 				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME":        "env-bundle.json",
 				"SPIFFE_HLP_JWT_SVIDS":                   "2",
@@ -1060,15 +969,13 @@ jwt_svids:
 			},
 		},
 		{
-			name:         "JSON config file with DaemonMode override via env var",
-			configFormat: "json",
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"svid_file_name": "file-svid.pem",
-				"svid_key_file_name": "file-key.pem",
-				"svid_bundle_file_name": "file-bundle.pem",
-				"daemon_mode": true
-			}`,
+			name:         "YAML config file with DaemonMode override via env var",
+			configFormat: "yaml",
+			configFile: `agent_address: "/tmp/file-agent.sock"
+svid_file_name: "file-svid.pem"
+svid_key_file_name: "file-key.pem"
+svid_bundle_file_name: "file-bundle.pem"
+daemon_mode: true`,
 			envVars: map[string]string{
 				"SPIFFE_HLP_DAEMON_MODE": "false",
 			},
@@ -1080,14 +987,7 @@ jwt_svids:
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary config file
-			var fileExt string
-			if tt.configFormat == "json" {
-				fileExt = ".json"
-			} else {
-				fileExt = ".yaml"
-			}
-			configFile, err := os.CreateTemp(tempDir, "spiffe-helper-*"+fileExt)
+			configFile, err := os.CreateTemp(tempDir, "spiffe-helper-*.yaml")
 			require.NoError(t, err)
 
 			_, err = configFile.WriteString(tt.configFile)
@@ -1095,7 +995,6 @@ jwt_svids:
 			err = configFile.Close()
 			require.NoError(t, err)
 
-			// Set environment variables
 			for key, value := range tt.envVars {
 				os.Setenv(key, value)
 				t.Cleanup(func() {
@@ -1103,8 +1002,7 @@ jwt_svids:
 				})
 			}
 
-			// Load config from file (env vars will override)
-			config, err := ProcessConfigFileAndEnv(configFile.Name())
+			config, err := ParseConfigFile(configFile.Name(), tt.configFormat)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.expectErrorMsg != "" {
