@@ -75,6 +75,26 @@ type JWTConfig struct {
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions" yaml:"-"`
 }
 
+func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
+	var (
+		helperConfig *Config
+		err          error
+	)
+	if configFile == "" {
+		helperConfig, err = loadConfigFromEnv()
+	} else {
+		helperConfig, err = ParseConfigFile(configFile, configFormat)
+	}
+	if err != nil {
+		if configFile == "" {
+			return nil, fmt.Errorf("failed to load configuration from environment: %w", err)
+		}
+		return nil, fmt.Errorf("failed to parse configuration file %q: %w", configFile, err)
+	}
+	helperConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+	return helperConfig, nil
+}
+
 // ParseConfigFile parses the given HCL file into a Config struct
 func ParseConfigFile(file string, configFormat string) (*Config, error) {
 	if !configFileExists(file) {
@@ -114,41 +134,6 @@ func ParseStructuredConfigFile(file string) (*Config, error) {
 		return nil, err
 	}
 
-	if err := applyEnvOverrides(config); err != nil {
-		return nil, err
-	}
-	return config, nil
-}
-
-func parseHCLFileAndApplyEnv(file string) (*Config, error) {
-	config, err := ParseHCLConfigFile(file)
-	if err != nil {
-		return nil, err
-	}
-	if err := applyEnvOverrides(config); err != nil {
-		return nil, err
-	}
-	return config, nil
-}
-
-// applyEnvOverrides applies environment-based config on top of the parsed file config.
-func applyEnvOverrides(config *Config) error {
-	if err := cleanenv.ReadEnv(config); err != nil {
-		return err
-	}
-	if err := populateJWTSVIDsFromEnv(config); err != nil {
-		return err
-	}
-	if err := populateDaemonModeFromEnv(config); err != nil {
-		return err
-	}
-	return nil
-}
-
-// loadConfigFromEnv loads configuration entirely from environment variables.
-// This is used when no config file is provided.
-func loadConfigFromEnv() (*Config, error) {
-	config := new(Config)
 	if err := applyEnvOverrides(config); err != nil {
 		return nil, err
 	}
@@ -285,6 +270,75 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	return nil
 }
 
+func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
+	sidecarConfig := &sidecar.Config{
+		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+		AgentAddress:             config.AgentAddress,
+		Cmd:                      config.Cmd,
+		CmdArgs:                  config.CmdArgs,
+		PIDFilename:              config.PIDFilename,
+		CertDir:                  config.CertDir,
+		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec
+		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec
+		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
+		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
+		IncludeFederatedDomains:  config.IncludeFederatedDomains,
+		OmitExpired:              config.OmitExpired,
+		JWTBundleFilename:        config.JWTBundleFilename,
+		Log:                      log,
+		RenewSignal:              config.RenewSignal,
+		SVIDFilename:             config.SVIDFilename,
+		SVIDKeyFilename:          config.SVIDKeyFilename,
+		SVIDBundleFilename:       config.SVIDBundleFilename,
+		Hint:                     config.Hint,
+	}
+
+	for _, jwtSVID := range config.JWTSVIDs {
+		sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
+			JWTAudience:       jwtSVID.JWTAudience,
+			JWTExtraAudiences: jwtSVID.JWTExtraAudiences,
+			JWTSVIDFilename:   jwtSVID.JWTSVIDFilename,
+		})
+	}
+
+	return sidecarConfig
+}
+
+func parseHCLFileAndApplyEnv(file string) (*Config, error) {
+	config, err := ParseHCLConfigFile(file)
+	if err != nil {
+		return nil, err
+	}
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+// applyEnvOverrides applies environment-based config on top of the parsed file config.
+func applyEnvOverrides(config *Config) error {
+	if err := cleanenv.ReadEnv(config); err != nil {
+		return err
+	}
+	if err := populateJWTSVIDsFromEnv(config); err != nil {
+		return err
+	}
+	if err := populateDaemonModeFromEnv(config); err != nil {
+		return err
+	}
+	return nil
+}
+
+// loadConfigFromEnv loads configuration entirely from environment variables.
+// This is used when no config file is provided.
+func loadConfigFromEnv() (*Config, error) {
+	config := new(Config)
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
 func configFileExists(file string) bool {
 	if file == "" {
 		return false
@@ -320,60 +374,6 @@ func (c *Config) checkForUnknownConfig() error {
 	}
 
 	return nil
-}
-
-func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
-	var (
-		helperConfig *Config
-		err          error
-	)
-	if configFile == "" {
-		helperConfig, err = loadConfigFromEnv()
-	} else {
-		helperConfig, err = ParseConfigFile(configFile, configFormat)
-	}
-	if err != nil {
-		if configFile == "" {
-			return nil, fmt.Errorf("failed to load configuration from environment: %w", err)
-		}
-		return nil, fmt.Errorf("failed to parse configuration file %q: %w", configFile, err)
-	}
-	helperConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
-	return helperConfig, nil
-}
-
-func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
-	sidecarConfig := &sidecar.Config{
-		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
-		AgentAddress:             config.AgentAddress,
-		Cmd:                      config.Cmd,
-		CmdArgs:                  config.CmdArgs,
-		PIDFilename:              config.PIDFilename,
-		CertDir:                  config.CertDir,
-		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec
-		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec
-		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
-		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
-		IncludeFederatedDomains:  config.IncludeFederatedDomains,
-		OmitExpired:              config.OmitExpired,
-		JWTBundleFilename:        config.JWTBundleFilename,
-		Log:                      log,
-		RenewSignal:              config.RenewSignal,
-		SVIDFilename:             config.SVIDFilename,
-		SVIDKeyFilename:          config.SVIDKeyFilename,
-		SVIDBundleFilename:       config.SVIDBundleFilename,
-		Hint:                     config.Hint,
-	}
-
-	for _, jwtSVID := range config.JWTSVIDs {
-		sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
-			JWTAudience:       jwtSVID.JWTAudience,
-			JWTExtraAudiences: jwtSVID.JWTExtraAudiences,
-			JWTSVIDFilename:   jwtSVID.JWTSVIDFilename,
-		})
-	}
-
-	return sidecarConfig
 }
 
 func validateX509Config(c *Config) (bool, error) {
