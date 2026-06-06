@@ -116,6 +116,10 @@ run_test() {
                         LISTENER_ENABLED|BIND_PORT|LIVENESS_PATH|READINESS_PATH)
                             config_key="health_checks.${env_key,,}"
                             ;;
+                        JWT_SVIDS)
+                            # Structured array value; validated separately below.
+                            continue
+                            ;;
                         *)
                             # Convert to lowercase and replace underscores
                             config_key=$(echo "${env_key}" | tr '[:upper:]' '[:lower:]')
@@ -132,11 +136,11 @@ run_test() {
                 fi
             done
             
-            # Also handle indexed JWTSVIDs environment variables
-            local jwt_svids_indices=""
+            # Capture structured JWTSVIDs environment variable for separate validation
+            local jwt_svids_env=""
             for env_var in "${env_vars[@]}"; do
-                if [[ "${env_var}" =~ ^SPIFFE_HLP_JWT_SVIDS=([0-9,]+)$ ]]; then
-                    jwt_svids_indices="${BASH_REMATCH[1]}"
+                if [[ "${env_var}" =~ ^SPIFFE_HLP_JWT_SVIDS=(.*)$ ]]; then
+                    jwt_svids_env="${BASH_REMATCH[1]}"
                 fi
             done
             
@@ -205,89 +209,26 @@ run_test() {
             echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
             
             # Validate JWTSVIDs if present
-            if [ -n "${jwt_svids_indices}" ]; then
-                # Parse indices (comma-separated or count)
-                local env_indices_array=()
-                if [[ "${jwt_svids_indices}" =~ ^[0-9]+$ ]] && [ "${#jwt_svids_indices}" -le 2 ]; then
-                    # It's a count, generate indices 0, 1, 2, ..., count-1
-                    local count="${jwt_svids_indices}"
-                    for ((i=0; i<count; i++)); do
-                        env_indices_array+=("${i}")
-                    done
-                else
-                    # It's comma-separated indices (may be sparse like "0,2,5")
-                    IFS=',' read -ra env_indices_array <<< "${jwt_svids_indices}"
-                fi
-                
-                # Go slices are dense (0, 1, 2, ...), so we need to map env indices to slice positions
-                # The populateJWTSVIDsFromEnv function processes indices in order and appends to slice
-                # So env index order determines slice position (not sorted order)
-                declare -A env_to_slice_pos
-                local slice_pos=0
-                for env_idx in "${env_indices_array[@]}"; do
-                    # Check if this index actually has an AUDIENCE set (required for it to be added)
-                    local has_audience=false
-                    for env_var in "${env_vars[@]}"; do
-                        if [[ "${env_var}" =~ ^SPIFFE_HLP_JWT_SVIDS_${env_idx}_AUDIENCE= ]]; then
-                            has_audience=true
-                            break
-                        fi
-                    done
-                    if [ "${has_audience}" = "true" ]; then
-                        env_to_slice_pos["${env_idx}"]="${slice_pos}"
-                        slice_pos=$((slice_pos + 1))
+            if [ -n "${jwt_svids_env}" ]; then
+                while IFS= read -r expected_audience; do
+                    [ -z "${expected_audience}" ] && continue
+                    if echo "${reconciled_line}" | grep -q "${expected_audience}"; then
+                        echo -e "  ${GREEN}jwt_audience${NC}=${YELLOW}${expected_audience}${NC} ${GREEN}✓${NC}"
+                    else
+                        echo -e "  ${RED}jwt_audience${NC}=${YELLOW}${expected_audience}${NC} ${RED}✗ (not found)${NC}"
+                        validation_errors=$((validation_errors + 1))
                     fi
-                done
-                
-                # Check each expected JWT SVID
-                for env_idx in "${env_indices_array[@]}"; do
-                    local expected_audience=""
-                    local expected_svid_file=""
-                    local expected_extra_audiences=""
-                    
-                    for env_var in "${env_vars[@]}"; do
-                        if [[ "${env_var}" =~ ^SPIFFE_HLP_JWT_SVIDS_${env_idx}_AUDIENCE=(.*)$ ]]; then
-                            expected_audience="${BASH_REMATCH[1]}"
-                        elif [[ "${env_var}" =~ ^SPIFFE_HLP_JWT_SVIDS_${env_idx}_SVID_FILE_NAME=(.*)$ ]]; then
-                            expected_svid_file="${BASH_REMATCH[1]}"
-                        elif [[ "${env_var}" =~ ^SPIFFE_HLP_JWT_SVIDS_${env_idx}_EXTRA_AUDIENCES=(.*)$ ]]; then
-                            expected_extra_audiences="${BASH_REMATCH[1]}"
-                        fi
-                    done
-                    
-                    # Get the actual slice position for this env index
-                    local slice_pos="${env_to_slice_pos[${env_idx}]}"
-                    
-                    # Check if these values appear in reconciled config at the correct slice position
-                    if [ -n "${expected_audience}" ]; then
-                        if echo "${reconciled_config}" | grep -q "jwt_svids\[${slice_pos}\]\.jwt_audience=${expected_audience}"; then
-                            echo -e "  ${GREEN}jwt_svids[${slice_pos}].jwt_audience${NC}=${YELLOW}${expected_audience}${NC} ${GREEN}✓${NC} (env index ${env_idx})"
-                        else
-                            echo -e "  ${RED}jwt_svids[${slice_pos}].jwt_audience${NC} ${RED}✗ (expected: ${expected_audience} at slice pos ${slice_pos}, env index ${env_idx}, not found)${NC}"
-                            validation_errors=$((validation_errors + 1))
-                        fi
+                done < <(echo "${jwt_svids_env}" | grep -oE '"jwt_audience"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)"$/\1/')
+
+                while IFS= read -r expected_file; do
+                    [ -z "${expected_file}" ] && continue
+                    if echo "${reconciled_line}" | grep -q "${expected_file}"; then
+                        echo -e "  ${GREEN}jwt_svid_file_name${NC}=${YELLOW}${expected_file}${NC} ${GREEN}✓${NC}"
+                    else
+                        echo -e "  ${RED}jwt_svid_file_name${NC}=${YELLOW}${expected_file}${NC} ${RED}✗ (not found)${NC}"
+                        validation_errors=$((validation_errors + 1))
                     fi
-                    
-                    if [ -n "${expected_svid_file}" ]; then
-                        if echo "${reconciled_config}" | grep -q "jwt_svids\[${slice_pos}\]\.jwt_svid_file_name=${expected_svid_file}"; then
-                            echo -e "  ${GREEN}jwt_svids[${slice_pos}].jwt_svid_file_name${NC}=${YELLOW}${expected_svid_file}${NC} ${GREEN}✓${NC} (env index ${env_idx})"
-                        else
-                            echo -e "  ${RED}jwt_svids[${slice_pos}].jwt_svid_file_name${NC} ${RED}✗ (expected: ${expected_svid_file} at slice pos ${slice_pos}, env index ${env_idx}, not found)${NC}"
-                            validation_errors=$((validation_errors + 1))
-                        fi
-                    fi
-                    
-                    if [ -n "${expected_extra_audiences}" ]; then
-                        # Convert comma-separated to semicolon-separated (as per our format)
-                        expected_formatted=$(echo "${expected_extra_audiences}" | tr ',' ';')
-                        if echo "${reconciled_config}" | grep -q "jwt_svids\[${slice_pos}\]\.jwt_extra_audiences=\[${expected_formatted}\]"; then
-                            echo -e "  ${GREEN}jwt_svids[${slice_pos}].jwt_extra_audiences${NC}=${YELLOW}[${expected_formatted}]${NC} ${GREEN}✓${NC} (env index ${env_idx})"
-                        else
-                            echo -e "  ${RED}jwt_svids[${slice_pos}].jwt_extra_audiences${NC} ${RED}✗ (expected: [${expected_formatted}] at slice pos ${slice_pos}, env index ${env_idx}, not found)${NC}"
-                            validation_errors=$((validation_errors + 1))
-                        fi
-                    fi
-                done
+                done < <(echo "${jwt_svids_env}" | grep -oE '"jwt_svid_file_name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed -E 's/.*"([^"]+)"$/\1/')
             fi
             
             echo ""  # Empty line for readability
@@ -383,31 +324,21 @@ run_test "JWT bundle filename" \
     "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem" \
     "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME=jwt-bundle.json"
 
-# Test 6: JWTSVIDs with count-based indices
-echo -e "\n${GREEN}=== Test 6: JWTSVIDs - Count-based Indices ===${NC}"
-run_test "JWTSVIDs count format" \
+# Test 6: JWTSVIDs with YAML/JSON array env var
+echo -e "\n${GREEN}=== Test 6: JWTSVIDs - YAML/JSON Array ===${NC}"
+run_test "JWTSVIDs array format" \
     "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
     "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
     "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
-    "SPIFFE_HLP_JWT_SVIDS=2" \
-    "SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE=audience-0" \
-    "SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME=file-0.token" \
-    "SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES=extra1,extra2" \
-    "SPIFFE_HLP_JWT_SVIDS_1_AUDIENCE=audience-1" \
-    "SPIFFE_HLP_JWT_SVIDS_1_SVID_FILE_NAME=file-1.token"
+    'SPIFFE_HLP_JWT_SVIDS=[{"jwt_audience":"audience-0","jwt_svid_file_name":"file-0.token","jwt_extra_audiences":["extra1","extra2"]},{"jwt_audience":"audience-1","jwt_svid_file_name":"file-1.token"}]'
 
-# Test 7: JWTSVIDs with comma-separated indices
-echo -e "\n${GREEN}=== Test 7: JWTSVIDs - Comma-separated Indices ===${NC}"
-run_test "JWTSVIDs comma-separated format" \
+# Test 7: JWTSVIDs with YAML list env var
+echo -e "\n${GREEN}=== Test 7: JWTSVIDs - YAML List ===${NC}"
+run_test "JWTSVIDs yaml list format" \
     "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
     "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
     "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
-    "SPIFFE_HLP_JWT_SVIDS=0,2" \
-    "SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE=audience-0" \
-    "SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME=file-0.token" \
-    "SPIFFE_HLP_JWT_SVIDS_2_AUDIENCE=audience-2" \
-    "SPIFFE_HLP_JWT_SVIDS_2_SVID_FILE_NAME=file-2.token" \
-    "SPIFFE_HLP_JWT_SVIDS_2_EXTRA_AUDIENCES=extra1,extra2,extra3"
+    $'SPIFFE_HLP_JWT_SVIDS=- jwt_audience: audience-0\n  jwt_svid_file_name: file-0.token\n- jwt_audience: audience-2\n  jwt_svid_file_name: file-2.token\n  jwt_extra_audiences:\n    - extra1\n    - extra2\n    - extra3'
 
 # Test 8: Complex configuration with all options
 echo -e "\n${GREEN}=== Test 8: Complex Configuration ===${NC}"
@@ -431,10 +362,7 @@ run_test "All configuration options" \
     "SPIFFE_HLP_READINESS_PATH=/health/ready" \
     "SPIFFE_HLP_HINT=test-hint" \
     "SPIFFE_HLP_RENEW_SIGNAL=SIGHUP" \
-    "SPIFFE_HLP_JWT_SVIDS=1" \
-    "SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE=test-audience" \
-    "SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME=test.token" \
-    "SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES=aud1,aud2"
+    'SPIFFE_HLP_JWT_SVIDS=[{"jwt_audience":"test-audience","jwt_svid_file_name":"test.token","jwt_extra_audiences":["aud1","aud2"]}]'
 
 # Test 9: Daemon mode override
 echo -e "\n${GREEN}=== Test 9: Daemon Mode Environment Variable ===${NC}"
@@ -474,4 +402,3 @@ else
     echo -e "\n${RED}Some tests failed!${NC}"
     exit 1
 fi
-

@@ -16,16 +16,16 @@ CLI options:
  | Flag name                       | Description                                                         |
  |---------------------------------|---------------------------------------------------------------------|
  | `-config`                       | Path to the configuration file (default: `helper.conf`). If the file does not exist, configuration will be loaded from environment variables. |
- | `-config-format`                | Configuration format: `hcl`, `yaml`, or `auto` (default: `auto`). Format is automatically detected from file extension when set to `auto`. |
+ | `-config-format`                | Configuration format: `hcl`, `json`, `yaml`, or `auto` (default: `auto`). Format is automatically detected from file extension when set to `auto`. |
  | `-help`                         | Print interactive help                                              |
  | `-daemon-mode={true\|false}`    | Boolean true or false. Overrides `daemon_mode` in the config file.  |
  | `-version`                      | Print version number                                                |
 
 ## Configuration
 
-The configuration file can be in HCL or YAML format. The format is automatically detected from the file extension (`.conf` or `.json` for HCL, `.yaml` or `.yml` for YAML), or can be explicitly specified using the `-config-format` flag. JSON is supported transparently through HCL's native JSON representation.
+The configuration file can be in HCL, JSON, or YAML format. The format is automatically detected from the file extension (`.conf` for HCL, `.json` for JSON, `.yaml` or `.yml` for YAML), or can be explicitly specified using the `-config-format` flag.
 
-If the configuration file is not specified or does not exist, configuration can be provided via environment variables (see [Environment Variables](#environment-variables) section below).
+If the configuration file is not specified, does not exist, or is empty, all configuration can be provided via environment variables (see [Environment Variables](#environment-variables) section below).
 
 The following configurations are available:
 
@@ -64,15 +64,17 @@ The configuration file format can be specified using the `-config-format` flag o
 
  | Format | File Extensions | Description |
  |--------|----------------|-------------|
- | `hcl` | `.conf`, `.json` | HashiCorp Configuration Language (also parses its native JSON representation) |
+ | `hcl` | `.conf` | HashiCorp Configuration Language |
+ | `json` | `.json` | JSON syntax |
  | `yaml` | `.yaml`, `.yml` | YAML format |
  | `auto` | Any | Automatically detect format from file extension (default) |
 
 When using `auto` format (the default), the format is determined by the file extension:
-- `.conf` and `.json` files are parsed as HCL (HCL natively supports its JSON representation)
+- `.conf` files are parsed as HCL
+- `.json` files are parsed as JSON syntax
 - `.yaml` or `.yml` files are parsed as YAML
 
-If the configuration file is not specified or does not exist, the configuration will be loaded entirely from environment variables (see [Environment Variables](#environment-variables) section below).
+If the configuration file is not specified, does not exist, or is empty, the configuration will be loaded entirely from environment variables (see [Environment Variables](#environment-variables) section below).
 
 ### Environment Variables
 
@@ -83,44 +85,27 @@ For example:
 - `svid_file_name` → `SPIFFE_HLP_SVID_FILE_NAME`
 - `jwt_bundle_file_name` → `SPIFFE_HLP_JWT_BUNDLE_FILE_NAME`
 
-When a YAML configuration file is provided, environment variables override matching fields. If no configuration file is specified or the file does not exist, the entire configuration can be provided via environment variables.
+Environment variables override values from the configuration file. If a configuration file is provided, environment variables will override matching fields. If no configuration file is specified or the file does not exist, the entire configuration can be provided via environment variables.
 
 #### Special Handling for `jwt_svids`
 
-The `jwt_svids` array cannot be set directly via a single environment variable due to limitations with arrays of structs. Instead, use indexed environment variables with the following format:
-
-**Format 1: Count-based indices**
-Set `SPIFFE_HLP_JWT_SVIDS` to a count (e.g., `"2"`), which will use indices 0, 1, ..., count-1:
+The `jwt_svids` array can be set using a single YAML/JSON array environment variable:
 
 ```bash
-export SPIFFE_HLP_JWT_SVIDS="2"
-export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="audience-0"
-export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="file-0.token"
-export SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES="extra1,extra2"
-export SPIFFE_HLP_JWT_SVIDS_1_AUDIENCE="audience-1"
-export SPIFFE_HLP_JWT_SVIDS_1_SVID_FILE_NAME="file-1.token"
+export SPIFFE_HLP_JWT_SVIDS='[
+  {
+    "jwt_audience": "audience-0",
+    "jwt_svid_file_name": "file-0.token",
+    "jwt_extra_audiences": ["extra1", "extra2"]
+  },
+  {
+    "jwt_audience": "audience-1",
+    "jwt_svid_file_name": "file-1.token"
+  }
+]'
 ```
 
-**Format 2: Comma-separated indices**
-Set `SPIFFE_HLP_JWT_SVIDS` to a comma-separated list of indices (e.g., `"0,2,5"`):
-
-```bash
-export SPIFFE_HLP_JWT_SVIDS="0,2,5"
-export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="audience-0"
-export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="file-0.token"
-export SPIFFE_HLP_JWT_SVIDS_2_AUDIENCE="audience-2"
-export SPIFFE_HLP_JWT_SVIDS_2_SVID_FILE_NAME="file-2.token"
-export SPIFFE_HLP_JWT_SVIDS_2_EXTRA_AUDIENCES="extra1,extra2,extra3"
-export SPIFFE_HLP_JWT_SVIDS_5_AUDIENCE="audience-5"
-export SPIFFE_HLP_JWT_SVIDS_5_SVID_FILE_NAME="file-5.token"
-```
-
-For each index `i`, the following environment variables are read:
-- `SPIFFE_HLP_JWT_SVIDS_i_AUDIENCE` - The JWT audience (required)
-- `SPIFFE_HLP_JWT_SVIDS_i_SVID_FILE_NAME` - The file name to store the JWT SVID
-- `SPIFFE_HLP_JWT_SVIDS_i_EXTRA_AUDIENCES` - Comma-separated list of extra audiences (optional)
-
-If `SPIFFE_HLP_JWT_SVIDS_i_AUDIENCE` is not set for an index, that index is skipped (allows sparse arrays).
+Setting `SPIFFE_HLP_JWT_SVIDS` replaces any `jwt_svids` entries from the config file.
 
 ### Health Checks Configuration
 
@@ -285,8 +270,6 @@ jwt_svid_file_mode = 0444
 
 #### JSON Example
 
-HCL natively parses its JSON representation, so JSON configurations are supported without any additional flags:
-
 ```json
 {
   "agent_address": "/tmp/spire-agent/public/api.sock",
@@ -355,11 +338,14 @@ export SPIFFE_HLP_KEY_FILE_MODE="292"
 export SPIFFE_HLP_JWT_BUNDLE_FILE_MODE="292"
 export SPIFFE_HLP_JWT_SVID_FILE_MODE="292"
 
-# JWT SVIDs using indexed environment variables
-export SPIFFE_HLP_JWT_SVIDS="1"
-export SPIFFE_HLP_JWT_SVIDS_0_AUDIENCE="your-audience"
-export SPIFFE_HLP_JWT_SVIDS_0_EXTRA_AUDIENCES="your-extra-audience-1,your-extra-audience-2"
-export SPIFFE_HLP_JWT_SVIDS_0_SVID_FILE_NAME="jwt_svid.token"
+# JWT SVIDs using YAML/JSON array environment variable
+export SPIFFE_HLP_JWT_SVIDS='[
+  {
+    "jwt_audience": "your-audience",
+    "jwt_extra_audiences": ["your-extra-audience-1", "your-extra-audience-2"],
+    "jwt_svid_file_name": "jwt_svid.token"
+  }
+]'
 ```
 
 ### Windows Example

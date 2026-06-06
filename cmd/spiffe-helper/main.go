@@ -24,7 +24,7 @@ const (
 func main() {
 	versionFlag := flag.Bool("version", false, "print version")
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
-	configFormat := flag.String("config-format", "auto", "Configuration format: hcl, yaml, or auto (default: auto)")
+	configFormat := flag.String("config-format", "auto", "Configuration format: hcl, json, yaml, or auto (default: auto)")
 	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
 	flag.Parse()
 
@@ -33,17 +33,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Environment variable takes precedence over config value for early logging.
-	if logLevelStr := os.Getenv("SPIFFE_HLP_LOG_LEVEL"); logLevelStr != "" {
-		if level, err := logrus.ParseLevel(logLevelStr); err == nil {
-			logrus.SetLevel(level)
-		}
-	}
-
 	log := logrus.WithField("system", "spiffe-helper")
 
 	log.Infof("Using configuration file: %q", *configFile)
-	log.Infof("Using configuration format: %q", *configFormat)
 
 	helperConfig, err := config.ParseConfig(*configFile, *configFormat, *daemonModeFlag, daemonModeFlagName)
 	if err != nil {
@@ -51,22 +43,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set log level from config if provided (only if env var is not set)
-	if os.Getenv("SPIFFE_HLP_LOG_LEVEL") == "" && helperConfig.LogLevel != "" {
-		if level, err := logrus.ParseLevel(helperConfig.LogLevel); err == nil {
-			logrus.SetLevel(level)
-			log = logrus.WithField("system", "spiffe-helper") // Recreate logger with new level
-		} else {
-			log.Warnf("Invalid log level in config: %s, ignoring", helperConfig.LogLevel)
+	// Log level is read from the reconciled config, which already includes env overrides.
+	if helperConfig.LogLevel != "" {
+		level, err := logrus.ParseLevel(helperConfig.LogLevel)
+		if err != nil {
+			log.WithError(err).Errorf("invalid log level in config: %s", helperConfig.LogLevel)
+			os.Exit(1)
 		}
+
+		logrus.SetLevel(level)
+		log = logrus.WithField("system", "spiffe-helper") // Recreate logger with new level
 	}
 
 	if err := helperConfig.ValidateConfig(log); err != nil {
 		log.WithError(err).Errorf("invalid configuration")
 		os.Exit(1)
 	}
-
-	helperConfig.LogConfig(log)
 
 	if err = startSidecar(helperConfig, log); err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
