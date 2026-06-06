@@ -76,19 +76,17 @@ type JWTConfig struct {
 }
 
 func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
-	var (
-		helperConfig *Config
-		err          error
-	)
 	if configFile == "" {
-		helperConfig, err = loadConfigFromEnv()
-	} else {
-		helperConfig, err = ParseConfigFile(configFile, configFormat)
-	}
-	if err != nil {
-		if configFile == "" {
+		helperConfig, err := loadConfigFromEnv()
+		if err != nil {
 			return nil, fmt.Errorf("failed to load configuration from environment: %w", err)
 		}
+		helperConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+		return helperConfig, nil
+	}
+
+	helperConfig, err := ParseConfigFile(configFile, configFormat)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse configuration file %q: %w", configFile, err)
 	}
 	helperConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
