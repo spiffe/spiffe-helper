@@ -1,12 +1,12 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
 	"os"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -58,7 +58,7 @@ type Config struct {
 
 	// JWT configuration
 	// Note: JWTSVIDs does not have an env tag because cleanenv doesn't support arrays of structs.
-	// Instead, use indexed environment variables (see populateJWTSVIDsFromEnv for details).
+	// Instead, use SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array (see populateJWTSVIDsFromEnv for details).
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids" yaml:"jwt_svids"`
 	JWTBundleFilename string      `hcl:"jwt_bundle_file_name" yaml:"jwt_bundle_file_name" env:"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME"`
 
@@ -67,7 +67,7 @@ type Config struct {
 
 type JWTConfig struct {
 	// Note: JWTConfig fields do not have env tags because cleanenv doesn't support arrays of structs.
-	// Instead, use indexed environment variables (see populateJWTSVIDsFromEnv for details).
+	// Instead, use SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array (see populateJWTSVIDsFromEnv for details).
 	JWTAudience       string   `hcl:"jwt_audience" yaml:"jwt_audience"`
 	JWTExtraAudiences []string `hcl:"jwt_extra_audiences" yaml:"jwt_extra_audiences"`
 	JWTSVIDFilename   string   `hcl:"jwt_svid_file_name" yaml:"jwt_svid_file_name"`
@@ -75,138 +75,84 @@ type JWTConfig struct {
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions" yaml:"-"`
 }
 
-// ParseConfigFile parses a configuration file (HCL or YAML) into a Config struct.
-// If file is empty or does not exist, the configuration is loaded from environment variables.
-// HCL's native JSON representation is supported transparently by the HCL parser.
+// ParseConfigFile parses the given HCL file into a Config struct
 func ParseConfigFile(file string, configFormat string) (*Config, error) {
-	if file == "" {
-		return loadConfigFromEnv()
+	if !configFileExists(file) {
+		return nil, fmt.Errorf("configuration file does not exist: %s", file)
 	}
-	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return loadConfigFromEnv()
+
+	if configFormat == "auto" {
+		detectedFormat, err := detectConfigFormat(file)
+		if err != nil {
+			return nil, err
+		}
+		configFormat = detectedFormat
 	}
 
 	switch configFormat {
 	case "hcl":
-		return ParseHCLConfigFile(file)
-	case "yaml":
-		return ParseYAMLConfigAndEnv(file)
-	case "auto":
-		return parseByExtension(file)
+		return parseHCLFileAndApplyEnv(file)
+	case "json", "yaml":
+		return ParseStructuredConfigFile(file)
 	default:
 		return nil, fmt.Errorf("invalid config format: %s", configFormat)
 	}
 }
 
-// parseByExtension selects a parser based on the file extension.
-// .conf / .json files are parsed as HCL (HCL natively supports its JSON representation).
-func parseByExtension(file string) (*Config, error) {
-	switch {
-	case strings.HasSuffix(file, ".conf"), strings.HasSuffix(file, ".json"):
-		return ParseHCLConfigFile(file)
-	case strings.HasSuffix(file, ".yaml"), strings.HasSuffix(file, ".yml"):
-		return ParseYAMLConfigAndEnv(file)
-	}
-	return nil, fmt.Errorf("invalid config file: %s. Supported formats: hcl, yaml", file)
-}
-
-// loadConfigFromEnv loads configuration entirely from environment variables.
-func loadConfigFromEnv() (*Config, error) {
-	config := new(Config)
-	if err := cleanenv.ReadEnv(config); err != nil {
-		return nil, err
-	}
-	if err := populateJWTSVIDsFromEnv(config); err != nil {
-		return nil, err
-	}
-	if err := populateDaemonModeFromEnv(config); err != nil {
-		return nil, err
-	}
-	return config, nil
-}
-
-// ParseYAMLConfigAndEnv parses the given YAML file and applies environment variable overrides.
-func ParseYAMLConfigAndEnv(file string) (*Config, error) {
-	config := new(Config)
-
+// ParseStructuredConfigFile parses YAML/JSON config into a Config struct.
+// JSON config files use this path because JSON is valid YAML.
+func ParseStructuredConfigFile(file string) (*Config, error) {
 	dat, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
 
-	var dataMap map[string]interface{}
-	if err := yaml.Unmarshal(dat, &dataMap); err != nil {
+	config := new(Config)
+	decoder := yaml.NewDecoder(bytes.NewReader(dat))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(config); err != nil {
 		return nil, err
 	}
 
-	if err := cleanenv.ReadConfig(file, config); err != nil {
+	if err := applyEnvOverrides(config); err != nil {
 		return nil, err
 	}
-
-	// Environment variables override file values.
-	if err := populateJWTSVIDsFromEnv(config); err != nil {
-		return nil, err
-	}
-	if err := populateDaemonModeFromEnv(config); err != nil {
-		return nil, err
-	}
-
-	// Detect and populate unknown keys (only when file is provided)
-	populateUnusedKeyPositions(config, dataMap)
-
 	return config, nil
 }
 
-// populateUnusedKeyPositions detects unknown keys in YAML configs and populates
-// UnusedKeyPositions to match the behavior of HCL configs.
-func populateUnusedKeyPositions(config *Config, dataMap map[string]interface{}) {
-	knownFields := getKnownFields(reflect.TypeOf(Config{}))
-	for key := range dataMap {
-		if key == "jwt_svids" {
-			continue
-		}
-		if !knownFields[key] {
-			if config.UnusedKeyPositions == nil {
-				config.UnusedKeyPositions = make(map[string][]token.Pos)
-			}
-			config.UnusedKeyPositions[key] = []token.Pos{}
-		}
+func parseHCLFileAndApplyEnv(file string) (*Config, error) {
+	config, err := ParseHCLConfigFile(file)
+	if err != nil {
+		return nil, err
 	}
-
-	if jwtSVIDsData, ok := dataMap["jwt_svids"].([]interface{}); ok {
-		jwtKnownFields := getKnownFields(reflect.TypeOf(JWTConfig{}))
-		for i, jwtSVIDData := range jwtSVIDsData {
-			if i >= len(config.JWTSVIDs) {
-				continue
-			}
-			if jwtMap, ok := jwtSVIDData.(map[string]interface{}); ok {
-				for key := range jwtMap {
-					if !jwtKnownFields[key] {
-						if config.JWTSVIDs[i].UnusedKeyPositions == nil {
-							config.JWTSVIDs[i].UnusedKeyPositions = make(map[string][]token.Pos)
-						}
-						config.JWTSVIDs[i].UnusedKeyPositions[key] = []token.Pos{}
-					}
-				}
-			}
-		}
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, err
 	}
+	return config, nil
 }
 
-// getKnownFields returns the set of field names recognized by the YAML parser.
-func getKnownFields(typ reflect.Type) map[string]bool {
-	knownFields := make(map[string]bool)
-	for i := range typ.NumField() {
-		tag := typ.Field(i).Tag.Get("yaml")
-		if tag == "" || tag == "-" {
-			continue
-		}
-		fieldName := strings.Split(tag, ",")[0]
-		if fieldName != "" {
-			knownFields[fieldName] = true
-		}
+// applyEnvOverrides applies environment-based config on top of the parsed file config.
+func applyEnvOverrides(config *Config) error {
+	if err := cleanenv.ReadEnv(config); err != nil {
+		return err
 	}
-	return knownFields
+	if err := populateJWTSVIDsFromEnv(config); err != nil {
+		return err
+	}
+	if err := populateDaemonModeFromEnv(config); err != nil {
+		return err
+	}
+	return nil
+}
+
+// loadConfigFromEnv loads configuration entirely from environment variables.
+// This is used when no config file is provided.
+func loadConfigFromEnv() (*Config, error) {
+	config := new(Config)
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, err
+	}
+	return config, nil
 }
 
 // ParseHCLConfigFile parses the given HCL file into a Config struct
@@ -339,165 +285,26 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	return nil
 }
 
-// LogConfig logs the fully reconciled configuration at debug level.
-// The configuration is formatted as key=value pairs separated by commas.
-func (c *Config) LogConfig(log logrus.FieldLogger) {
-	// Check if debug level is enabled
-	if logger, ok := log.(*logrus.Logger); ok {
-		if !logger.IsLevelEnabled(logrus.DebugLevel) {
-			return
-		}
-	} else if entry, ok := log.(*logrus.Entry); ok {
-		if !entry.Logger.IsLevelEnabled(logrus.DebugLevel) {
-			return
-		}
+func configFileExists(file string) bool {
+	if file == "" {
+		return false
 	}
 
-	// Pre-allocate slice with estimated capacity (Config struct has ~20 fields)
-	configPairs := make([]string, 0, 30)
-	configValue := reflect.ValueOf(c).Elem()
-	configType := configValue.Type()
-
-	for i := range configType.NumField() {
-		field := configType.Field(i)
-		fieldValue := configValue.Field(i)
-
-		// Skip unexported fields
-		if !fieldValue.CanInterface() {
-			continue
-		}
-
-		yamlTag := field.Tag.Get("yaml")
-		if yamlTag == "-" {
-			continue
-		}
-
-		fieldName := field.Name
-		if yamlTag != "" {
-			if name := strings.Split(yamlTag, ",")[0]; name != "" {
-				fieldName = name
-			}
-		}
-
-		// Format the value based on its type
-		var valueStr string
-		switch fieldValue.Kind() {
-		case reflect.String:
-			valueStr = fieldValue.String()
-		case reflect.Bool:
-			valueStr = fmt.Sprintf("%t", fieldValue.Bool())
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			valueStr = fmt.Sprintf("%d", fieldValue.Int())
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			valueStr = fmt.Sprintf("%d", fieldValue.Uint())
-		case reflect.Ptr:
-			if fieldValue.IsNil() {
-				valueStr = "nil"
-			} else {
-				elemValue := fieldValue.Elem()
-				switch elemValue.Kind() {
-				case reflect.Bool:
-					valueStr = fmt.Sprintf("%t", elemValue.Bool())
-				default:
-					valueStr = fmt.Sprintf("%v", elemValue.Interface())
-				}
-			}
-		case reflect.Struct:
-			// For nested structs (like health.Config), format as nested key=value pairs
-			nestedPairs := formatStructValue(fieldValue, fieldName)
-			configPairs = append(configPairs, nestedPairs...)
-			continue
-		case reflect.Slice:
-			if fieldValue.IsNil() {
-				valueStr = "[]"
-			} else {
-				// Check if it's a slice of structs
-				if fieldValue.Len() > 0 && fieldValue.Index(0).Kind() == reflect.Struct {
-					// For struct slices (like JWTSVIDs), add each struct's fields directly to configPairs
-					for j := range fieldValue.Len() {
-						itemValue := fieldValue.Index(j)
-						itemPairs := formatStructValue(itemValue, fmt.Sprintf("%s[%d]", fieldName, j))
-						configPairs = append(configPairs, itemPairs...)
-					}
-					continue
-				}
-				// For non-struct slices, format as [item1;item2;...]
-				// Use semicolon as separator to avoid conflicts with comma-separated key=value pairs
-				var items []string
-				for j := range fieldValue.Len() {
-					itemValue := fieldValue.Index(j)
-					items = append(items, fmt.Sprintf("%v", itemValue.Interface()))
-				}
-				valueStr = "[" + strings.Join(items, ";") + "]"
-			}
-		default:
-			valueStr = fmt.Sprintf("%v", fieldValue.Interface())
-		}
-
-		// Only add non-empty values (or explicitly set values like false, 0, etc.)
-		configPairs = append(configPairs, fmt.Sprintf("%s=%s", fieldName, valueStr))
-	}
-
-	log.Debugf("Reconciled configuration: %s", strings.Join(configPairs, ","))
+	_, err := os.Stat(file)
+	return err == nil
 }
 
-// formatStructValue formats a struct value as key=value pairs with a prefix
-func formatStructValue(structValue reflect.Value, prefix string) []string {
-	// Pre-allocate slice with estimated capacity (health.Config has ~4 fields)
-	pairs := make([]string, 0, 10)
-	structType := structValue.Type()
-
-	for i := range structType.NumField() {
-		field := structType.Field(i)
-		fieldValue := structValue.Field(i)
-
-		if !fieldValue.CanInterface() {
-			continue
-		}
-
-		yamlTag := field.Tag.Get("yaml")
-		if yamlTag == "-" {
-			continue
-		}
-
-		fieldName := field.Name
-		if yamlTag != "" {
-			if name := strings.Split(yamlTag, ",")[0]; name != "" {
-				fieldName = name
-			}
-		}
-
-		fullFieldName := prefix + "." + fieldName
-		var valueStr string
-
-		switch fieldValue.Kind() {
-		case reflect.String:
-			valueStr = fieldValue.String()
-		case reflect.Bool:
-			valueStr = fmt.Sprintf("%t", fieldValue.Bool())
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			valueStr = fmt.Sprintf("%d", fieldValue.Int())
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			valueStr = fmt.Sprintf("%d", fieldValue.Uint())
-		case reflect.Slice:
-			if fieldValue.IsNil() {
-				valueStr = "[]"
-			} else {
-				var items []string
-				for j := range fieldValue.Len() {
-					items = append(items, fmt.Sprintf("%v", fieldValue.Index(j).Interface()))
-				}
-				// Use semicolon as separator to avoid conflicts with comma-separated key=value pairs
-				valueStr = "[" + strings.Join(items, ";") + "]"
-			}
-		default:
-			valueStr = fmt.Sprintf("%v", fieldValue.Interface())
-		}
-
-		pairs = append(pairs, fmt.Sprintf("%s=%s", fullFieldName, valueStr))
+func detectConfigFormat(file string) (string, error) {
+	switch {
+	case strings.HasSuffix(file, ".conf"):
+		return "hcl", nil
+	case strings.HasSuffix(file, ".json"):
+		return "json", nil
+	case strings.HasSuffix(file, ".yaml"), strings.HasSuffix(file, ".yml"):
+		return "yaml", nil
+	default:
+		return "", fmt.Errorf("invalid config file: %s. Supported formats: hcl, json, yaml", file)
 	}
-
-	return pairs
 }
 
 // checkForUnknownConfig looks for any unknown configuration keys and returns an error if one is found
@@ -516,9 +323,20 @@ func (c *Config) checkForUnknownConfig() error {
 }
 
 func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
-	helperConfig, err := ParseConfigFile(configFile, configFormat)
+	var (
+		helperConfig *Config
+		err          error
+	)
+	if configFile == "" {
+		helperConfig, err = loadConfigFromEnv()
+	} else {
+		helperConfig, err = ParseConfigFile(configFile, configFormat)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
+		if configFile == "" {
+			return nil, fmt.Errorf("failed to load configuration from environment: %w", err)
+		}
+		return nil, fmt.Errorf("failed to parse configuration file %q: %w", configFile, err)
 	}
 	helperConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
 	return helperConfig, nil
