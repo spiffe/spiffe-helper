@@ -17,7 +17,7 @@ const (
 )
 
 func TestParseConfig(t *testing.T) {
-	c, err := ParseConfigFile("testdata/helper.conf", "hcl")
+	c, err := parseConfigFile("testdata/helper.conf", "hcl")
 
 	assert.NoError(t, err)
 	assert.NoError(t, c.checkForUnknownConfig())
@@ -55,12 +55,12 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, 444, c.JWTSVIDFileMode)
 }
 
-func TestParseConfigFileMissingFile(t *testing.T) {
+func TestParseConfigFileReturnsErrorForMissingFile(t *testing.T) {
 	missingFile := filepath.Join(t.TempDir(), "missing.yaml")
 
 	for _, format := range []string{"hcl", "yaml", jsonConfigFormat, "auto"} {
 		t.Run(format, func(t *testing.T) {
-			_, err := ParseConfigFile(missingFile, format)
+			_, err := parseConfigFile(missingFile, format)
 			require.EqualError(t, err, "configuration file does not exist: "+missingFile)
 		})
 	}
@@ -274,7 +274,7 @@ func TestDetectsUnknownHCLConfig(t *testing.T) {
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			c, err := ParseConfigFile(configFile.Name(), "hcl")
+			c, err := parseConfigFile(configFile.Name(), "hcl")
 			require.NoError(t, err)
 
 			log, _ := test.NewNullLogger()
@@ -345,7 +345,7 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			_, err = ParseConfigFile(configFile.Name(), jsonConfigFormat)
+			_, err = parseConfigFile(configFile.Name(), jsonConfigFormat)
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.expectErrorContain)
 
@@ -399,7 +399,7 @@ jwt_svids:
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			_, err = ParseConfigFile(configFile.Name(), "yaml")
+			_, err = parseConfigFile(configFile.Name(), "yaml")
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.expectErrorContain)
 
@@ -1076,7 +1076,7 @@ jwt_svids:
 			}
 
 			// Load config from file (env vars will override)
-			config, err := ParseConfigFile(configFile.Name(), tt.configFormat)
+			config, err := parseConfigFile(configFile.Name(), tt.configFormat)
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.expectErrorMsg != "" {
