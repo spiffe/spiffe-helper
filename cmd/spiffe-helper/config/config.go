@@ -85,7 +85,7 @@ func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, da
 		return helperConfig, nil
 	}
 
-	helperConfig, err := ParseConfigFile(configFile, configFormat)
+	helperConfig, err := parseConfigFile(configFile, configFormat)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse configuration file %q: %w", configFile, err)
 	}
@@ -93,8 +93,8 @@ func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, da
 	return helperConfig, nil
 }
 
-// ParseConfigFile parses the given HCL file into a Config struct
-func ParseConfigFile(file string, configFormat string) (*Config, error) {
+// parseConfigFile parses a file into a Config struct.
+func parseConfigFile(file string, configFormat string) (*Config, error) {
 	if !configFileExists(file) {
 		return nil, fmt.Errorf("configuration file does not exist: %s", file)
 	}
@@ -111,15 +111,15 @@ func ParseConfigFile(file string, configFormat string) (*Config, error) {
 	case "hcl":
 		return parseHCLFileAndApplyEnv(file)
 	case "json", "yaml":
-		return ParseStructuredConfigFile(file)
+		return parseStructuredConfigFile(file)
 	default:
 		return nil, fmt.Errorf("invalid config format: %s", configFormat)
 	}
 }
 
-// ParseStructuredConfigFile parses YAML/JSON config into a Config struct.
+// parseStructuredConfigFile parses YAML/JSON config into a Config struct.
 // JSON config files use this path because JSON is valid YAML.
-func ParseStructuredConfigFile(file string) (*Config, error) {
+func parseStructuredConfigFile(file string) (*Config, error) {
 	dat, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
@@ -138,8 +138,8 @@ func ParseStructuredConfigFile(file string) (*Config, error) {
 	return config, nil
 }
 
-// ParseHCLConfigFile parses the given HCL file into a Config struct
-func ParseHCLConfigFile(file string) (*Config, error) {
+// parseHCLConfigFile parses the given HCL file into a Config struct.
+func parseHCLConfigFile(file string) (*Config, error) {
 	dat, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
@@ -303,7 +303,7 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 }
 
 func parseHCLFileAndApplyEnv(file string) (*Config, error) {
-	config, err := ParseHCLConfigFile(file)
+	config, err := parseHCLConfigFile(file)
 	if err != nil {
 		return nil, err
 	}
