@@ -13,6 +13,7 @@ import (
 
 const (
 	daemonModeFlagName = "daemon-mode"
+	jsonConfigFormat   = "json"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -57,7 +58,7 @@ func TestParseConfig(t *testing.T) {
 func TestParseConfigFileMissingFile(t *testing.T) {
 	missingFile := filepath.Join(t.TempDir(), "missing.yaml")
 
-	for _, format := range []string{"hcl", "yaml", "json", "auto"} {
+	for _, format := range []string{"hcl", "yaml", jsonConfigFormat, "auto"} {
 		t.Run(format, func(t *testing.T) {
 			_, err := ParseConfigFile(missingFile, format)
 			require.EqualError(t, err, "configuration file does not exist: "+missingFile)
@@ -344,9 +345,9 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			_, err = ParseConfigFile(configFile.Name(), "json")
+			_, err = ParseConfigFile(configFile.Name(), jsonConfigFormat)
 			require.Error(t, err)
-			assert.ErrorContains(t, err, tt.expectErrorContain)
+			require.ErrorContains(t, err, tt.expectErrorContain)
 
 			err = configFile.Close()
 			require.NoError(t, err)
@@ -400,7 +401,7 @@ jwt_svids:
 
 			_, err = ParseConfigFile(configFile.Name(), "yaml")
 			require.Error(t, err)
-			assert.ErrorContains(t, err, tt.expectErrorContain)
+			require.ErrorContains(t, err, tt.expectErrorContain)
 
 			err = configFile.Close()
 			require.NoError(t, err)
@@ -764,7 +765,7 @@ func TestInvalidJWTSVIDsEnvVar(t *testing.T) {
 
 	_, err := loadConfigFromEnv()
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "invalid value for SPIFFE_HLP_JWT_SVIDS")
+	require.ErrorContains(t, err, "invalid value for SPIFFE_HLP_JWT_SVIDS")
 }
 
 func TestConfigFileWithEnvOverrides(t *testing.T) {
@@ -780,7 +781,7 @@ func TestConfigFileWithEnvOverrides(t *testing.T) {
 	}{
 		{
 			name:         "JSON config file with string field override",
-			configFormat: "json",
+			configFormat: jsonConfigFormat,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"svid_file_name": "file-svid.pem",
@@ -830,7 +831,7 @@ key_file_mode: 0600`,
 		},
 		{
 			name:         "JSON config file with nested HealthCheck override",
-			configFormat: "json",
+			configFormat: jsonConfigFormat,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"svid_file_name": "file-svid.pem",
@@ -883,7 +884,7 @@ renew_signal: "SIGUSR1"`,
 		},
 		{
 			name:         "JSON config file with JWTSVIDs and JWTExtraAudiences",
-			configFormat: "json",
+			configFormat: jsonConfigFormat,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"jwt_bundle_file_name": "file-bundle.json",
@@ -910,7 +911,7 @@ renew_signal: "SIGUSR1"`,
 		},
 		{
 			name:         "Attempt to override JWTSVIDs nested fields via env vars (file with override)",
-			configFormat: "json",
+			configFormat: jsonConfigFormat,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"jwt_bundle_file_name": "file-bundle.json",
@@ -993,7 +994,7 @@ jwt_svids:
 		},
 		{
 			name:         "Override file-based JWTSVIDs with YAML/JSON array env var",
-			configFormat: "json",
+			configFormat: jsonConfigFormat,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"jwt_bundle_file_name": "file-bundle.json",
@@ -1032,7 +1033,7 @@ jwt_svids:
 		},
 		{
 			name:         "JSON config file with DaemonMode override via env var",
-			configFormat: "json",
+			configFormat: jsonConfigFormat,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"svid_file_name": "file-svid.pem",
@@ -1053,7 +1054,7 @@ jwt_svids:
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary config file
 			var fileExt string
-			if tt.configFormat == "json" {
+			if tt.configFormat == jsonConfigFormat {
 				fileExt = ".json"
 			} else {
 				fileExt = ".yaml"
