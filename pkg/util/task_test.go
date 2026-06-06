@@ -86,6 +86,135 @@ func TestRunTaskCancelsTasksIfContextCanceled(t *testing.T) {
 	assertErrorChan(t, out2, context.Canceled)
 }
 
+func TestRunTasksWithAlreadyCanceledContext(t *testing.T) {
+	_, _, t1 := newFakeTask()
+
+	ctx, cancel := context.WithCancel(ctx)
+	cancel()
+
+	if err := RunTasks(ctx, t1); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled; got %v", err)
+	}
+}
+
+func TestRunTasksConcurrency(t *testing.T) {
+	in1, _, t1 := newFakeTask()
+	in2, _, t2 := newFakeTask()
+
+	wait := testRunTasks(ctx, t1, t2)
+
+	// complete task 2 first. if tasks were serial, this would block
+	// since task 1 is still waiting.
+	in2 <- nil
+	in1 <- nil
+
+	assertErrorChan(t, wait, nil)
+}
+
+func TestRunTasksWait(t *testing.T) {
+	in1, out1, t1 := newFakeTask()
+	_, out2, t2 := newFakeTask()
+
+	wait := testRunTasks(ctx, t1, t2)
+
+	// fail task 1
+	expected := errors.New("fail")
+	in1 <- expected
+
+	// RunTasks should return the error immediately
+	assertErrorChan(t, wait, expected)
+
+	// verify that task 1 actually completed
+	assertErrorChan(t, out1, expected)
+
+	// task 2 should have been canceled by now
+	assertErrorChan(t, out2, context.Canceled)
+
+	// Since we're using newFakeTask, in2 is still there.
+	// The task function returns context.Canceled because ctx.Done() was selected.
+}
+
+func TestSerialRun(t *testing.T) {
+	t.Run("no tasks", func(t *testing.T) {
+		if err := SerialRun()(ctx); err != nil {
+			t.Fatalf("expected no error; got %v", err)
+		}
+	})
+
+	t.Run("success", func(t *testing.T) {
+		in1, out1, t1 := newFakeTask()
+		in2, out2, t2 := newFakeTask()
+
+		errch := make(chan error, 1)
+		go func() {
+			errch <- SerialRun(t1, t2)(ctx)
+		}()
+
+		in1 <- nil
+		assertErrorChan(t, out1, nil)
+		in2 <- nil
+		assertErrorChan(t, out2, nil)
+		assertErrorChan(t, errch, nil)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		in1, out1, t1 := newFakeTask()
+		_, out2, t2 := newFakeTask()
+
+		errch := make(chan error, 1)
+		go func() {
+			errch <- SerialRun(t1, t2)(ctx)
+		}()
+
+		expected := errors.New("fail")
+		in1 <- expected
+		assertErrorChan(t, out1, expected)
+		assertErrorChan(t, errch, expected)
+
+		// t2 should not have been called
+		select {
+		case err := <-out2:
+			t.Fatalf("task 2 should not have been called; got %v", err)
+		default:
+		}
+	})
+
+	t.Run("panic", func(t *testing.T) {
+		in1, out1, t1 := newFakeTask()
+		_, out2, t2 := newFakeTask()
+
+		errch := make(chan error, 1)
+		go func() {
+			errch <- SerialRun(t1, t2)(ctx)
+		}()
+
+		in1 <- errPanic
+		assertErrorChanContains(t, out1, errPanic.Error())
+		assertErrorChanContains(t, errch, errPanic.Error())
+
+		// t2 should not have been called
+		select {
+		case err := <-out2:
+			t.Fatalf("task 2 should not have been called; got %v", err)
+		default:
+		}
+	})
+
+	t.Run("context canceled", func(t *testing.T) {
+		_, out1, t1 := newFakeTask()
+
+		ctx, cancel := context.WithCancel(ctx)
+		errch := make(chan error, 1)
+		go func() {
+			errch <- SerialRun(t1)(ctx)
+		}()
+
+		cancel()
+		assertErrorChan(t, out1, context.Canceled)
+		assertErrorChan(t, errch, context.Canceled)
+	})
+}
+
 func newFakeTask() (chan error, chan error, func(context.Context) error) {
 	in := make(chan error)
 	out := make(chan error, 1)
