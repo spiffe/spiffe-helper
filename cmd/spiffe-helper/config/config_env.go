@@ -18,7 +18,8 @@ const (
 // populateJWTSVIDsFromEnv parses SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array.
 // If SPIFFE_HLP_JWT_SVIDS is set, it replaces any existing JWTSVIDs from config file.
 // Expected format:
-//   SPIFFE_HLP_JWT_SVIDS='[{"jwt_audience":"aud","jwt_svid_file_name":"file.token","jwt_extra_audiences":["extra"]}]'
+//
+//	SPIFFE_HLP_JWT_SVIDS='[{"jwt_audience":"aud","jwt_svid_file_name":"file.token","jwt_extra_audiences":["extra"]}]'
 func populateJWTSVIDsFromEnv(config *Config) error {
 	jwtSVIDsJSON := strings.TrimSpace(os.Getenv(envJWTSVIDsKey))
 	if jwtSVIDsJSON == "" {
