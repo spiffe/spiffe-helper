@@ -93,77 +93,6 @@ func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, da
 	return helperConfig, nil
 }
 
-// parseConfigFile parses a file into a Config struct.
-func parseConfigFile(file string, configFormat string) (*Config, error) {
-	if !configFileExists(file) {
-		return nil, fmt.Errorf("configuration file does not exist: %s", file)
-	}
-
-	if configFormat == "auto" {
-		detectedFormat, err := detectConfigFormat(file)
-		if err != nil {
-			return nil, err
-		}
-		configFormat = detectedFormat
-	}
-
-	switch configFormat {
-	case "hcl":
-		return parseHCLFileAndApplyEnv(file)
-	case "json", "yaml":
-		return parseStructuredConfigFile(file)
-	default:
-		return nil, fmt.Errorf("invalid config format: %s", configFormat)
-	}
-}
-
-// parseStructuredConfigFile parses YAML/JSON config into a Config struct.
-// JSON config files use this path because JSON is valid YAML.
-func parseStructuredConfigFile(file string) (*Config, error) {
-	dat, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	config := new(Config)
-	decoder := yaml.NewDecoder(bytes.NewReader(dat))
-	decoder.KnownFields(true)
-	if err := decoder.Decode(config); err != nil {
-		return nil, err
-	}
-
-	if err := applyEnvOverrides(config); err != nil {
-		return nil, err
-	}
-	return config, nil
-}
-
-// parseHCLConfigFile parses the given HCL file into a Config struct.
-func parseHCLConfigFile(file string) (*Config, error) {
-	dat, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	config := new(Config)
-	if err := hcl.Decode(config, string(dat)); err != nil {
-		return nil, err
-	}
-	return config, nil
-}
-
-// parseConfigFlagOverrides handles command line arguments that override config file settings.
-func (c *Config) parseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
-	if isFlagPassed(daemonModeFlagName) {
-		// If daemon mode is set by CLI this takes precedence
-		c.DaemonMode = &daemonModeFlag
-	} else if c.DaemonMode == nil {
-		// If daemon mode is not set, then default to true
-		daemonMode := true
-		c.DaemonMode = &daemonMode
-	}
-}
-
 func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	if err := c.checkForUnknownConfig(); err != nil {
 		return err
@@ -302,6 +231,65 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	return sidecarConfig
 }
 
+// parseConfigFile parses a file into a Config struct.
+func parseConfigFile(file string, configFormat string) (*Config, error) {
+	if !configFileExists(file) {
+		return nil, fmt.Errorf("configuration file does not exist: %s", file)
+	}
+
+	if configFormat == "auto" {
+		detectedFormat, err := detectConfigFormat(file)
+		if err != nil {
+			return nil, err
+		}
+		configFormat = detectedFormat
+	}
+
+	switch configFormat {
+	case "hcl":
+		return parseHCLFileAndApplyEnv(file)
+	case "json", "yaml":
+		return parseStructuredConfigFile(file)
+	default:
+		return nil, fmt.Errorf("invalid config format: %s", configFormat)
+	}
+}
+
+// parseStructuredConfigFile parses YAML/JSON config into a Config struct.
+// JSON config files use this path because JSON is valid YAML.
+func parseStructuredConfigFile(file string) (*Config, error) {
+	dat, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	config := new(Config)
+	decoder := yaml.NewDecoder(bytes.NewReader(dat))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(config); err != nil {
+		return nil, err
+	}
+
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+// parseHCLConfigFile parses the given HCL file into a Config struct.
+func parseHCLConfigFile(file string) (*Config, error) {
+	dat, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	config := new(Config)
+	if err := hcl.Decode(config, string(dat)); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
 func parseHCLFileAndApplyEnv(file string) (*Config, error) {
 	config, err := parseHCLConfigFile(file)
 	if err != nil {
@@ -335,6 +323,18 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, err
 	}
 	return config, nil
+}
+
+// parseConfigFlagOverrides handles command line arguments that override config file settings.
+func (c *Config) parseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
+	if isFlagPassed(daemonModeFlagName) {
+		// If daemon mode is set by CLI this takes precedence
+		c.DaemonMode = &daemonModeFlag
+	} else if c.DaemonMode == nil {
+		// If daemon mode is not set, then default to true
+		daemonMode := true
+		c.DaemonMode = &daemonMode
+	}
 }
 
 func configFileExists(file string) bool {
