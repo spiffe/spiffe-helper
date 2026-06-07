@@ -530,7 +530,7 @@ func TestDaemonModeFlag(t *testing.T) {
 	err := flag.Set(daemonModeFlagName, "false")
 	require.NoError(t, err)
 
-	config.ParseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
+	config.parseConfigFlagOverrides(*daemonModeFlag, daemonModeFlagName)
 	require.NotNil(t, config.DaemonMode)
 	assert.False(t, *config.DaemonMode)
 }

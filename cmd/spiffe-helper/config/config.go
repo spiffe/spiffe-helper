@@ -81,7 +81,7 @@ func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, da
 		if err != nil {
 			return nil, fmt.Errorf("failed to load configuration from environment: %w", err)
 		}
-		helperConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+		helperConfig.parseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
 		return helperConfig, nil
 	}
 
@@ -89,7 +89,7 @@ func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, da
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse configuration file %q: %w", configFile, err)
 	}
-	helperConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+	helperConfig.parseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
 	return helperConfig, nil
 }
 
@@ -152,8 +152,8 @@ func parseHCLConfigFile(file string) (*Config, error) {
 	return config, nil
 }
 
-// ParseConfigFlagOverrides handles command line arguments that override config file settings
-func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
+// parseConfigFlagOverrides handles command line arguments that override config file settings.
+func (c *Config) parseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
 	if isFlagPassed(daemonModeFlagName) {
 		// If daemon mode is set by CLI this takes precedence
 		c.DaemonMode = &daemonModeFlag
