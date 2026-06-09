@@ -24,6 +24,7 @@ const (
 func main() {
 	versionFlag := flag.Bool("version", false, "print version")
 	configFile := flag.String("config", "helper.conf", "<configFile> Configuration file path")
+	configFormat := flag.String("config-format", "auto", "Configuration format: hcl, json, yaml, or auto (default: auto)")
 	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
 	flag.Parse()
 
@@ -35,18 +36,31 @@ func main() {
 	log := logrus.WithField("system", "spiffe-helper")
 
 	log.Infof("Using configuration file: %q", *configFile)
-	hclConfig, err := config.ParseConfig(*configFile, *daemonModeFlag, daemonModeFlagName)
+
+	helperConfig, err := config.ParseConfig(*configFile, *configFormat, *daemonModeFlag, daemonModeFlagName)
 	if err != nil {
 		log.WithError(err).Errorf("failed to parse configuration")
 		os.Exit(1)
 	}
 
-	if err := hclConfig.ValidateConfig(log); err != nil {
+	// Log level is read from the reconciled config, which already includes env overrides.
+	if helperConfig.LogLevel != "" {
+		level, err := logrus.ParseLevel(helperConfig.LogLevel)
+		if err != nil {
+			log.WithError(err).Errorf("invalid log level in config: %s", helperConfig.LogLevel)
+			os.Exit(1)
+		}
+
+		logrus.SetLevel(level)
+		log = logrus.WithField("system", "spiffe-helper") // Recreate logger with new level
+	}
+
+	if err := helperConfig.ValidateConfig(log); err != nil {
 		log.WithError(err).Errorf("invalid configuration")
 		os.Exit(1)
 	}
 
-	if err = startSidecar(hclConfig, log); err != nil {
+	if err = startSidecar(helperConfig, log); err != nil {
 		log.WithError(err).Errorf("Error starting spiffe-helper")
 		os.Exit(1)
 	}
@@ -55,13 +69,13 @@ func main() {
 	os.Exit(0)
 }
 
-func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
-	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
+func startSidecar(helperConfig *config.Config, log logrus.FieldLogger) error {
+	sidecarConfig := config.NewSidecarConfig(helperConfig, log)
 	spiffeSidecar := sidecar.New(sidecarConfig)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if !*hclConfig.DaemonMode {
+	if !*helperConfig.DaemonMode {
 		log.Info("Daemon mode disabled")
 		return spiffeSidecar.Run(ctx)
 	}
@@ -71,8 +85,8 @@ func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
 		spiffeSidecar.RunDaemon,
 	}
 
-	if hclConfig.HealthCheck.ListenerEnabled {
-		healthServer := health.New(&hclConfig.HealthCheck, log, spiffeSidecar)
+	if helperConfig.HealthCheck.ListenerEnabled {
+		healthServer := health.New(&helperConfig.HealthCheck, log, spiffeSidecar)
 		tasks = append(tasks, healthServer.Start)
 	}
 

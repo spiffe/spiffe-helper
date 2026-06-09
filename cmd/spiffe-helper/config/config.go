@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,9 +12,11 @@ import (
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/token"
+	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -28,70 +31,66 @@ const (
 )
 
 type Config struct {
-	AddIntermediatesToBundle bool          `hcl:"add_intermediates_to_bundle"`
-	AgentAddress             string        `hcl:"agent_address"`
-	Cmd                      string        `hcl:"cmd"`
-	CmdArgs                  string        `hcl:"cmd_args"`
-	PIDFilename              string        `hcl:"pid_file_name"`
-	CertDir                  string        `hcl:"cert_dir"`
-	CertFileMode             int           `hcl:"cert_file_mode"`
-	KeyFileMode              int           `hcl:"key_file_mode"`
-	JWTBundleFileMode        int           `hcl:"jwt_bundle_file_mode"`
-	JWTSVIDFileMode          int           `hcl:"jwt_svid_file_mode"`
-	IncludeFederatedDomains  bool          `hcl:"include_federated_domains"`
-	OmitExpired              bool          `hcl:"omit_expired"`
-	RenewSignal              string        `hcl:"renew_signal"`
-	DaemonMode               *bool         `hcl:"daemon_mode"`
-	HealthCheck              health.Config `hcl:"health_checks"`
-	Hint                     string        `hcl:"hint"`
+	AddIntermediatesToBundle bool   `hcl:"add_intermediates_to_bundle" yaml:"add_intermediates_to_bundle" env:"SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE"`
+	AgentAddress             string `hcl:"agent_address" yaml:"agent_address" env:"SPIFFE_HLP_AGENT_ADDRESS"`
+	Cmd                      string `hcl:"cmd" yaml:"cmd" env:"SPIFFE_HLP_CMD"`
+	CmdArgs                  string `hcl:"cmd_args" yaml:"cmd_args" env:"SPIFFE_HLP_CMD_ARGS"`
+	PIDFilename              string `hcl:"pid_file_name" yaml:"pid_file_name" env:"SPIFFE_HLP_PID_FILE_NAME"`
+	CertDir                  string `hcl:"cert_dir" yaml:"cert_dir" env:"SPIFFE_HLP_CERT_DIR"`
+	CertFileMode             int    `hcl:"cert_file_mode" yaml:"cert_file_mode" env:"SPIFFE_HLP_CERT_FILE_MODE"`
+	KeyFileMode              int    `hcl:"key_file_mode" yaml:"key_file_mode" env:"SPIFFE_HLP_KEY_FILE_MODE"`
+	JWTBundleFileMode        int    `hcl:"jwt_bundle_file_mode" yaml:"jwt_bundle_file_mode" env:"SPIFFE_HLP_JWT_BUNDLE_FILE_MODE"`
+	JWTSVIDFileMode          int    `hcl:"jwt_svid_file_mode" yaml:"jwt_svid_file_mode" env:"SPIFFE_HLP_JWT_SVID_FILE_MODE"`
+	IncludeFederatedDomains  bool   `hcl:"include_federated_domains" yaml:"include_federated_domains" env:"SPIFFE_HLP_INCLUDE_FEDERATED_DOMAINS"`
+	OmitExpired              bool   `hcl:"omit_expired" yaml:"omit_expired" env:"SPIFFE_HLP_OMIT_EXPIRED"`
+	RenewSignal              string `hcl:"renew_signal" yaml:"renew_signal" env:"SPIFFE_HLP_RENEW_SIGNAL"`
+	// Note: DaemonMode does not have an env tag because cleanenv doesn't support *bool types.
+	// Instead, use populateDaemonModeFromEnv for environment variable support.
+	DaemonMode  *bool         `hcl:"daemon_mode" yaml:"daemon_mode"`
+	HealthCheck health.Config `hcl:"health_checks" yaml:"health_checks" env:"SPIFFE_HLP_HEALTH_CHECKS"`
+	Hint        string        `hcl:"hint" yaml:"hint" env:"SPIFFE_HLP_HINT"`
+	LogLevel    string        `hcl:"log_level" yaml:"log_level" env:"SPIFFE_HLP_LOG_LEVEL"`
 
 	// x509 configuration
-	SVIDFilename       string `hcl:"svid_file_name"`
-	SVIDKeyFilename    string `hcl:"svid_key_file_name"`
-	SVIDBundleFilename string `hcl:"svid_bundle_file_name"`
+	SVIDFilename       string `hcl:"svid_file_name" yaml:"svid_file_name" env:"SPIFFE_HLP_SVID_FILE_NAME"`
+	SVIDKeyFilename    string `hcl:"svid_key_file_name" yaml:"svid_key_file_name" env:"SPIFFE_HLP_SVID_KEY_FILE_NAME"`
+	SVIDBundleFilename string `hcl:"svid_bundle_file_name" yaml:"svid_bundle_file_name" env:"SPIFFE_HLP_SVID_BUNDLE_FILE_NAME"`
 
 	// JWT configuration
-	JWTSVIDs          []JWTConfig `hcl:"jwt_svids"`
-	JWTBundleFilename string      `hcl:"jwt_bundle_file_name"`
+	// Note: JWTSVIDs does not have an env tag because cleanenv doesn't support arrays of structs.
+	// Instead, use SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array (see populateJWTSVIDsFromEnv for details).
+	JWTSVIDs          []JWTConfig `hcl:"jwt_svids" yaml:"jwt_svids"`
+	JWTBundleFilename string      `hcl:"jwt_bundle_file_name" yaml:"jwt_bundle_file_name" env:"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME"`
 
-	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
+	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions" yaml:"-"`
 }
 
 type JWTConfig struct {
-	JWTAudience       string   `hcl:"jwt_audience"`
-	JWTExtraAudiences []string `hcl:"jwt_extra_audiences"`
-	JWTSVIDFilename   string   `hcl:"jwt_svid_file_name"`
+	// Note: JWTConfig fields do not have env tags because cleanenv doesn't support arrays of structs.
+	// Instead, use SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array (see populateJWTSVIDsFromEnv for details).
+	JWTAudience       string   `hcl:"jwt_audience" yaml:"jwt_audience"`
+	JWTExtraAudiences []string `hcl:"jwt_extra_audiences" yaml:"jwt_extra_audiences"`
+	JWTSVIDFilename   string   `hcl:"jwt_svid_file_name" yaml:"jwt_svid_file_name"`
 
-	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
+	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions" yaml:"-"`
 }
 
-// ParseConfigFile parses the given HCL file into a Config struct
-func ParseConfigFile(file string) (*Config, error) {
-	// Read HCL file
-	dat, err := os.ReadFile(file)
+func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
+	if configFile == "" {
+		helperConfig, err := loadConfigFromEnv()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load configuration from environment: %w", err)
+		}
+		helperConfig.parseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+		return helperConfig, nil
+	}
+
+	helperConfig, err := parseConfigFile(configFile, configFormat)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse configuration file %q: %w", configFile, err)
 	}
-
-	// Parse HCL
-	config := new(Config)
-	if err := hcl.Decode(config, string(dat)); err != nil {
-		return nil, err
-	}
-
-	return config, nil
-}
-
-// ParseConfigFlagOverrides handles command line arguments that override config file settings
-func (c *Config) ParseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
-	if isFlagPassed(daemonModeFlagName) {
-		// If daemon mode is set by CLI this takes precedence
-		c.DaemonMode = &daemonModeFlag
-	} else if c.DaemonMode == nil {
-		// If daemon mode is not set, then default to true
-		daemonMode := true
-		c.DaemonMode = &daemonMode
-	}
+	helperConfig.parseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
+	return helperConfig, nil
 }
 
 func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
@@ -198,30 +197,6 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	return nil
 }
 
-// checkForUnknownConfig looks for any unknown configuration keys and returns an error if one is found
-func (c *Config) checkForUnknownConfig() error {
-	if len(c.UnusedKeyPositions) != 0 {
-		return fmt.Errorf("unknown top level key(s): %s", mapKeysToString(c.UnusedKeyPositions))
-	}
-
-	for i, jwtSVID := range c.JWTSVIDs {
-		if len(jwtSVID.UnusedKeyPositions) != 0 {
-			return fmt.Errorf("unknown key(s) in jwt_svids[%d]: %s", i, mapKeysToString(jwtSVID.UnusedKeyPositions))
-		}
-	}
-
-	return nil
-}
-
-func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
-	hclConfig, err := ParseConfigFile(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse %q: %w", configFile, err)
-	}
-	hclConfig.ParseConfigFlagOverrides(daemonModeFlag, daemonModeFlagName)
-	return hclConfig, nil
-}
-
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
@@ -254,6 +229,149 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	}
 
 	return sidecarConfig
+}
+
+// parseConfigFile parses a file into a Config struct.
+func parseConfigFile(file string, configFormat string) (*Config, error) {
+	if !configFileExists(file) {
+		return nil, fmt.Errorf("configuration file does not exist: %s", file)
+	}
+
+	if configFormat == "auto" {
+		detectedFormat, err := detectConfigFormat(file)
+		if err != nil {
+			return nil, err
+		}
+		configFormat = detectedFormat
+	}
+
+	switch configFormat {
+	case "hcl":
+		return parseHCLFileAndApplyEnv(file)
+	case "json", "yaml":
+		return parseStructuredConfigFile(file)
+	default:
+		return nil, fmt.Errorf("invalid config format: %s", configFormat)
+	}
+}
+
+// parseStructuredConfigFile parses YAML/JSON config into a Config struct.
+// JSON config files use this path because JSON is valid YAML.
+func parseStructuredConfigFile(file string) (*Config, error) {
+	dat, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	config := new(Config)
+	decoder := yaml.NewDecoder(bytes.NewReader(dat))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(config); err != nil {
+		return nil, err
+	}
+
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+// parseHCLConfigFile parses the given HCL file into a Config struct.
+func parseHCLConfigFile(file string) (*Config, error) {
+	dat, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	config := new(Config)
+	if err := hcl.Decode(config, string(dat)); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+func parseHCLFileAndApplyEnv(file string) (*Config, error) {
+	config, err := parseHCLConfigFile(file)
+	if err != nil {
+		return nil, err
+	}
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+// applyEnvOverrides applies environment-based config on top of the parsed file config.
+func applyEnvOverrides(config *Config) error {
+	if err := cleanenv.ReadEnv(config); err != nil {
+		return err
+	}
+	if err := populateJWTSVIDsFromEnv(config); err != nil {
+		return err
+	}
+	if err := populateDaemonModeFromEnv(config); err != nil {
+		return err
+	}
+	return nil
+}
+
+// loadConfigFromEnv loads configuration entirely from environment variables.
+// This is used when no config file is provided.
+func loadConfigFromEnv() (*Config, error) {
+	config := new(Config)
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+// parseConfigFlagOverrides handles command line arguments that override config file settings.
+func (c *Config) parseConfigFlagOverrides(daemonModeFlag bool, daemonModeFlagName string) {
+	if isFlagPassed(daemonModeFlagName) {
+		// If daemon mode is set by CLI this takes precedence
+		c.DaemonMode = &daemonModeFlag
+	} else if c.DaemonMode == nil {
+		// If daemon mode is not set, then default to true
+		daemonMode := true
+		c.DaemonMode = &daemonMode
+	}
+}
+
+func configFileExists(file string) bool {
+	if file == "" {
+		return false
+	}
+
+	_, err := os.Stat(file)
+	return err == nil
+}
+
+func detectConfigFormat(file string) (string, error) {
+	switch {
+	case strings.HasSuffix(file, ".conf"):
+		return "hcl", nil
+	case strings.HasSuffix(file, ".json"):
+		return "json", nil
+	case strings.HasSuffix(file, ".yaml"), strings.HasSuffix(file, ".yml"):
+		return "yaml", nil
+	default:
+		return "", fmt.Errorf("invalid config file: %s. Supported formats: hcl, json, yaml", file)
+	}
+}
+
+// checkForUnknownConfig looks for any unknown configuration keys and returns an error if one is found
+func (c *Config) checkForUnknownConfig() error {
+	if len(c.UnusedKeyPositions) != 0 {
+		return fmt.Errorf("unknown top level key(s): %s", mapKeysToString(c.UnusedKeyPositions))
+	}
+
+	for i, jwtSVID := range c.JWTSVIDs {
+		if len(jwtSVID.UnusedKeyPositions) != 0 {
+			return fmt.Errorf("unknown key(s) in jwt_svids[%d]: %s", i, mapKeysToString(jwtSVID.UnusedKeyPositions))
+		}
+	}
+
+	return nil
 }
 
 func validateX509Config(c *Config) (bool, error) {
