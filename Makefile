@@ -2,6 +2,8 @@ export GO111MODULE=on
 DIR := ${CURDIR}
 PLATFORMS ?= linux/amd64,linux/arm64
 
+include .versions
+
 E:=@
 ifeq ($(V),1)
 	E=
@@ -100,7 +102,7 @@ else
 endif
 go_path := PATH="$(go_bin_dir):$(PATH)"
 
-golangci_lint_version = v2.5.0
+golangci_lint_version := $(GOLANGCI_LINT_VERSION)
 golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
 golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
 golangci_lint_cache = $(golangci_lint_dir)/cache
