@@ -12,11 +12,12 @@ services:
     hostname: spire-agent
     volumes:
         - ./spire/agent:/opt/spire/conf/agent
-        - ./var/run/:/var/run/
+        - workload-api:/run/spire
     command: ["-config", "/opt/spire/conf/agent/agent.conf"]
     pid: "host"
   
   spiffe-helper:
+    image: it-spiffe-helper
     build: 
       context: ../../../
       dockerfile: ./Dockerfile
@@ -29,7 +30,7 @@ services:
       - spire-agent
     tty: true
     volumes:
-      - ./var/run/api.sock:/var/run/api.sock
+      - workload-api:/run/spire
       - ./postgres/helper.conf:/opt/spire/conf/postgres/helper.conf    
       - ./postgres/postgresql.conf:/var/lib/postgresql/data/postgresql.conf
       - ./postgres/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
@@ -42,7 +43,7 @@ services:
       - spire-agent
     tty: true
     volumes:
-      - ./var/run/api.sock:/var/run/api.sock
+      - workload-api:/run/spire
       - ./mysql/helper.conf:/opt/spire/conf/mysql/helper.conf
       - ./mysql/mysqld.cnf:/etc/mysql/mysql.conf.d/mysqld.cnf
       - ./mysql/init.sql:/var/lib/mysql/data/init.sql
@@ -54,17 +55,19 @@ services:
       - spire-agent
     tty: true
     volumes:
-      - ./var/run/api.sock:/var/run/api.sock
+      - workload-api:/run/spire
       - ./go-server/helper.conf:/opt/spire/conf/go-server/helper.conf
     command: ["su", "go-server", "-c", "/opt/helper/spiffe-helper -config /opt/spire/conf/go-server/helper.conf"]
 
   client:
     build: client
     depends_on:
-      - postgres-db
-      - mysql-db
+      - spire-agent
     tty: true
     volumes:
-      - ./var/run/api.sock:/var/run/api.sock
+      - workload-api:/run/spire
       - ./client/helper.conf:/opt/spire/conf/client/helper.conf
     command: ["su", "client", "-c", "/opt/helper/spiffe-helper -config /opt/spire/conf/client/helper.conf"]
+
+volumes:
+  workload-api:

@@ -30,6 +30,11 @@ help:
 	@echo
 	@echo "$(bold)Test:$(reset)"
 	@echo "  $(cyan)test$(reset)                          - run unit tests"
+	@echo "  $(cyan)integration-test$(reset)              - run integration tests (set INTEGRATION_TESTS to select suites)"
+	@echo "  $(cyan)integration-test-go$(reset)           - run the Go mTLS integration test"
+	@echo "  $(cyan)integration-test-postgres$(reset)     - run the PostgreSQL mTLS integration test"
+	@echo "  $(cyan)integration-test-mysql$(reset)        - run the MySQL mTLS integration test"
+	@echo "  $(cyan)integration-test-entry$(reset)        - run the entry rotation integration test"
 	@echo
 	@echo "$(bold)Code cleanliness:$(reset)"
 	@echo "  $(cyan)lint$(reset)                          - run linters aggregator"
@@ -215,7 +220,7 @@ lint-fix: $(golangci_lint_bin) | go-check
 # Build targets
 ############################################################################
 
-.PHONY: build test clean distclean artifact tarball rpm docker-build container-builder load-images
+.PHONY: build test integration-test integration-test-go integration-test-postgres integration-test-mysql integration-test-entry clean distclean artifact tarball rpm docker-build container-builder load-images
 
 build: | go-check
 	$(E)CGO_ENABLED=0 $(go_path) go build -ldflags '$(go_ldflags)' -o spiffe-helper${exe} ./cmd/spiffe-helper
@@ -247,6 +252,23 @@ rpm:
 # If you want detailed test output run "GO_TEST_OPTS=-v make test"
 test: | go-check
 	go test $(GO_TEST_OPTS) ./...
+
+INTEGRATION_TESTS ?= go postgres mysql entry
+
+integration-test:
+	$(E)./.github/tests/it/integration_test.sh $(INTEGRATION_TESTS)
+
+integration-test-go:
+	$(E)$(MAKE) integration-test INTEGRATION_TESTS=go
+
+integration-test-postgres:
+	$(E)$(MAKE) integration-test INTEGRATION_TESTS=postgres
+
+integration-test-mysql:
+	$(E)$(MAKE) integration-test INTEGRATION_TESTS=mysql
+
+integration-test-entry:
+	$(E)$(MAKE) integration-test INTEGRATION_TESTS=entry
 
 # Invoke the test suite by cross-compiling for Windows and running with
 # Wine. If in future tests are added that run on real win32 but not wine

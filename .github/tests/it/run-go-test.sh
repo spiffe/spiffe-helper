@@ -1,32 +1,33 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-RESET='\033[0m'
-bad=0
+set -euo pipefail
 
-ok(){
-    echo -e "${GREEN}✔️ $1 succeeded ${RESET}"
+compose() {
+	docker compose "$@"
 }
 
-fail(){
-    echo -e "${RED}❌ $1 failed ${RESET}"
+assert_exit_code() {
+	parameter=$1
+	expected=$2
+
+	if compose exec -T client /opt/go-client/client "$parameter"; then
+		actual=0
+	else
+		actual=$?
+	fi
+
+	if ((actual != expected)); then
+		echo "Go client parameter ${parameter}: expected exit ${expected}, got ${actual}" >&2
+		return 1
+	fi
+
+	echo "Go client parameter ${parameter}: received expected exit ${expected}"
 }
 
-testWithParameter(){
-    docker compose exec client /opt/go-client/client "$1"
+if (($# == 2)); then
+	assert_exit_code "$1" "$2"
+	exit
+fi
 
-    if [ "$?" -eq "$2" ] ; then
-        ok "Test on go app with parameter $1"
-    else
-        fail "Test on go app with parameter $1"
-        ((bad++))
-    fi
-}
-
-# The first parameter is related to the user that will establish the connection
-# while the second parameter is the expected exit value
-
-testWithParameter "$1" "$2"
-
-exit $bad
+assert_exit_code 0 0
+assert_exit_code 1 1

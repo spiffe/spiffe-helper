@@ -1,46 +1,102 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-RESET='\033[0m'
-TEST_FAILED=0
+set -euo pipefail
 
-# Testing to connect to postgres/mysql/server with valid svid
-bash run-postgres-test.sh client 0
-TEST_FAILED=$((TEST_FAILED + $?))
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-bash run-mysql-test.sh client 0
-TEST_FAILED=$((TEST_FAILED + $?))
+cd "$SCRIPT_DIR"
+export COMPOSE_PROJECT_NAME=spiffe-helper-integration
 
-bash run-go-test.sh 0 0
-TEST_FAILED=$((TEST_FAILED + $?))
+compose() {
+	docker compose "$@"
+}
 
-# Testing to connect to postgres/mysql/server without svid
-bash run-postgres-test.sh fail 1
-TEST_FAILED=$((TEST_FAILED + $?))
+cleanup() {
+	status=$?
+	trap - EXIT INT TERM
 
-bash run-mysql-test.sh fail 1
-TEST_FAILED=$((TEST_FAILED + $?))
+	if ((status != 0)); then
+		compose ps --all || true
+		compose logs --no-color || true
+	fi
 
-bash run-go-test.sh 1 1
-TEST_FAILED=$((TEST_FAILED + $?))
+	compose down --volumes --remove-orphans || true
+	rm -f spire/agent/bootstrap.crt
+	exit "$status"
+}
 
-# Testing to connect to postgres/mysql after updating client entry with invalid dns
-bash change-entry-client-test.sh 1
-TEST_FAILED=$((TEST_FAILED + $?))
+run_test() {
+	name=$1
+	shift
 
-# Testing to connect to postgres/mysql after restoring client entry with valid dns
-bash change-entry-client-test.sh
-TEST_FAILED=$((TEST_FAILED + $?))
+	echo "==> ${name}"
+	if "$@"; then
+		echo "PASS: ${name}"
+	else
+		echo "FAIL: ${name}" >&2
+		failures=$((failures + 1))
+	fi
+}
 
-echo
-if  ((TEST_FAILED == 1)); then
-    echo -e "${RED}❌ ${TEST_FAILED} test failed.${RESET}"
-    exit 1
-elif ((TEST_FAILED > 1)); then
-    echo -e "${RED}❌ ${TEST_FAILED} tests failed.${RESET}"
-    exit 1
-else 
-    echo -e "${GREEN}✔️ All tests succeeded.${RESET}"
-    exit 0
+if (($# == 0)); then
+	set -- go postgres mysql entry
 fi
+
+suites=()
+for suite in "$@"; do
+	case "$suite" in
+	go | postgres | mysql | entry)
+		if [[ " ${suites[*]} " != *" ${suite} "* ]]; then
+			suites+=("$suite")
+		fi
+		;;
+	*)
+		echo "Unknown integration suite: ${suite}" >&2
+		exit 2
+		;;
+	esac
+done
+
+trap cleanup EXIT INT TERM
+
+command -v docker >/dev/null
+command -v openssl >/dev/null
+docker info >/dev/null
+compose version >/dev/null
+
+compose down --volumes --remove-orphans
+bash build.sh "${suites[@]}"
+
+failures=0
+for suite in "${suites[@]}"; do
+	case "$suite" in
+	go)
+		run_test "Go mTLS" bash run-go-test.sh
+		;;
+	postgres)
+		run_test "PostgreSQL mTLS" bash run-postgres-test.sh
+		;;
+	mysql)
+		run_test "MySQL mTLS" bash run-mysql-test.sh
+		;;
+	entry)
+		run_test "Invalidate client entry" bash change-entry-client-test.sh bad
+		run_test "PostgreSQL rejects invalid client entry" \
+			bash run-postgres-test.sh client 1
+		run_test "MySQL rejects invalid client entry" \
+			bash run-mysql-test.sh client 1
+		run_test "Restore client entry" bash change-entry-client-test.sh restore
+		run_test "PostgreSQL accepts restored client entry" \
+			bash run-postgres-test.sh client 0
+		run_test "MySQL accepts restored client entry" \
+			bash run-mysql-test.sh client 0
+		;;
+	esac
+done
+
+if ((failures > 0)); then
+	echo "${failures} integration test(s) failed" >&2
+	exit 1
+fi
+
+echo "All requested integration tests passed: ${suites[*]}"

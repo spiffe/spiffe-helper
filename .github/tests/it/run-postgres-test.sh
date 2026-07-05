@@ -1,44 +1,38 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-RESET='\033[0m'
-bad=0
+set -euo pipefail
 
-ok(){
-    echo -e "${GREEN}✔️ $1 succeeded ${RESET}"
+compose() {
+	docker compose "$@"
 }
 
-fail(){
-    echo -e "${RED}❌ $1 failed ${RESET}"
+assert_query() {
+	user=$1
+	expected=$2
+
+	if output="$(compose exec -T client su client -c \
+		"/run/client/postgres-connect.sh \"${user}\"")"; then
+		actual=0
+	else
+		actual=$?
+	fi
+
+	if [[ "$output" != *test@user.com* ]]; then
+		actual=1
+	fi
+
+	if ((actual != expected)); then
+		echo "PostgreSQL user ${user}: expected exit ${expected}, got ${actual}" >&2
+		return 1
+	fi
+
+	echo "PostgreSQL user ${user}: received expected exit ${expected}"
 }
 
-testWithParameter(){
-    var=$(docker compose exec client su client -c "/run/client/postgres-connect.sh \"$1\"")
+if (($# == 2)); then
+	assert_query "$1" "$2"
+	exit
+fi
 
-    if echo "$var" | grep -q "test@user.com"; then
-        if [ "$2" -eq 1 ]; then 
-            fail "Test on PostgreSQL with parameter $1"
-            ((bad++))
-        else 
-            ok "Test on PostgreSQL with parameter $1"
-        fi
-    else
-        if [ "$2" -eq 1 ]; then 
-            ok "Test on PostgreSQL with parameter $1"
-        else
-            fail "Test on PostgreSQL with parameter $1"
-            ((bad++))
-        fi
-    fi
-}
-
-echo "Warning: Postgres test is disabled temporarily, until we resolve the issue of container not starting in github actions."
-exit 0
-
-# The first parameter is related to the user that will establish the connection
-# while the second parameter is the expected exit value 
-
-testWithParameter "$1" "$2"
-
-exit $bad
+assert_query client 0
+assert_query fail 1

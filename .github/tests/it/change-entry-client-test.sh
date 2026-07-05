@@ -1,89 +1,57 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-MAX_RETRIES=400
+set -euo pipefail
 
-restore-entry(){
-    # This test restores the original values of the entry both connection tests should succeed
-    docker compose exec spire-server ./bin/spire-server entry show -spiffeID spiffe://example.org/client > /tmp/entryFound
-    ENTRYID=$( grep 'Entry ID         :' /tmp/entryFound | awk '{print $4}')
-    PARENTID=$( grep 'Parent ID        :' /tmp/entryFound | awk '{print $4}')
+readonly MAX_ATTEMPTS=120
 
-    rows_count_client=$(docker compose logs client | grep -c "SVID updated")
-    ((rows_count_client+=2))
-    docker compose exec spire-server ./bin/spire-server entry update \
-        -entryID $ENTRYID \
-        -parentID $PARENTID \
-        -spiffeID spiffe://example.org/client \
-        -selector unix:uid:72 \
-        -ttl 100 \
-        -dns client
-
-    echo "Entry restored"
-
-    for((i=0; i<MAX_RETRIES; i++))
-    do
-        rows_count_client_now=$(docker compose logs client | grep -c "SVID updated") 
-        if [ $rows_count_client -lt $rows_count_client_now ]; then
-            bash run-postgres-test.sh client 0
-            exit_code_postgres=$?
-            bash run-mysql-test.sh client 0
-            exit_code_mysql=$?
-            if [ $exit_code_postgres == 0 ] && [ $exit_code_mysql == 0 ] ; then
-                exit 0
-            else
-                exit 1
-            fi
-        else
-            sleep 1
-        fi
-    done
-    exit 1
+compose() {
+	docker compose "$@"
 }
 
-bad-entry(){
-    #This test changes the values of the entry so both connection tests should fail
-    docker compose exec spire-server ./bin/spire-server entry show -spiffeID spiffe://example.org/client > /tmp/entryFound
-    ENTRYID=$( grep 'Entry ID         :' /tmp/entryFound | awk '{print $4}')
-    PARENTID=$( grep 'Parent ID        :' /tmp/entryFound | awk '{print $4}')
+wait_for_dns_name() {
+	dns_name=$1
 
-    rows_count_client=$(docker compose logs client | grep -c "SVID updated")
-    ((rows_count_client+=2))
+	for ((attempt = 1; attempt <= MAX_ATTEMPTS; attempt++)); do
+		if compose exec -T client openssl x509 \
+			-in /run/client/certs/svid.crt \
+			-noout \
+			-ext subjectAltName 2>/dev/null |
+			grep -q "DNS:${dns_name}"; then
+			return 0
+		fi
+		sleep 1
+	done
 
-    docker compose exec spire-server ./bin/spire-server entry update \
-        -entryID $ENTRYID \
-        -parentID $PARENTID \
-        -spiffeID spiffe://example.org/client \
-        -selector unix:uid:72 \
-        -ttl 100 \
-        -dns testuser1
-    
-    echo "Entry changed, now with dns=testuser1"
-   
-    for((i=0; i<MAX_RETRIES; i++))
-    do
-        rows_count_client_now=$(docker compose logs client | grep -c "SVID updated") 
-        if [ $rows_count_client -lt $rows_count_client_now ]; then
-            bash run-postgres-test.sh client 1
-            exit_code_postgres=$?
-            bash run-mysql-test.sh client 1
-            exit_code_mysql=$?
-            if [ $exit_code_postgres == 0 ] && [ $exit_code_mysql == 0 ] ; then
-                exit 0
-            else
-                exit 1
-            fi
-        else
-            sleep 1
-        fi
-    done
-    exit 1
+	echo "Timed out waiting for client SVID DNS name ${dns_name}" >&2
+	return 1
 }
 
-# with parameter 1 will change the entry to one that should make it fail
-# otherwise will restore a valid entry
+mode=${1:-}
+case "$mode" in
+bad)
+	dns_name=testuser1
+	;;
+restore)
+	dns_name=client
+	;;
+*)
+	echo "Usage: $0 <bad|restore>" >&2
+	exit 2
+	;;
+esac
 
-if [ "$1" == "1" ]; then
-    bad-entry
-else
-    restore-entry
-fi
+entry="$(compose exec -T spire-server ./bin/spire-server entry show \
+	-spiffeID spiffe://example.org/client)"
+entry_id="$(awk '/Entry ID/{print $4; exit}' <<<"$entry")"
+parent_id="$(awk '/Parent ID/{print $4; exit}' <<<"$entry")"
+
+compose exec -T spire-server ./bin/spire-server entry update \
+	-entryID "$entry_id" \
+	-parentID "$parent_id" \
+	-spiffeID spiffe://example.org/client \
+	-selector unix:uid:72 \
+	-ttl 100 \
+	-dns "$dns_name" >/dev/null
+
+wait_for_dns_name "$dns_name"
+echo "Client entry now issues SVIDs with DNS name ${dns_name}"

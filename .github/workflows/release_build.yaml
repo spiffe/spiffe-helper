@@ -5,42 +5,20 @@ on:
       - 'v[0-9].[0-9]+.[0-9]+'
 
 jobs:
-  build-matrix:
-    name: Build matrix
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - id: set-matrix
-        name: Collect all tests
-        run: |
-          tests="$(find .github/tests -maxdepth 1 -type f -name '*.sh' -exec basename {} \; | sort | uniq)"
-          tests_json="$(echo "$tests" | jq -c --slurp --raw-input 'split("\n") | map(select(. != ""))')"
-          echo "tests=$tests_json" >> $GITHUB_OUTPUT
-          echo "Collected tests: $tests_json"
-
-    outputs:
-      tests: ${{ steps.set-matrix.outputs.tests }}
-
   integration-tests:
+    name: integration tests (${{ matrix.suite }})
     runs-on: ubuntu-22.04
-    needs: [build-matrix]
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
-       tests: ${{ fromJson(needs.build-matrix.outputs.tests) }}
+        suite: [go, postgres, mysql, entry]
     steps:
-      - uses: actions/checkout@v7
-      - name: Build containers
-        run: ./build.sh
-        shell: bash
-        working-directory: ./.github/tests/it
-      - name: Run tests
-        run: bash ${{ matrix.tests }}
-        shell: bash
-        working-directory: ./.github/tests
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Run ${{ matrix.suite }} integration test
+        run: make integration-test INTEGRATION_TESTS=${{ matrix.suite }}
 
   build:
     name: build (linux)
