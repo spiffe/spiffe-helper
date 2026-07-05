@@ -6,28 +6,35 @@ compose() {
 	docker compose "$@"
 }
 
-assert_exit_code() {
-	parameter=$1
-	expected=$2
-
-	if compose exec -T client /opt/go-client/client "$parameter"; then
-		actual=0
-	else
-		actual=$?
-	fi
-
-	if ((actual != expected)); then
-		echo "Go client parameter ${parameter}: expected exit ${expected}, got ${actual}" >&2
+assert_authenticated_request() {
+	if ! output="$(compose exec -T client \
+		/opt/go-client/client with-client-svid)"; then
+		echo "Authenticated Go client request failed" >&2
 		return 1
 	fi
 
-	echo "Go client parameter ${parameter}: received expected exit ${expected}"
+	if [[ "$output" != *test@user.com* ]]; then
+		echo "Authenticated Go client returned an unexpected response: ${output}" >&2
+		return 1
+	fi
+
+	echo "Authenticated Go client request succeeded"
 }
 
-if (($# == 2)); then
-	assert_exit_code "$1" "$2"
-	exit
-fi
+assert_missing_client_svid_rejected() {
+	if output="$(compose exec -T client \
+		/opt/go-client/client without-client-svid 2>&1)"; then
+		echo "Go server accepted a request without a client SVID: ${output}" >&2
+		return 1
+	fi
 
-assert_exit_code 0 0
-assert_exit_code 1 1
+	if [[ "$output" == *"unknown authority"* ]]; then
+		echo "Unauthenticated request failed because the server was not trusted, not because the client SVID was missing" >&2
+		return 1
+	fi
+
+	echo "Go server rejected a request without a client SVID"
+}
+
+assert_authenticated_request
+assert_missing_client_svid_rejected

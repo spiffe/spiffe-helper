@@ -46,7 +46,7 @@ suites=()
 for suite in "$@"; do
 	case "$suite" in
 	go | postgres | mysql | entry)
-		if [[ " ${suites[*]} " != *" ${suite} "* ]]; then
+		if [[ " ${suites[*]-} " != *" ${suite} "* ]]; then
 			suites+=("$suite")
 		fi
 		;;
