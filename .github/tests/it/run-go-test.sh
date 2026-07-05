@@ -8,7 +8,7 @@ compose() {
 
 assert_authenticated_request() {
 	if ! output="$(compose exec -T client \
-		/opt/go-client/client with-client-svid)"; then
+		/opt/go-client/client -client-svid=true)"; then
 		echo "Authenticated Go client request failed" >&2
 		return 1
 	fi
@@ -23,7 +23,7 @@ assert_authenticated_request() {
 
 assert_missing_client_svid_rejected() {
 	if output="$(compose exec -T client \
-		/opt/go-client/client without-client-svid 2>&1)"; then
+		/opt/go-client/client -client-svid=false 2>&1)"; then
 		echo "Go server accepted a request without a client SVID: ${output}" >&2
 		return 1
 	fi

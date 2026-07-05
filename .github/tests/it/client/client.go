@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -10,15 +11,13 @@ import (
 	"os"
 )
 
-const (
-	serverURL         = "https://go-server:8080/getMail"
-	withClientSVID    = "with-client-svid"
-	withoutClientSVID = "without-client-svid"
-)
+const serverURL = "https://go-server:8080/getMail"
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Printf("usage: %s <%s|%s>", os.Args[0], withClientSVID, withoutClientSVID)
+	presentClientSVID := flag.Bool("client-svid", false, "present the client SVID during the TLS handshake")
+	flag.Parse()
+	if flag.NArg() != 0 {
+		flag.Usage()
 		os.Exit(2)
 	}
 
@@ -37,18 +36,13 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 		RootCAs:    caPool,
 	}
-	switch os.Args[1] {
-	case withClientSVID:
+	if *presentClientSVID {
 		cert, err := tls.LoadX509KeyPair("/run/client/certs/svid.crt", "/run/client/certs/svid.key")
 		if err != nil {
 			log.Println(err)
 			os.Exit(1)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
-	case withoutClientSVID:
-	default:
-		log.Printf("unknown mode %q", os.Args[1])
-		os.Exit(2)
 	}
 
 	client := &http.Client{
