@@ -23,6 +23,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testEchoCommand       = "echo"
+	errExtraneousQuoteCSV = `extraneous or missing " in quoted-field`
+)
+
 // TestSidecar_TestCmdRuns Validates basic sidecar command behaviour,
 // simulating daemon-mode execution with workload api server responses.
 // These exercise behaviour after receiving the cert.
@@ -277,7 +282,7 @@ func TestSidecar_TestCmdRunsRelaunchShortlived(t *testing.T) {
 		config.Cmd = "cmd"
 		config.CmdArgs = "/c echo hello"
 	} else {
-		config.Cmd = "echo"
+		config.Cmd = testEchoCommand
 		config.CmdArgs = "hello"
 	}
 
@@ -539,14 +544,14 @@ func TestGetCmdArgs(t *testing.T) {
 		{
 			name:        "single quotes do not protect spaces",
 			in:          `-c "echo 'hello "cruel" world'"`,
-			expectedErr: `extraneous or missing " in quoted-field`,
+			expectedErr: errExtraneousQuoteCSV,
 		},
 		// unpaired double quotes inside single quotes will result in a parse error
 		// for the same reason
 		{
 			name:        "unpaired double quotes in single quotes",
 			in:          `-c "echo 'hello "cruel" world'"`,
-			expectedErr: `extraneous or missing " in quoted-field`,
+			expectedErr: errExtraneousQuoteCSV,
 		},
 		// backslash escaping of double quotes inside argument strings is not supported
 		// by spiffe-helper's parser, and will result in an error not the expected argument
@@ -554,7 +559,7 @@ func TestGetCmdArgs(t *testing.T) {
 		{
 			name:        "Backslash-escaped double quotes in double quotes",
 			in:          `-c "echo \"hello world\""`,
-			expectedErr: `extraneous or missing " in quoted-field`,
+			expectedErr: errExtraneousQuoteCSV,
 		},
 		// spiffe-helper's parser instead uses quote-pairing for escaping double quotes
 		{
