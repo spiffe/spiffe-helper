@@ -65,7 +65,7 @@ func newSidecarTest(t *testing.T) *sidecarTest {
 		rootCA: spiffetest.NewCA(t),
 
 		sidecar: New(&Config{
-			Cmd:                "echo",
+			Cmd:                testEchoCommand,
 			CertDir:            t.TempDir(),
 			SVIDFilename:       "svid.pem",
 			SVIDKeyFilename:    "svid_key.pem",

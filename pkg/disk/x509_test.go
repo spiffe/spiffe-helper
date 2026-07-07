@@ -20,6 +20,9 @@ const (
 	svidBundleFilename = "svid_bundle.pem"
 	certFileMode       = fs.FileMode(0600)
 	keyFileMode        = fs.FileMode(0600)
+	testWorkloadID     = "spiffe://example.test/workload"
+	testIntermediateID = "spiffe://example.test/workloadWithIntermediate"
+	testSVIDHint       = "other"
 )
 
 func TestWriteX509Context(t *testing.T) {
@@ -44,7 +47,7 @@ func TestWriteX509Context(t *testing.T) {
 		{
 			name:                    "Single SVID",
 			ca:                      rootCA,
-			spiffeIDString:          "spiffe://example.test/workload",
+			spiffeIDString:          testWorkloadID,
 			chainLength:             1,
 			omitExpired:             false,
 			includeFederatedDomains: false,
@@ -62,7 +65,7 @@ func TestWriteX509Context(t *testing.T) {
 		{
 			name:                    "SVID with intermediate CA",
 			ca:                      intermediateCA,
-			spiffeIDString:          "spiffe://example.test/workloadWithIntermediate",
+			spiffeIDString:          testIntermediateID,
 			chainLength:             2,
 			omitExpired:             false,
 			includeFederatedDomains: false,
@@ -71,7 +74,7 @@ func TestWriteX509Context(t *testing.T) {
 		{
 			name:                    "SVID with intermediate CA and intermediate in bundle",
 			ca:                      intermediateCA,
-			spiffeIDString:          "spiffe://example.test/workloadWithIntermediate",
+			spiffeIDString:          testIntermediateID,
 			chainLength:             2,
 			omitExpired:             false,
 			includeFederatedDomains: false,
@@ -80,7 +83,7 @@ func TestWriteX509Context(t *testing.T) {
 		{
 			name:                    "SVID with expired intermediate in bundle and omit expired certs",
 			ca:                      expiredItermediateCAChain,
-			spiffeIDString:          "spiffe://example.test/workloadWithIntermediate",
+			spiffeIDString:          testIntermediateID,
 			chainLength:             2,
 			omitExpired:             true,
 			includeFederatedDomains: false,
@@ -90,7 +93,7 @@ func TestWriteX509Context(t *testing.T) {
 			name:                    "SVID with federated trust domains",
 			ca:                      rootCA,
 			federatedCA:             federatedCA,
-			spiffeIDString:          "spiffe://example.test/workload",
+			spiffeIDString:          testWorkloadID,
 			chainLength:             1,
 			omitExpired:             false,
 			includeFederatedDomains: true,
@@ -100,7 +103,7 @@ func TestWriteX509Context(t *testing.T) {
 			name:                    "SVID with federated trust domains but not included in bundle",
 			ca:                      rootCA,
 			federatedCA:             federatedCA,
-			spiffeIDString:          "spiffe://example.test/workload",
+			spiffeIDString:          testWorkloadID,
 			chainLength:             1,
 			omitExpired:             false,
 			includeFederatedDomains: false,
@@ -110,14 +113,14 @@ func TestWriteX509Context(t *testing.T) {
 			name:                    "SVID with federated trust domains and intermediate in bundle",
 			ca:                      intermediateCA,
 			federatedCA:             federatedCA,
-			spiffeIDString:          "spiffe://example.test/workload",
+			spiffeIDString:          testWorkloadID,
 			chainLength:             2,
 			omitExpired:             false,
 			includeFederatedDomains: true,
 			intermediateInBundle:    true,
 		},
 	}
-	for _, hint := range []string{"", "other"} {
+	for _, hint := range []string{"", testSVIDHint} {
 		prefixSpiffeID, err := spiffeid.FromString("spiffe://example.test/shouldnt/ever/get")
 		require.NoError(t, err)
 		for _, test := range tests {
@@ -133,7 +136,7 @@ func TestWriteX509Context(t *testing.T) {
 						ID:           spiffeID,
 						Certificates: certs,
 						PrivateKey:   key,
-						Hint:         "other",
+						Hint:         testSVIDHint,
 					},
 				}
 				if hint != "" {
