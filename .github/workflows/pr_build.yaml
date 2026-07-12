@@ -88,36 +88,14 @@ jobs:
       - name: Run clean check
         run: make git-clean-check
 
-  build-matrix:
-    name: Build matrix
+  integration-test:
+    name: integration test (linux)
     runs-on: ubuntu-22.04
+    needs: [lint, unit-test, build]
 
-    needs: [lint]
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - id: set-matrix
-        name: Collect all tests
-        run: |
-          tests="$(find .github/tests -maxdepth 1 -type f -name '*.sh' -exec basename {} \; | sort | uniq)"
-          tests_json="$(echo "$tests" | jq -c --slurp --raw-input 'split("\n") | map(select(. != ""))')"
-          echo "tests=$tests_json" >> $GITHUB_OUTPUT
-          echo "Collected tests: $tests_json"
-
-    outputs:
-      tests: ${{ steps.set-matrix.outputs.tests }}
-
-
-  integration-tests:
-    runs-on: ubuntu-22.04
-    needs: [build-matrix]
     permissions:
       contents: read
-    strategy:
-      matrix:
-       tests: ${{ fromJson(needs.build-matrix.outputs.tests) }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -125,14 +103,13 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - name: Build containers
-        run: ./build.sh
-        shell: bash
-        working-directory: ./.github/tests/it
-      - name: Run tests
-        run: bash ${{ matrix.tests }}
-        shell: bash
-        working-directory: ./.github/tests
+      - name: Load cached deps
+        uses: actions/cache@v6
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+      - name: Run integration tests
+        run: make integration-test-verbose
 
   build:
     name: build (linux)

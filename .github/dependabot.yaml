@@ -12,3 +12,25 @@ updates:
     schedule:
       interval: daily
     open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /script/rpm
+      - /test/integration/*
+    schedule:
+      interval: daily
+    groups:
+      docker-images:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker-compose
+    directories:
+      - /test/integration/*
+    schedule:
+      interval: daily
+    groups:
+      docker-compose-images:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5

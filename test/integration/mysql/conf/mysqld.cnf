@@ -1,0 +1,12 @@
+[mysqld]
+bind-address = 0.0.0.0
+mysqlx-bind-address = 0.0.0.0
+
+ssl-cert = /var/lib/mysql/certs/server-cert.pem
+ssl-key = /var/lib/mysql/certs/server-key.pem
+ssl-ca = /var/lib/mysql/certs/ca.pem
+require_secure_transport = ON
+
+datadir = /var/lib/mysql
+socket = /run/mysqld/mysqld.sock
+pid-file = /run/mysqld/mysqld.pid

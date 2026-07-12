@@ -1,0 +1,37 @@
+services:
+  mysql-db:
+    image: spiffe-helper-integration-mysql:local
+    build:
+      context: ../../..
+      dockerfile: test/integration/mysql/Dockerfile
+      args:
+        go_version: ${GO_VERSION}
+    hostname: mysql-db
+    depends_on:
+      - spire-agent
+    command: ["/usr/sbin/mysqld", "--user=mysql"]
+    volumes:
+      - mysql-certs:/var/lib/mysql/certs
+      - mysql-run:/run/mysqld
+
+  mysql-helper:
+    image: spiffe-helper-integration-mysql:local
+    depends_on:
+      - mysql-db
+    command: ["/opt/helper/spiffe-helper", "-config", "/opt/spire/conf/mysql/helper.conf"]
+    volumes:
+      - workload-api:/run/spire
+      - mysql-certs:/var/lib/mysql/certs
+      - mysql-run:/run/mysqld
+
+  mysql-client:
+    image: spiffe-helper-integration-mysql:local
+    depends_on:
+      - mysql-helper
+    command: ["sleep", "infinity"]
+    volumes:
+      - mysql-certs:/var/lib/mysql/certs:ro
+
+volumes:
+  mysql-certs:
+  mysql-run:
