@@ -47,8 +47,13 @@ func TestMySQLQueries(t *testing.T) {
 				SSLMode: tt.sslMode,
 			})
 
-			requireErrorContains(t, result.Error, tt.wantErrorContains)
 			require.Contains(t, result.Output, tt.wantOutput)
+			if tt.wantErrorContains == "" {
+				require.NoError(t, result.Error)
+				return
+			}
+
+			require.ErrorContains(t, result.Error, tt.wantErrorContains)
 		})
 	}
 }

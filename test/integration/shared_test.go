@@ -103,14 +103,3 @@ func sharedPostgresDB(t *testing.T) (*spire.Environment, *postgres.Database) {
 	require.NotNil(t, sharedPostgres.db, "shared Postgres database is required")
 	return env.spire, sharedPostgres.db
 }
-
-func requireErrorContains(t *testing.T, err error, expected string) {
-	t.Helper()
-
-	if expected == "" {
-		require.NoError(t, err)
-		return
-	}
-
-	require.ErrorContains(t, err, expected)
-}
