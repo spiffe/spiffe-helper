@@ -117,7 +117,7 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		return err
 	}
 
-	if err := c.normalizeLifecycle(); err != nil {
+	if err := c.normalizeLifecycle(log); err != nil {
 		return err
 	}
 
@@ -237,7 +237,7 @@ func (c *Config) checkForUnknownConfig() error {
 	return nil
 }
 
-func (c *Config) normalizeLifecycle() error {
+func (c *Config) normalizeLifecycle(log logrus.FieldLogger) error {
 	if c.Cmd != "" && c.Start.Cmd != "" {
 		return errors.New("cmd cannot be used with start.cmd")
 	}
@@ -252,13 +252,16 @@ func (c *Config) normalizeLifecycle() error {
 	}
 
 	if c.Cmd != "" {
+		log.Warn("cmd and cmd_args are deprecated and will be removed in a future release. Use start.cmd and start.args instead.")
 		c.Start.Cmd = c.Cmd
 		c.Start.Args = c.CmdArgs
 	}
 	if c.RenewSignal != "" {
+		log.Warn("renew_signal is deprecated and will be removed in a future release. Use reload.signal instead.")
 		c.Reload.Signal = c.RenewSignal
 	}
 	if c.PIDFilename != "" {
+		log.Warn("pid_file_name is deprecated and will be removed in a future release. Use reload.pid_file_name instead.")
 		c.Reload.PIDFilename = c.PIDFilename
 	}
 

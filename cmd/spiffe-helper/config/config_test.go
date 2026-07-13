@@ -273,7 +273,7 @@ func TestValidateConfig(t *testing.T) {
 			if tt.skipWindows && os.Getenv("GOOS") == "windows" {
 				t.Skip("skipping test on windows")
 			}
-			log, _ := test.NewNullLogger()
+			log, hook := test.NewNullLogger()
 			err := tt.config.ValidateConfig(log)
 
 			if tt.expectError != "" {
@@ -288,6 +288,12 @@ func TestValidateConfig(t *testing.T) {
 				assert.Equal(t, tt.config.CmdArgs, tt.config.Start.Args)
 				assert.Equal(t, tt.config.RenewSignal, tt.config.Reload.Signal)
 				assert.Equal(t, tt.config.PIDFilename, tt.config.Reload.PIDFilename)
+
+				entries := hook.AllEntries()
+				require.Len(t, entries, 3)
+				assert.Equal(t, "cmd and cmd_args are deprecated and will be removed in a future release. Use start.cmd and start.args instead.", entries[0].Message)
+				assert.Equal(t, "renew_signal is deprecated and will be removed in a future release. Use reload.signal instead.", entries[1].Message)
+				assert.Equal(t, "pid_file_name is deprecated and will be removed in a future release. Use reload.pid_file_name instead.", entries[2].Message)
 			}
 		})
 	}
