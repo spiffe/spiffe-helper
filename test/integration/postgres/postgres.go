@@ -47,8 +47,8 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
 	)
 
 	createDatabase(tb, dockerCompose, databaseName)
-	createMailTable(tb, dockerCompose)
-	insertEmailAddress(tb, dockerCompose, "test@user.com")
+	createMailTable(tb, dockerCompose, databaseName)
+	insertEmailAddress(tb, dockerCompose, databaseName, "test@user.com")
 
 	return &Database{dockerCompose: dockerCompose}
 }
@@ -120,7 +120,7 @@ func createDatabase(tb testing.TB, dockerCompose *dockercompose.Project, name st
 	)
 }
 
-func createMailTable(tb testing.TB, dockerCompose *dockercompose.Project) {
+func createMailTable(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string) {
 	tb.Helper()
 
 	dockerCompose.Exec(
@@ -132,7 +132,7 @@ func createMailTable(tb testing.TB, dockerCompose *dockercompose.Project) {
 	)
 }
 
-func insertEmailAddress(tb testing.TB, dockerCompose *dockercompose.Project, emailAddress string) {
+func insertEmailAddress(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string, emailAddress string) {
 	tb.Helper()
 
 	dockerCompose.Exec(
