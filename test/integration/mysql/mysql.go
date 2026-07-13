@@ -12,7 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const mysqlUID = "0"
+const (
+	mysqlUID     = "0"
+	databaseName = "test_db"
+	testUsername = "testuser"
+	testPassword = "password"
+)
 
 // Database manages the MySQL integration test database.
 type Database struct {
@@ -45,7 +50,10 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
 		"mysqladmin", "--protocol=socket", "-uroot", "ping",
 	)
 
-	createDatabase(tb, dockerCompose)
+	createDatabase(tb, dockerCompose, databaseName)
+	createMailTable(tb, dockerCompose, databaseName)
+	insertEmailAddress(tb, dockerCompose, databaseName, "test@user.com")
+	createUser(tb, dockerCompose, databaseName, testUsername, testPassword)
 
 	db := &Database{dockerCompose: dockerCompose}
 	waitForServerCertificate(tb, db)
@@ -89,8 +97,8 @@ func (db *Database) Query(tb testing.TB, query string, options QueryOptions) Que
 		"mysql-client",
 		"mysql",
 		"-hmysql-db",
-		"-utestuser",
-		"-ppassword",
+		"-u"+testUsername,
+		"-p"+testPassword,
 		"--batch",
 		"--skip-column-names",
 		"--ssl-mode="+sslMode,
@@ -112,7 +120,40 @@ func queryError(result dockercompose.Result) error {
 	return fmt.Errorf("%w: %s", result.Err, strings.TrimSpace(result.Stdout+result.Stderr))
 }
 
-func createDatabase(tb testing.TB, dockerCompose *dockercompose.Project) {
+func createDatabase(tb testing.TB, dockerCompose *dockercompose.Project, name string) {
+	tb.Helper()
+
+	dockerCompose.Exec(
+		tb,
+		"mysql-db",
+		"mysql", "--protocol=socket", "-uroot",
+		"-e", "CREATE DATABASE IF NOT EXISTS "+name,
+	)
+}
+
+func createMailTable(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string) {
+	tb.Helper()
+
+	dockerCompose.Exec(
+		tb,
+		"mysql-db",
+		"mysql", "--protocol=socket", "-uroot",
+		"-e", "CREATE TABLE IF NOT EXISTS "+databaseName+".mail (id BIGINT AUTO_INCREMENT PRIMARY KEY, mail VARCHAR(256))",
+	)
+}
+
+func insertEmailAddress(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string, emailAddress string) {
+	tb.Helper()
+
+	dockerCompose.Exec(
+		tb,
+		"mysql-db",
+		"mysql", "--protocol=socket", "-uroot",
+		"-e", "INSERT INTO "+databaseName+".mail(mail) VALUES ("+sqlStringLiteral(emailAddress)+")",
+	)
+}
+
+func createUser(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string, username string, password string) {
 	tb.Helper()
 
 	dockerCompose.Exec(
@@ -120,14 +161,15 @@ func createDatabase(tb testing.TB, dockerCompose *dockercompose.Project) {
 		"mysql-db",
 		"mysql", "--protocol=socket", "-uroot",
 		"-e", strings.Join([]string{
-			"CREATE USER IF NOT EXISTS 'testuser'@'%' IDENTIFIED BY 'password'",
-			"CREATE DATABASE IF NOT EXISTS test_db",
-			"CREATE TABLE IF NOT EXISTS test_db.mail (id BIGINT AUTO_INCREMENT PRIMARY KEY, mail VARCHAR(256))",
-			"INSERT INTO test_db.mail(mail) VALUES ('test@user.com')",
-			"GRANT SELECT ON test_db.* TO 'testuser'@'%'",
+			"CREATE USER IF NOT EXISTS " + sqlStringLiteral(username) + "@'%' IDENTIFIED BY " + sqlStringLiteral(password),
+			"GRANT SELECT ON " + databaseName + ".* TO " + sqlStringLiteral(username) + "@'%'",
 			"FLUSH PRIVILEGES",
 		}, "; "),
 	)
+}
+
+func sqlStringLiteral(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
 func waitForServerCertificate(tb testing.TB, db *Database) {
