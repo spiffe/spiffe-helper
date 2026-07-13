@@ -67,7 +67,7 @@ func Selectors() []string {
 
 // ServerX509SVID returns the X509-SVID served by the MySQL test database.
 func (db *Database) ServerX509SVID() (*x509.Certificate, error) {
-	result := db.dockerCompose.TryExec(
+	result := db.dockerCompose.Exec(
 		"mysql-client",
 		"sh", "-c",
 		"true | openssl s_client -starttls mysql -connect mysql-db:3306 -servername mysql-db -showcerts",
@@ -93,7 +93,7 @@ func (db *Database) Query(tb testing.TB, query string, options QueryOptions) Que
 		sslMode = "VERIFY_CA"
 	}
 
-	result := db.dockerCompose.TryExec(
+	result := db.dockerCompose.Exec(
 		"mysql-client",
 		"mysql",
 		"-hmysql-db",
@@ -123,41 +123,40 @@ func queryError(result dockercompose.Result) error {
 func createDatabase(tb testing.TB, dockerCompose *dockercompose.Project, name string) {
 	tb.Helper()
 
-	dockerCompose.Exec(
-		tb,
+	result := dockerCompose.Exec(
 		"mysql-db",
 		"mysql", "--protocol=socket", "-uroot",
 		"-e", "CREATE DATABASE IF NOT EXISTS "+name,
 	)
+	require.NoError(tb, result.Err, "create MySQL database:\n%s", result.Stderr)
 }
 
 func createMailTable(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string) {
 	tb.Helper()
 
-	dockerCompose.Exec(
-		tb,
+	result := dockerCompose.Exec(
 		"mysql-db",
 		"mysql", "--protocol=socket", "-uroot",
 		"-e", "CREATE TABLE IF NOT EXISTS "+databaseName+".mail (id BIGINT AUTO_INCREMENT PRIMARY KEY, mail VARCHAR(256))",
 	)
+	require.NoError(tb, result.Err, "create MySQL mail table:\n%s", result.Stderr)
 }
 
 func insertEmailAddress(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string, emailAddress string) {
 	tb.Helper()
 
-	dockerCompose.Exec(
-		tb,
+	result := dockerCompose.Exec(
 		"mysql-db",
 		"mysql", "--protocol=socket", "-uroot",
 		"-e", "INSERT INTO "+databaseName+".mail(mail) VALUES ("+sqlStringLiteral(emailAddress)+")",
 	)
+	require.NoError(tb, result.Err, "insert MySQL email address:\n%s", result.Stderr)
 }
 
 func createUser(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string, username string, password string) {
 	tb.Helper()
 
-	dockerCompose.Exec(
-		tb,
+	result := dockerCompose.Exec(
 		"mysql-db",
 		"mysql", "--protocol=socket", "-uroot",
 		"-e", strings.Join([]string{
@@ -166,6 +165,7 @@ func createUser(tb testing.TB, dockerCompose *dockercompose.Project, databaseNam
 			"FLUSH PRIVILEGES",
 		}, "; "),
 	)
+	require.NoError(tb, result.Err, "create MySQL user:\n%s", result.Stderr)
 }
 
 func sqlStringLiteral(value string) string {

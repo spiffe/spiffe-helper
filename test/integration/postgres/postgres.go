@@ -64,7 +64,7 @@ func Selectors() []string {
 
 // ServerX509SVID returns the X509-SVID served by the Postgres test database.
 func (db *Database) ServerX509SVID() (*x509.Certificate, error) {
-	result := db.dockerCompose.TryExec(
+	result := db.dockerCompose.Exec(
 		"postgres-client",
 		"sh", "-c",
 		"true | openssl s_client -starttls postgres -connect postgres-db:5432 -servername postgres-db -showcerts",
@@ -93,7 +93,7 @@ func (db *Database) Query(tb testing.TB, query string, options QueryOptions) Que
 	connectionString := "postgres://postgres@postgres-db:5432/" + databaseName + "?sslmode=" + sslMode +
 		"&sslrootcert=/run/postgresql/certs/root.crt"
 
-	result := db.dockerCompose.TryExec(
+	result := db.dockerCompose.Exec(
 		"postgres-client",
 		"psql",
 		connectionString,
@@ -118,37 +118,37 @@ func queryError(result dockercompose.Result) error {
 func createDatabase(tb testing.TB, dockerCompose *dockercompose.Project, name string) {
 	tb.Helper()
 
-	dockerCompose.Exec(
-		tb,
+	result := dockerCompose.Exec(
 		"postgres-db",
 		"psql", "-h", "/run/postgresql", "-U", "postgres", "-d", "postgres",
 		"-v", "ON_ERROR_STOP=1",
 		"-c", "CREATE DATABASE "+name,
 	)
+	require.NoError(tb, result.Err, "create Postgres database:\n%s", result.Stderr)
 }
 
 func createMailTable(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string) {
 	tb.Helper()
 
-	dockerCompose.Exec(
-		tb,
+	result := dockerCompose.Exec(
 		"postgres-db",
 		"psql", "-h", "/run/postgresql", "-U", "postgres", "-d", databaseName,
 		"-v", "ON_ERROR_STOP=1",
 		"-c", "CREATE TABLE IF NOT EXISTS public.mail (id BIGSERIAL PRIMARY KEY, mail VARCHAR(256))",
 	)
+	require.NoError(tb, result.Err, "create Postgres mail table:\n%s", result.Stderr)
 }
 
 func insertEmailAddress(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string, emailAddress string) {
 	tb.Helper()
 
-	dockerCompose.Exec(
-		tb,
+	result := dockerCompose.Exec(
 		"postgres-db",
 		"psql", "-h", "/run/postgresql", "-U", "postgres", "-d", databaseName,
 		"-v", "ON_ERROR_STOP=1",
 		"-c", "INSERT INTO public.mail(mail) VALUES ("+sqlStringLiteral(emailAddress)+")",
 	)
+	require.NoError(tb, result.Err, "insert Postgres email address:\n%s", result.Stderr)
 }
 
 func sqlStringLiteral(value string) string {

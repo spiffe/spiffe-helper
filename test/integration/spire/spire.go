@@ -95,7 +95,8 @@ func (e *Environment) RegisterEntry(tb testing.TB, entry Entry) {
 		args = append(args, "-x509SVIDTTL", strconv.FormatInt(int64(entry.TTL.Seconds()), 10))
 	}
 
-	e.dockerCompose.Exec(tb, "spire-server", args...)
+	result := e.dockerCompose.Exec("spire-server", args...)
+	require.NoError(tb, result.Err, "create SPIRE registration entry:\n%s", result.Stderr)
 }
 
 // UpdateEntry updates a SPIRE registration entry.
@@ -121,7 +122,8 @@ func (e *Environment) UpdateEntry(tb testing.TB, entry Entry) {
 		args = append(args, "-x509SVIDTTL", strconv.FormatInt(int64(entry.TTL.Seconds()), 10))
 	}
 
-	e.dockerCompose.Exec(tb, "spire-server", args...)
+	result := e.dockerCompose.Exec("spire-server", args...)
+	require.NoError(tb, result.Err, "update SPIRE registration entry:\n%s", result.Stderr)
 }
 
 // ShowEntry shows a SPIRE registration entry by SPIFFE ID.
@@ -130,12 +132,13 @@ func (e *Environment) ShowEntry(tb testing.TB, spiffeID string) string {
 
 	require.NotEmpty(tb, spiffeID, "entry SPIFFE ID is required")
 
-	return e.dockerCompose.Exec(
-		tb,
+	result := e.dockerCompose.Exec(
 		"spire-server",
 		"./bin/spire-server", "entry", "show",
 		"-spiffeID", spiffeID,
 	)
+	require.NoError(tb, result.Err, "show SPIRE registration entry:\n%s", result.Stderr)
+	return result.Stdout
 }
 
 func (e *Environment) entryID(tb testing.TB, spiffeID string) string {
@@ -202,9 +205,10 @@ func startServer(tb testing.TB, dockerCompose *dockercompose.Project) {
 func publishBundle(tb testing.TB, dockerCompose *dockercompose.Project, bundleDir string) {
 	tb.Helper()
 
-	bundle := dockerCompose.Exec(tb, "spire-server", "./bin/spire-server", "bundle", "show")
+	result := dockerCompose.Exec("spire-server", "./bin/spire-server", "bundle", "show")
+	require.NoError(tb, result.Err, "show SPIRE bundle:\n%s", result.Stderr)
 	bootstrapPath := filepath.Join(bundleDir, "bootstrap.crt")
-	require.NoError(tb, os.WriteFile(bootstrapPath, []byte(bundle), 0600), "write SPIRE agent bootstrap bundle")
+	require.NoError(tb, os.WriteFile(bootstrapPath, []byte(result.Stdout), 0600), "write SPIRE agent bootstrap bundle")
 }
 
 func startAgent(tb testing.TB, dockerCompose *dockercompose.Project) {

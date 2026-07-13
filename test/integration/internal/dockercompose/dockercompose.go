@@ -68,24 +68,12 @@ func (c *Project) Up(tb testing.TB, services ...string) {
 	c.mustRun(tb, args...)
 }
 
-// Exec runs a command in a docker compose service and fails the test on error.
-func (c *Project) Exec(tb testing.TB, service string, command ...string) string {
-	tb.Helper()
-
-	return c.mustRun(tb, execArgs(service, command)...)
-}
-
-// TryExec runs a command in a docker compose service and returns the result.
-func (c *Project) TryExec(service string, command ...string) Result {
+// Exec runs a command in a docker compose service and returns the result.
+func (c *Project) Exec(service string, command ...string) Result {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	stdout, stderr, err := c.run(ctx, execArgs(service, command)...)
-	return Result{
-		Stdout: stdout,
-		Stderr: stderr,
-		Err:    err,
-	}
+	return c.exec(ctx, service, command...)
 }
 
 // WaitForExec waits for a command in a docker compose service to succeed.
@@ -95,21 +83,20 @@ func (c *Project) WaitForExec(tb testing.TB, service string, timeout time.Durati
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	args := execArgs(service, command)
-
-	var lastError error
+	var lastResult Result
 	var lastStderr string
 	for ctx.Err() == nil {
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, 5*time.Second)
-		_, lastStderr, lastError = c.run(attemptCtx, args...)
+		lastResult = c.exec(attemptCtx, service, command...)
 		attemptCancel()
-		if lastError == nil {
+		lastStderr = lastResult.Stderr
+		if lastResult.Err == nil {
 			return
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	require.FailNow(tb, "timed out waiting for "+service, "%v\n%s", lastError, lastStderr)
+	require.FailNow(tb, "timed out waiting for "+service, "%v\n%s", lastResult.Err, lastStderr)
 }
 
 // Cleanup tears down the docker compose project for a test.
@@ -158,6 +145,15 @@ func execArgs(service string, command []string) []string {
 	args = append(args, execPrefix...)
 	args = append(args, command...)
 	return args
+}
+
+func (c *Project) exec(ctx context.Context, service string, command ...string) Result {
+	stdout, stderr, err := c.run(ctx, execArgs(service, command)...)
+	return Result{
+		Stdout: stdout,
+		Stderr: stderr,
+		Err:    err,
+	}
 }
 
 func (c *Project) run(ctx context.Context, args ...string) (string, string, error) {
