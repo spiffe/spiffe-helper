@@ -33,6 +33,8 @@ type Config struct {
 	Cmd                      string        `hcl:"cmd"`
 	CmdArgs                  string        `hcl:"cmd_args"`
 	PIDFilename              string        `hcl:"pid_file_name"`
+	Start                    StartConfig   `hcl:"start"`
+	Reload                   ReloadConfig  `hcl:"reload"`
 	CertDir                  string        `hcl:"cert_dir"`
 	CertFileMode             int           `hcl:"cert_file_mode"`
 	KeyFileMode              int           `hcl:"key_file_mode"`
@@ -53,6 +55,22 @@ type Config struct {
 	// JWT configuration
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids"`
 	JWTBundleFilename string      `hcl:"jwt_bundle_file_name"`
+
+	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
+}
+
+type StartConfig struct {
+	Cmd  string `hcl:"cmd"`
+	Args string `hcl:"args"`
+
+	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
+}
+
+type ReloadConfig struct {
+	Cmd         string `hcl:"cmd"`
+	Args        string `hcl:"args"`
+	Signal      string `hcl:"signal"`
+	PIDFilename string `hcl:"pid_file_name"`
 
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions"`
 }
@@ -99,6 +117,10 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		return err
 	}
 
+	if err := c.normalizeLifecycle(); err != nil {
+		return err
+	}
+
 	if err := validateOSConfig(c); err != nil {
 		return err
 	}
@@ -121,21 +143,24 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	}
 
 	if c.DaemonMode != nil && !*c.DaemonMode {
-		if c.Cmd != "" {
-			log.Warn("cmd is set but daemon_mode is false. cmd will be ignored. This may become an error in a future release.")
+		if c.Start.Cmd != "" {
+			log.Warn("start.cmd is set but daemon_mode is false. start.cmd will be ignored. This may become an error in a future release.")
 		}
-		if c.RenewSignal != "" {
-			log.Warn("renew_signal is set but daemon_mode is false. renew_signal will be ignored. This may become an error in a future release.")
+		if c.Reload.Cmd != "" {
+			log.Warn("reload.cmd is set but daemon_mode is false. reload.cmd will be ignored. This may become an error in a future release.")
+		}
+		if c.Reload.Signal != "" {
+			log.Warn("reload.signal is set but daemon_mode is false. reload.signal will be ignored. This may become an error in a future release.")
 		}
 		// pid_file_name is new enough that there should not be existing configurations that use it without daemon_mode
 		// so we can error here without backcompat worries. In future we may support one-shot signalling of a process, but
 		// it's ignored at the moment so we shouldn't allow the user to think it's doing something.
-		if c.PIDFilename != "" {
+		if c.Reload.PIDFilename != "" {
 			return errors.New("pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode")
 		}
 	}
 
-	if c.PIDFilename != "" && c.RenewSignal == "" {
+	if c.Reload.PIDFilename != "" && c.Reload.Signal == "" {
 		return errors.New("must specify renew_signal when using pid_file_name")
 	}
 
@@ -195,10 +220,46 @@ func (c *Config) checkForUnknownConfig() error {
 		return fmt.Errorf("unknown top level key(s): %s", mapKeysToString(c.UnusedKeyPositions))
 	}
 
+	if len(c.Start.UnusedKeyPositions) != 0 {
+		return fmt.Errorf("unknown key(s) in start: %s", mapKeysToString(c.Start.UnusedKeyPositions))
+	}
+
+	if len(c.Reload.UnusedKeyPositions) != 0 {
+		return fmt.Errorf("unknown key(s) in reload: %s", mapKeysToString(c.Reload.UnusedKeyPositions))
+	}
+
 	for i, jwtSVID := range c.JWTSVIDs {
 		if len(jwtSVID.UnusedKeyPositions) != 0 {
 			return fmt.Errorf("unknown key(s) in jwt_svids[%d]: %s", i, mapKeysToString(jwtSVID.UnusedKeyPositions))
 		}
+	}
+
+	return nil
+}
+
+func (c *Config) normalizeLifecycle() error {
+	if c.Cmd != "" && c.Start.Cmd != "" {
+		return errors.New("cmd cannot be used with start.cmd")
+	}
+	if c.CmdArgs != "" && c.Start.Args != "" {
+		return errors.New("cmd_args cannot be used with start.args")
+	}
+	if c.RenewSignal != "" && c.Reload.Signal != "" {
+		return errors.New("renew_signal cannot be used with reload.signal")
+	}
+	if c.PIDFilename != "" && c.Reload.PIDFilename != "" {
+		return errors.New("pid_file_name cannot be used with reload.pid_file_name")
+	}
+
+	if c.Cmd != "" {
+		c.Start.Cmd = c.Cmd
+		c.Start.Args = c.CmdArgs
+	}
+	if c.RenewSignal != "" {
+		c.Reload.Signal = c.RenewSignal
+	}
+	if c.PIDFilename != "" {
+		c.Reload.PIDFilename = c.PIDFilename
 	}
 
 	return nil
@@ -214,26 +275,50 @@ func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName stri
 }
 
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
+	start := config.Start
+	if start.Cmd == "" && config.Cmd != "" {
+		start.Cmd = config.Cmd
+		start.Args = config.CmdArgs
+	}
+
+	reload := config.Reload
+	if reload.Signal == "" {
+		reload.Signal = config.RenewSignal
+	}
+	if reload.PIDFilename == "" {
+		reload.PIDFilename = config.PIDFilename
+	}
+
 	sidecarConfig := &sidecar.Config{
 		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
 		AgentAddress:             config.AgentAddress,
 		Cmd:                      config.Cmd,
 		CmdArgs:                  config.CmdArgs,
 		PIDFilename:              config.PIDFilename,
-		CertDir:                  config.CertDir,
-		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec
-		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec
-		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
-		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
-		IncludeFederatedDomains:  config.IncludeFederatedDomains,
-		OmitExpired:              config.OmitExpired,
-		JWTBundleFilename:        config.JWTBundleFilename,
-		Log:                      log,
-		RenewSignal:              config.RenewSignal,
-		SVIDFilename:             config.SVIDFilename,
-		SVIDKeyFilename:          config.SVIDKeyFilename,
-		SVIDBundleFilename:       config.SVIDBundleFilename,
-		Hint:                     config.Hint,
+		Start: sidecar.StartConfig{
+			Cmd:  start.Cmd,
+			Args: start.Args,
+		},
+		Reload: sidecar.ReloadConfig{
+			Cmd:         reload.Cmd,
+			Args:        reload.Args,
+			Signal:      reload.Signal,
+			PIDFilename: reload.PIDFilename,
+		},
+		CertDir:                 config.CertDir,
+		CertFileMode:            fs.FileMode(config.CertFileMode),      //nolint:gosec
+		KeyFileMode:             fs.FileMode(config.KeyFileMode),       //nolint:gosec
+		JWTBundleFileMode:       fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
+		JWTSVIDFileMode:         fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
+		IncludeFederatedDomains: config.IncludeFederatedDomains,
+		OmitExpired:             config.OmitExpired,
+		JWTBundleFilename:       config.JWTBundleFilename,
+		Log:                     log,
+		RenewSignal:             config.RenewSignal,
+		SVIDFilename:            config.SVIDFilename,
+		SVIDKeyFilename:         config.SVIDKeyFilename,
+		SVIDBundleFilename:      config.SVIDBundleFilename,
+		Hint:                    config.Hint,
 	}
 
 	for _, jwtSVID := range config.JWTSVIDs {

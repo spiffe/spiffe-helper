@@ -18,6 +18,7 @@ const (
 	testBundleFilename = "bundle.pem"
 	testPIDFilename    = "pidfile"
 	testRenewSignal    = "SIGHUP"
+	testCmd            = "echo"
 	configAgentAddress = "MY_ADDRESS"
 	envAgentAddress    = "MY_ENV_ADDRESS"
 )
@@ -59,6 +60,47 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, 444, c.KeyFileMode)
 	assert.Equal(t, 444, c.JWTBundleFileMode)
 	assert.Equal(t, 444, c.JWTSVIDFileMode)
+}
+
+func TestParseLifecycleConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	configFile, err := os.CreateTemp(tempDir, "spiffe-helper")
+	require.NoError(t, err)
+
+	_, err = configFile.WriteString(`
+		agent_address = "/tmp/spire-agent/public/api.sock"
+		cert_dir = "certs"
+		svid_file_name = "svid.pem"
+		svid_key_file_name = "svid_key.pem"
+		svid_bundle_file_name = "svid_bundle.pem"
+
+		start {
+			cmd = "envoy"
+			args = "-c envoy.yaml"
+		}
+
+		reload {
+			cmd = "mysql"
+			args = "-e \"ALTER INSTANCE RELOAD TLS;\""
+			signal = "SIGHUP"
+			pid_file_name = "mysql.pid"
+		}
+	`)
+	require.NoError(t, err)
+	require.NoError(t, configFile.Close())
+
+	c, err := ParseConfigFile(configFile.Name())
+	require.NoError(t, err)
+
+	log, _ := test.NewNullLogger()
+	require.NoError(t, c.ValidateConfig(log))
+
+	assert.Equal(t, "envoy", c.Start.Cmd)
+	assert.Equal(t, "-c envoy.yaml", c.Start.Args)
+	assert.Equal(t, "mysql", c.Reload.Cmd)
+	assert.Equal(t, "-e \"ALTER INSTANCE RELOAD TLS;\"", c.Reload.Args)
+	assert.Equal(t, "SIGHUP", c.Reload.Signal)
+	assert.Equal(t, "mysql.pid", c.Reload.PIDFilename)
 }
 
 func TestValidateConfig(t *testing.T) {
@@ -184,13 +226,46 @@ func TestValidateConfig(t *testing.T) {
 			// are, but presently do not.
 			name: "renew_signal allowed without pid_file_name",
 			config: &Config{
-				Cmd:                "echo",
+				Cmd:                testCmd,
 				RenewSignal:        testRenewSignal,
 				AgentAddress:       testAgentAddress,
 				SVIDFilename:       testCertFilename,
 				SVIDKeyFilename:    testKeyFilename,
 				SVIDBundleFilename: testBundleFilename,
 			},
+			skipWindows: true,
+		},
+		{
+			name: "legacy lifecycle config normalizes to start and reload",
+			config: &Config{
+				Cmd:                testCmd,
+				CmdArgs:            "hello",
+				PIDFilename:        testPIDFilename,
+				RenewSignal:        testRenewSignal,
+				AgentAddress:       testAgentAddress,
+				SVIDFilename:       testCertFilename,
+				SVIDKeyFilename:    testKeyFilename,
+				SVIDBundleFilename: testBundleFilename,
+			},
+			skipWindows: true,
+		},
+		{
+			name: "cmd conflicts with start cmd",
+			config: &Config{
+				Cmd:         testCmd,
+				Start:       StartConfig{Cmd: "envoy"},
+				RenewSignal: testRenewSignal,
+			},
+			expectError: "cmd cannot be used with start.cmd",
+			skipWindows: true,
+		},
+		{
+			name: "renew signal conflicts with reload signal",
+			config: &Config{
+				RenewSignal: testRenewSignal,
+				Reload:      ReloadConfig{Signal: "SIGUSR1"},
+			},
+			expectError: "renew_signal cannot be used with reload.signal",
 			skipWindows: true,
 		},
 	} {
@@ -207,6 +282,13 @@ func TestValidateConfig(t *testing.T) {
 			}
 
 			require.NoError(t, err)
+
+			if tt.name == "legacy lifecycle config normalizes to start and reload" {
+				assert.Equal(t, tt.config.Cmd, tt.config.Start.Cmd)
+				assert.Equal(t, tt.config.CmdArgs, tt.config.Start.Args)
+				assert.Equal(t, tt.config.RenewSignal, tt.config.Reload.Signal)
+				assert.Equal(t, tt.config.PIDFilename, tt.config.Reload.PIDFilename)
+			}
 		})
 	}
 }
@@ -260,6 +342,26 @@ func TestDetectsUnknownConfig(t *testing.T) {
 					    ]
 				`,
 			expectError: "unknown key(s) in jwt_svids[1]: bar,foo",
+		},
+		{
+			name: "Unknown configuration in start",
+			config: `
+				start {
+					cmd = "envoy"
+					foo = "bar"
+				}
+				`,
+			expectError: "unknown key(s) in start: foo",
+		},
+		{
+			name: "Unknown configuration in reload",
+			config: `
+				reload {
+					signal = "SIGHUP"
+					foo = "bar"
+				}
+				`,
+			expectError: "unknown key(s) in reload: foo",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -338,6 +440,9 @@ func TestNewSidecarConfig(t *testing.T) {
 	config := &Config{
 		AgentAddress:            "my-agent-address",
 		Cmd:                     "my-cmd",
+		CmdArgs:                 "my-cmd-args",
+		RenewSignal:             "SIGHUP",
+		PIDFilename:             "my.pid",
 		CertDir:                 "my-cert-dir",
 		SVIDKeyFilename:         "my-key",
 		IncludeFederatedDomains: true,
@@ -355,6 +460,10 @@ func TestNewSidecarConfig(t *testing.T) {
 	// Ensure fields were populated correctly
 	assert.Equal(t, config.AgentAddress, sidecarConfig.AgentAddress)
 	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
+	assert.Equal(t, config.Cmd, sidecarConfig.Start.Cmd)
+	assert.Equal(t, config.CmdArgs, sidecarConfig.Start.Args)
+	assert.Equal(t, config.RenewSignal, sidecarConfig.Reload.Signal)
+	assert.Equal(t, config.PIDFilename, sidecarConfig.Reload.PIDFilename)
 	assert.Equal(t, config.CertDir, sidecarConfig.CertDir)
 	assert.Equal(t, config.SVIDKeyFilename, sidecarConfig.SVIDKeyFilename)
 	assert.Equal(t, config.IncludeFederatedDomains, sidecarConfig.IncludeFederatedDomains)
@@ -369,7 +478,6 @@ func TestNewSidecarConfig(t *testing.T) {
 
 	// Ensure empty fields were not populated
 	assert.Empty(t, sidecarConfig.SVIDFilename)
-	assert.Empty(t, sidecarConfig.RenewSignal)
 }
 
 func TestDaemonModeFlag(t *testing.T) {
