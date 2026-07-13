@@ -27,7 +27,10 @@ import (
 )
 
 const (
-	exampleSpiffeID = "spiffe://example.test/workload"
+	exampleSpiffeID        = "spiffe://example.test/workload"
+	testSVIDFileName       = "svid.pem"
+	testSVIDKeyFileName    = "svid_key.pem"
+	testSVIDBundleFileName = "svid_bundle.pem"
 )
 
 // sidecarTest is a helper struct to create a sidecar instance for testing.
@@ -163,12 +166,12 @@ func (s *sidecarTest) MockUpdateX509Certificate(ctx context.Context, t *testing.
 // defaultTestConfig provides default configuration values for tests
 func defaultTestConfig(certDir string) *Config {
 	return &Config{
-		Cmd: "echo",
+		Cmd: testEchoCommand,
 		X509Disk: disk.NewX509(disk.X509Config{
 			Dir:                certDir,
-			SVIDFileName:       "svid.pem",
-			SVIDKeyFileName:    "svid_key.pem",
-			SVIDBundleFileName: "svid_bundle.pem",
+			SVIDFileName:       testSVIDFileName,
+			SVIDKeyFileName:    testSVIDKeyFileName,
+			SVIDBundleFileName: testSVIDBundleFileName,
 			CertFileMode:       fs.FileMode(0644),
 			KeyFileMode:        fs.FileMode(0600),
 		}),

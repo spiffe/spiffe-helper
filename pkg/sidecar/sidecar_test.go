@@ -455,14 +455,14 @@ func TestSidecar_RunDaemon(t *testing.T) {
 			log, _ := test.NewNullLogger()
 			certDir := t.TempDir()
 			config := &Config{
-				Cmd:         "echo",
+				Cmd:         testEchoCommand,
 				Log:         log,
 				RenewSignal: testCase.renewSignal,
 				X509Disk: disk.NewX509(disk.X509Config{
 					Dir:                      certDir,
-					SVIDFileName:             "svid.pem",
-					SVIDKeyFileName:          "svid_key.pem",
-					SVIDBundleFileName:       "svid_bundle.pem",
+					SVIDFileName:             testSVIDFileName,
+					SVIDKeyFileName:          testSVIDKeyFileName,
+					SVIDBundleFileName:       testSVIDBundleFileName,
 					CertFileMode:             os.FileMode(0644),
 					KeyFileMode:              os.FileMode(0600),
 					AddIntermediatesToBundle: testCase.intermediateInBundle,
