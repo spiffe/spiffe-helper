@@ -1,0 +1,156 @@
+package postgres
+
+import (
+	"crypto/x509"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/spiffe/spiffe-helper/test/integration/internal/dockercompose"
+	"github.com/spiffe/spiffe-helper/test/util"
+	"github.com/stretchr/testify/require"
+)
+
+const (
+	postgresUID  = "7001"
+	databaseName = "test_db"
+)
+
+// Database manages the Postgres integration test database.
+type Database struct {
+	dockerCompose *dockercompose.Project
+}
+
+// QueryOptions contains options for querying the Postgres test database.
+type QueryOptions struct {
+	SSLMode string
+}
+
+// QueryResult contains the output and error from a Postgres query.
+type QueryResult struct {
+	Output string
+	Error  error
+}
+
+// Start starts the Postgres integration test database.
+func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
+	tb.Helper()
+	require.NotNil(tb, dockerCompose, "Docker Compose project is required")
+
+	dockerCompose.AddFile(tb, "postgres/compose.yaml", map[string]string{
+		"POSTGRES_UID": postgresUID,
+	})
+
+	dockerCompose.Up(tb, "postgres-db", "postgres-client")
+	dockerCompose.WaitForExec(
+		tb,
+		"postgres-db",
+		time.Minute,
+		"pg_isready", "-h", "/run/postgresql", "-U", "postgres",
+	)
+
+	createDatabase(tb, dockerCompose, databaseName)
+	createMailTable(tb, dockerCompose, databaseName)
+	insertEmailAddress(tb, dockerCompose, databaseName, "test@user.com")
+
+	return &Database{dockerCompose: dockerCompose}
+}
+
+// Selectors returns the SPIRE selectors for the Postgres test database.
+func Selectors() []string {
+	return []string{"unix:uid:" + postgresUID}
+}
+
+// ServerX509SVID returns the X509-SVID served by the Postgres test database.
+func (db *Database) ServerX509SVID() (*x509.Certificate, error) {
+	result := db.dockerCompose.Exec(
+		"postgres-client",
+		"sh", "-c",
+		"true | openssl s_client -starttls postgres -connect postgres-db:5432 -servername postgres-db -showcerts",
+	)
+	if result.Err != nil {
+		return nil, fmt.Errorf("read Postgres server certificate: %w\n%s", result.Err, result.Stderr)
+	}
+
+	cert, err := util.ParseCertificate([]byte(result.Stdout))
+	if err != nil {
+		return nil, fmt.Errorf("parse Postgres server certificate: %w", err)
+	}
+
+	return cert, nil
+}
+
+// Query runs the passed in query and its options on the Postgres container.
+func (db *Database) Query(tb testing.TB, query string, options QueryOptions) QueryResult {
+	tb.Helper()
+
+	sslMode := options.SSLMode
+	if sslMode == "" {
+		sslMode = "verify-full"
+	}
+
+	connectionString := "postgres://postgres@postgres-db:5432/" + databaseName + "?sslmode=" + sslMode +
+		"&sslrootcert=/run/postgresql/certs/root.crt"
+
+	result := db.dockerCompose.Exec(
+		"postgres-client",
+		"psql",
+		connectionString,
+		"-tA",
+		"-c", query,
+	)
+
+	return QueryResult{
+		Output: result.Stdout + result.Stderr,
+		Error:  queryError(result),
+	}
+}
+
+func queryError(result dockercompose.Result) error {
+	if result.Err == nil {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %s", result.Err, strings.TrimSpace(result.Stdout+result.Stderr))
+}
+
+func createDatabase(tb testing.TB, dockerCompose *dockercompose.Project, name string) {
+	tb.Helper()
+
+	result := dockerCompose.Exec(
+		"postgres-db",
+		"psql", "-h", "/run/postgresql", "-U", "postgres", "-d", "postgres",
+		"-v", "ON_ERROR_STOP=1",
+		"-c", "CREATE DATABASE "+name,
+	)
+	require.NoError(tb, result.Err, "create Postgres database:\n%s", result.Stderr)
+}
+
+func createMailTable(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string) {
+	tb.Helper()
+
+	result := dockerCompose.Exec(
+		"postgres-db",
+		"psql", "-h", "/run/postgresql", "-U", "postgres", "-d", databaseName,
+		"-v", "ON_ERROR_STOP=1",
+		"-c", "CREATE TABLE IF NOT EXISTS public.mail (id BIGSERIAL PRIMARY KEY, mail VARCHAR(256))",
+	)
+	require.NoError(tb, result.Err, "create Postgres mail table:\n%s", result.Stderr)
+}
+
+func insertEmailAddress(tb testing.TB, dockerCompose *dockercompose.Project, databaseName string, emailAddress string) {
+	tb.Helper()
+
+	result := dockerCompose.Exec(
+		"postgres-db",
+		"psql", "-h", "/run/postgresql", "-U", "postgres", "-d", databaseName,
+		"-v", "ON_ERROR_STOP=1",
+		"-c", "INSERT INTO public.mail(mail) VALUES ("+sqlStringLiteral(emailAddress)+")",
+	)
+	require.NoError(tb, result.Err, "insert Postgres email address:\n%s", result.Stderr)
+}
+
+func sqlStringLiteral(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}

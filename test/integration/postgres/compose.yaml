@@ -1,0 +1,27 @@
+services:
+  postgres-db:
+    image: spiffe-helper-integration-postgres:local
+    build:
+      context: ../../..
+      dockerfile: test/integration/postgres/Dockerfile
+      args:
+        go_version: ${GO_VERSION}
+        postgres_uid: ${POSTGRES_UID}
+    hostname: postgres-db
+    depends_on:
+      - spire-agent
+    command: ["/opt/helper/spiffe-helper", "-config", "/opt/spire/conf/postgres/helper.conf"]
+    volumes:
+      - workload-api:/run/spire
+      - postgres-certs:/run/postgresql/certs
+
+  postgres-client:
+    image: spiffe-helper-integration-postgres:local
+    depends_on:
+      - postgres-db
+    command: ["sleep", "infinity"]
+    volumes:
+      - postgres-certs:/run/postgresql/certs:ro
+
+volumes:
+  postgres-certs:
