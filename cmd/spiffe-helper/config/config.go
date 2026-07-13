@@ -252,7 +252,7 @@ func (c *Config) normalizeLifecycle(log logrus.FieldLogger) error {
 	}
 
 	if c.Cmd != "" {
-		log.Warn("cmd and cmd_args are deprecated and will be removed in a future release. Use start { cmd = ... args = ... } for a managed long-running process, or reload { cmd = ... args = ... } for a one-shot reload command.")
+		log.Warn("cmd and cmd_args are deprecated and will be removed in a future release. Use:\nstart {\n  cmd = ...\n  args = ...\n}\nfor a managed long-running process, or:\nreload {\n  cmd = ...\n  args = ...\n}\nfor a one-shot reload command.")
 		c.Start.Cmd = c.Cmd
 		c.Start.Args = c.CmdArgs
 	}
