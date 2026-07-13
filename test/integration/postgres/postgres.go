@@ -17,19 +17,23 @@ const (
 	databaseName = "test_db"
 )
 
+// Database manages the Postgres integration test database.
 type Database struct {
 	dockerCompose *dockercompose.Project
 }
 
+// QueryOptions contains options for querying the Postgres test database.
 type QueryOptions struct {
 	SSLMode string
 }
 
+// QueryResult contains the output and error from a Postgres query.
 type QueryResult struct {
 	Output string
 	Error  error
 }
 
+// Start starts the Postgres integration test database.
 func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
 	tb.Helper()
 	require.NotNil(tb, dockerCompose, "Docker Compose project is required")
@@ -53,10 +57,12 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
 	return &Database{dockerCompose: dockerCompose}
 }
 
+// Selectors returns the SPIRE selectors for the Postgres test database.
 func Selectors() []string {
 	return []string{"unix:uid:" + postgresUID}
 }
 
+// ServerX509SVID returns the X509-SVID served by the Postgres test database.
 func (db *Database) ServerX509SVID() (*x509.Certificate, error) {
 	result := db.dockerCompose.TryExec(
 		"postgres-client",
@@ -75,6 +81,7 @@ func (db *Database) ServerX509SVID() (*x509.Certificate, error) {
 	return cert, nil
 }
 
+// Query runs the passed in query and its options on the Postgres container.
 func (db *Database) Query(tb testing.TB, query string, options QueryOptions) QueryResult {
 	tb.Helper()
 

@@ -21,12 +21,14 @@ const (
 	spireWait   = 60 * time.Second
 )
 
+// Environment manages the SPIRE integration test environment.
 type Environment struct {
 	dockerCompose *dockercompose.Project
 	AgentParentID string
 	bundleDir     string
 }
 
+// Entry contains the SPIRE registration entry fields used by integration tests.
 type Entry struct {
 	SPIFFEID  string
 	Selectors []string
@@ -34,6 +36,7 @@ type Entry struct {
 	TTL       time.Duration
 }
 
+// Start starts the SPIRE server and agent for integration tests.
 func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Environment {
 	tb.Helper()
 	require.NotNil(tb, dockerCompose, "Docker Compose project is required")
@@ -57,6 +60,7 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Environment {
 	}
 }
 
+// Cleanup removes SPIRE runtime files created for integration tests.
 func (e *Environment) Cleanup(logf func(string, ...any)) {
 	if logf == nil {
 		logf = func(string, ...any) {}
@@ -69,6 +73,7 @@ func (e *Environment) Cleanup(logf func(string, ...any)) {
 	}
 }
 
+// RegisterEntry creates a SPIRE registration entry.
 func (e *Environment) RegisterEntry(tb testing.TB, entry Entry) {
 	tb.Helper()
 
@@ -93,6 +98,7 @@ func (e *Environment) RegisterEntry(tb testing.TB, entry Entry) {
 	e.dockerCompose.Exec(tb, "spire-server", args...)
 }
 
+// UpdateEntry updates a SPIRE registration entry.
 func (e *Environment) UpdateEntry(tb testing.TB, entry Entry) {
 	tb.Helper()
 
@@ -118,6 +124,7 @@ func (e *Environment) UpdateEntry(tb testing.TB, entry Entry) {
 	e.dockerCompose.Exec(tb, "spire-server", args...)
 }
 
+// ShowEntry shows a SPIRE registration entry by SPIFFE ID.
 func (e *Environment) ShowEntry(tb testing.TB, spiffeID string) string {
 	tb.Helper()
 

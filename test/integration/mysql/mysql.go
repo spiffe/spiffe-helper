@@ -14,19 +14,23 @@ import (
 
 const mysqlUID = "0"
 
+// Database manages the MySQL integration test database.
 type Database struct {
 	dockerCompose *dockercompose.Project
 }
 
+// QueryOptions contains options for querying the MySQL test database.
 type QueryOptions struct {
 	SSLMode string
 }
 
+// QueryResult contains the output and error from a MySQL query.
 type QueryResult struct {
 	Output string
 	Error  error
 }
 
+// Start starts the MySQL integration test database.
 func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
 	tb.Helper()
 	require.NotNil(tb, dockerCompose, "Docker Compose project is required")
@@ -48,10 +52,12 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
 	return db
 }
 
+// Selectors returns the SPIRE selectors for the MySQL test database.
 func Selectors() []string {
 	return []string{"unix:uid:" + mysqlUID}
 }
 
+// ServerX509SVID returns the X509-SVID served by the MySQL test database.
 func (db *Database) ServerX509SVID() (*x509.Certificate, error) {
 	result := db.dockerCompose.TryExec(
 		"mysql-client",
@@ -70,6 +76,7 @@ func (db *Database) ServerX509SVID() (*x509.Certificate, error) {
 	return cert, nil
 }
 
+// Query runs the passed in query and its options on the MySQL container.
 func (db *Database) Query(tb testing.TB, query string, options QueryOptions) QueryResult {
 	tb.Helper()
 
