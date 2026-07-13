@@ -40,7 +40,13 @@ func TestWriteJWTBundleSet(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	err := WriteJWTBundleSet(jwtBundleSet, tempDir, jwtBundleFilename, jwtBundleFileMode)
+	jwtDisk := NewJWT(JWTConfig{
+		Dir:            tempDir,
+		BundleFileName: jwtBundleFilename,
+		BundleFileMode: jwtBundleFileMode,
+	})
+
+	err := jwtDisk.WriteJWTBundleSet(jwtBundleSet)
 	require.NoError(t, err)
 
 	actualJWTBundle, err := jwtbundle.Load(td, path.Join(tempDir, jwtBundleFilename))
@@ -73,7 +79,14 @@ func TestWriteJWTSVIDNoHint(t *testing.T) {
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, "")
+
+	jwtDisk := NewJWT(JWTConfig{
+		Dir:            tempDir,
+		BundleFileName: jwtBundleFilename,
+		BundleFileMode: jwtBundleFileMode,
+		SVIDFileMode:   jwtSVIDFileMode,
+	})
+	err = jwtDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFilename)
 	require.NoError(t, err)
 
 	// Read back and check it's the same
@@ -98,10 +111,9 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 	}
 	token := generateToken(t, claims, key, "key")
 
-	// Create SVID
 	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{testJWTAudience})
-	jwtSVID.Hint = "first"
 	require.NoError(t, err)
+	jwtSVID.Hint = "first"
 
 	// Generate Token2
 	claims = jwt.Claims{
@@ -113,17 +125,24 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 	}
 	token = generateToken(t, claims, key, "key")
 
-	// Create SVID
 	jwtSVID2, err := jwtsvid.ParseInsecure(token, []string{testJWTAudience})
-	jwtSVID2.Hint = testJWTSVIDHint
 	require.NoError(t, err)
+	jwtSVID2.Hint = testJWTSVIDHint
 
 	// Create SVID array
 	jwtSVIDs := []*jwtsvid.SVID{jwtSVID, jwtSVID2}
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, testJWTSVIDHint)
+
+	jwtDisk := NewJWT(JWTConfig{
+		Dir:            tempDir,
+		BundleFileName: jwtBundleFilename,
+		BundleFileMode: jwtBundleFileMode,
+		SVIDFileMode:   jwtSVIDFileMode,
+		Hint:           testJWTSVIDHint,
+	})
+	err = jwtDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFilename)
 	require.NoError(t, err)
 
 	// Read back and check it's the same
