@@ -23,21 +23,21 @@ func TestPostgresQueries(t *testing.T) {
 	requirePostgresServerDNSName(t, spireEnv, postgresDB, postgresDNSName)
 
 	tests := []struct {
-		name              string
-		sslMode           string
-		wantErrorContains string
-		wantOutput        string
+		name           string
+		sslMode        string
+		expectedError  string
+		expectedOutput string
 	}{
 		{
-			name:       "tls connection succeeds",
-			sslMode:    "verify-full",
-			wantOutput: "test@user.com",
+			name:           "tls connection succeeds",
+			sslMode:        "verify-full",
+			expectedOutput: "test@user.com",
 		},
 		{
-			name:              "plaintext connection fails",
-			sslMode:           "disable",
-			wantErrorContains: "pg_hba.conf",
-			wantOutput:        "pg_hba.conf",
+			name:           "plaintext connection fails",
+			sslMode:        "disable",
+			expectedError:  "pg_hba.conf",
+			expectedOutput: "pg_hba.conf",
 		},
 	}
 
@@ -47,13 +47,13 @@ func TestPostgresQueries(t *testing.T) {
 				SSLMode: tt.sslMode,
 			})
 
-			require.Contains(t, result.Output, tt.wantOutput)
-			if tt.wantErrorContains == "" {
-				require.NoError(t, result.Error)
+			require.Contains(t, result.Output, tt.expectedOutput)
+
+			if tt.expectedError != "" {
+				require.ErrorContains(t, result.Error, tt.expectedError)
 				return
 			}
-
-			require.ErrorContains(t, result.Error, tt.wantErrorContains)
+			require.NoError(t, result.Error)
 		})
 	}
 }

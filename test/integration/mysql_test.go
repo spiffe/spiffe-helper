@@ -23,21 +23,21 @@ func TestMySQLQueries(t *testing.T) {
 	requireMySQLServerDNSName(t, spireEnv, mysqlDB, mysqlDNSName)
 
 	tests := []struct {
-		name              string
-		sslMode           string
-		wantErrorContains string
-		wantOutput        string
+		name           string
+		sslMode        string
+		expectedError  string
+		expectedOutput string
 	}{
 		{
-			name:       "tls connection succeeds",
-			sslMode:    "VERIFY_CA",
-			wantOutput: "test@user.com",
+			name:           "tls connection succeeds",
+			sslMode:        "VERIFY_CA",
+			expectedOutput: "test@user.com",
 		},
 		{
-			name:              "plaintext connection fails",
-			sslMode:           "DISABLED",
-			wantErrorContains: "secure transport",
-			wantOutput:        "secure transport",
+			name:           "plaintext connection fails",
+			sslMode:        "DISABLED",
+			expectedError:  "secure transport",
+			expectedOutput: "secure transport",
 		},
 	}
 
@@ -47,13 +47,13 @@ func TestMySQLQueries(t *testing.T) {
 				SSLMode: tt.sslMode,
 			})
 
-			require.Contains(t, result.Output, tt.wantOutput)
-			if tt.wantErrorContains == "" {
-				require.NoError(t, result.Error)
+			require.Contains(t, result.Output, tt.expectedOutput)
+
+			if tt.expectedError != "" {
+				require.ErrorContains(t, result.Error, tt.expectedError)
 				return
 			}
-
-			require.ErrorContains(t, result.Error, tt.wantErrorContains)
+			require.NoError(t, result.Error)
 		})
 	}
 }
