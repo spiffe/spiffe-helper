@@ -251,35 +251,66 @@ func (c *Config) normalizeLifecycle(log logrus.FieldLogger) error {
 		return errors.New("pid_file_name cannot be used with reload.pid_file_name")
 	}
 
+	if c.Cmd != "" || c.CmdArgs != "" || c.RenewSignal != "" || c.PIDFilename != "" {
+		log.Warn(legacyLifecycleDeprecationWarning(c))
+	}
+
 	if c.Cmd != "" {
-		log.Warn(legacyCommandDeprecationWarning(c.Cmd, c.CmdArgs))
 		c.Start.Cmd = c.Cmd
 		c.Start.Args = c.CmdArgs
 	}
 	if c.RenewSignal != "" {
-		log.Warn("renew_signal is deprecated and will be removed in a future release. Use reload.signal instead.")
 		c.Reload.Signal = c.RenewSignal
 	}
 	if c.PIDFilename != "" {
-		log.Warn("pid_file_name is deprecated and will be removed in a future release. Use reload.pid_file_name instead.")
 		c.Reload.PIDFilename = c.PIDFilename
 	}
 
 	return nil
 }
 
-func legacyCommandDeprecationWarning(cmd string, args string) string {
-	return fmt.Sprintf(`cmd and cmd_args are deprecated and will be removed in a future release.
-If cmd starts a managed long-running process, use:
-start {
-  cmd = %q
-  args = %q
+func legacyLifecycleDeprecationWarning(config *Config) string {
+	message := "cmd, cmd_args, renew_signal, and pid_file_name are deprecated and will be removed in a future release."
+
+	if config.Cmd != "" || config.CmdArgs != "" {
+		message += "\nIf cmd starts a managed long-running process, use:\n" + hclBlock("start",
+			hclField{name: "cmd", value: config.Cmd},
+			hclField{name: "args", value: config.CmdArgs},
+		)
+	}
+
+	message += "\nIf cmd runs a one-shot reload command or a PID file is signaled, use:\n" + hclBlock("reload",
+		hclField{name: "cmd", value: config.Cmd},
+		hclField{name: "args", value: config.CmdArgs},
+		hclField{name: "signal", value: config.RenewSignal},
+		hclField{name: "pid_file_name", value: config.PIDFilename},
+	)
+
+	return message
 }
-If cmd runs a one-shot reload command, use:
-reload {
-  cmd = %q
-  args = %q
-}`, cmd, args, cmd, args)
+
+type hclField struct {
+	name  string
+	value string
+}
+
+func hclFields(fields ...hclField) string {
+	var lines []string
+	for _, field := range fields {
+		if field.value == "" {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("  %s = %q", field.name, field.value))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func hclBlock(name string, fields ...hclField) string {
+	fieldLines := hclFields(fields...)
+	if fieldLines == "" {
+		return name + " {\n}"
+	}
+	return fmt.Sprintf("%s {\n%s\n}", name, fieldLines)
 }
 
 func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {

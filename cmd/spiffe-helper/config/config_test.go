@@ -103,6 +103,18 @@ func TestParseLifecycleConfig(t *testing.T) {
 	assert.Equal(t, "mysql.pid", c.Reload.PIDFilename)
 }
 
+func TestLegacyLifecycleDeprecationWarningOmitsUnsetFields(t *testing.T) {
+	warning := legacyLifecycleDeprecationWarning(&Config{
+		PIDFilename: testPIDFilename,
+		RenewSignal: testRenewSignal,
+	})
+
+	assert.Equal(t, "cmd, cmd_args, renew_signal, and pid_file_name are deprecated and will be removed in a future release.\nIf cmd runs a one-shot reload command or a PID file is signaled, use:\nreload {\n  signal = \"SIGHUP\"\n  pid_file_name = \"pidfile\"\n}", warning)
+	assert.NotContains(t, warning, "start {")
+	assert.NotContains(t, warning, "cmd =")
+	assert.NotContains(t, warning, "args =")
+}
+
 func TestValidateConfig(t *testing.T) {
 	for _, tt := range []struct {
 		name        string
@@ -290,10 +302,8 @@ func TestValidateConfig(t *testing.T) {
 				assert.Equal(t, tt.config.PIDFilename, tt.config.Reload.PIDFilename)
 
 				entries := hook.AllEntries()
-				require.Len(t, entries, 3)
-				assert.Equal(t, "cmd and cmd_args are deprecated and will be removed in a future release.\nIf cmd starts a managed long-running process, use:\nstart {\n  cmd = \"echo\"\n  args = \"hello\"\n}\nIf cmd runs a one-shot reload command, use:\nreload {\n  cmd = \"echo\"\n  args = \"hello\"\n}", entries[0].Message)
-				assert.Equal(t, "renew_signal is deprecated and will be removed in a future release. Use reload.signal instead.", entries[1].Message)
-				assert.Equal(t, "pid_file_name is deprecated and will be removed in a future release. Use reload.pid_file_name instead.", entries[2].Message)
+				require.Len(t, entries, 1)
+				assert.Equal(t, "cmd, cmd_args, renew_signal, and pid_file_name are deprecated and will be removed in a future release.\nIf cmd starts a managed long-running process, use:\nstart {\n  cmd = \"echo\"\n  args = \"hello\"\n}\nIf cmd runs a one-shot reload command or a PID file is signaled, use:\nreload {\n  cmd = \"echo\"\n  args = \"hello\"\n  signal = \"SIGHUP\"\n  pid_file_name = \"pidfile\"\n}", entries[0].Message)
 			}
 		})
 	}
