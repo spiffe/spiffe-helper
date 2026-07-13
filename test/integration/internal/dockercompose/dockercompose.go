@@ -42,7 +42,7 @@ func New() *Project {
 	}
 }
 
-func (c *Project) Load(tb testing.TB, file string, environment map[string]string) {
+func (c *Project) AddFile(tb testing.TB, file string, environment map[string]string) {
 	tb.Helper()
 
 	require.NotEmpty(tb, file, "Compose file is required")

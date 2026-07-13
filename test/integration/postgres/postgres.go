@@ -34,7 +34,7 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
 	tb.Helper()
 	require.NotNil(tb, dockerCompose, "Docker Compose project is required")
 
-	dockerCompose.Load(tb, "postgres/compose.yaml", map[string]string{
+	dockerCompose.AddFile(tb, "postgres/compose.yaml", map[string]string{
 		"POSTGRES_UID": postgresUID,
 	})
 

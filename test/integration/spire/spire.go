@@ -40,7 +40,7 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Environment {
 
 	bundleDir := spireBundleDir(tb)
 
-	dockerCompose.Load(tb, "spire/compose.yaml", map[string]string{
+	dockerCompose.AddFile(tb, "spire/compose.yaml", map[string]string{
 		"SPIRE_BUNDLE_DIR": bundleDir,
 		"GO_VERSION":       readGoVersion(tb, moduleRoot),
 	})
