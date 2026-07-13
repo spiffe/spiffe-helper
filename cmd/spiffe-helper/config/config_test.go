@@ -291,7 +291,7 @@ func TestValidateConfig(t *testing.T) {
 
 				entries := hook.AllEntries()
 				require.Len(t, entries, 3)
-				assert.Equal(t, "cmd and cmd_args are deprecated and will be removed in a future release. Use:\nstart {\n  cmd = ...\n  args = ...\n}\nfor a managed long-running process, or:\nreload {\n  cmd = ...\n  args = ...\n}\nfor a one-shot reload command.", entries[0].Message)
+				assert.Equal(t, "cmd and cmd_args are deprecated and will be removed in a future release.\nIf cmd starts a managed long-running process, use:\nstart {\n  cmd = \"echo\"\n  args = \"hello\"\n}\nIf cmd runs a one-shot reload command, use:\nreload {\n  cmd = \"echo\"\n  args = \"hello\"\n}", entries[0].Message)
 				assert.Equal(t, "renew_signal is deprecated and will be removed in a future release. Use reload.signal instead.", entries[1].Message)
 				assert.Equal(t, "pid_file_name is deprecated and will be removed in a future release. Use reload.pid_file_name instead.", entries[2].Message)
 			}

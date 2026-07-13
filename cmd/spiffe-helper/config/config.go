@@ -252,7 +252,7 @@ func (c *Config) normalizeLifecycle(log logrus.FieldLogger) error {
 	}
 
 	if c.Cmd != "" {
-		log.Warn("cmd and cmd_args are deprecated and will be removed in a future release. Use:\nstart {\n  cmd = ...\n  args = ...\n}\nfor a managed long-running process, or:\nreload {\n  cmd = ...\n  args = ...\n}\nfor a one-shot reload command.")
+		log.Warn(legacyCommandDeprecationWarning(c.Cmd, c.CmdArgs))
 		c.Start.Cmd = c.Cmd
 		c.Start.Args = c.CmdArgs
 	}
@@ -266,6 +266,20 @@ func (c *Config) normalizeLifecycle(log logrus.FieldLogger) error {
 	}
 
 	return nil
+}
+
+func legacyCommandDeprecationWarning(cmd string, args string) string {
+	return fmt.Sprintf(`cmd and cmd_args are deprecated and will be removed in a future release.
+If cmd starts a managed long-running process, use:
+start {
+  cmd = %q
+  args = %q
+}
+If cmd runs a one-shot reload command, use:
+reload {
+  cmd = %q
+  args = %q
+}`, cmd, args, cmd, args)
 }
 
 func ParseConfig(configFile string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
