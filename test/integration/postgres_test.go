@@ -64,11 +64,7 @@ func TestPostgresServerCertificateUpdatesAfterRegistrationEntryChange(t *testing
 
 	updatePostgresServerDNSName(t, spireEnv, updatedPostgresDNSName)
 
-	require.EventuallyWithT(t, func(collect *assert.CollectT) {
-		cert, err := postgresDB.ServerX509SVID()
-		require.NoError(collect, err)
-		require.Equal(collect, []string{updatedPostgresDNSName}, cert.DNSNames)
-	}, 2*time.Minute, time.Second)
+	requirePostgresServerCertificate(t, postgresDB, updatedPostgresDNSName)
 }
 
 func requirePostgresServerDNSName(t *testing.T, spireEnv *spire.Environment, postgresDB *postgres.Database, dnsName string) {
@@ -92,9 +88,11 @@ func updatePostgresServerDNSName(t *testing.T, spireEnv *spire.Environment, dnsN
 func requirePostgresServerCertificate(t *testing.T, postgresDB *postgres.Database, dnsName string) {
 	t.Helper()
 
-	cert, err := postgresDB.ServerX509SVID()
-	require.NoError(t, err)
-	require.Len(t, cert.URIs, 1)
-	require.Equal(t, postgresSPIFFEID, cert.URIs[0].String())
-	require.Equal(t, []string{dnsName}, cert.DNSNames)
+	require.EventuallyWithT(t, func(collect *assert.CollectT) {
+		cert, err := postgresDB.ServerX509SVID()
+		require.NoError(collect, err)
+		require.Len(collect, cert.URIs, 1)
+		require.Equal(collect, postgresSPIFFEID, cert.URIs[0].String())
+		require.Equal(collect, []string{dnsName}, cert.DNSNames)
+	}, 2*time.Minute, time.Second)
 }

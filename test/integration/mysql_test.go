@@ -64,11 +64,7 @@ func TestMySQLServerCertificateUpdatesAfterRegistrationEntryChange(t *testing.T)
 
 	updateMySQLServerDNSName(t, spireEnv, updatedMySQLDNSName)
 
-	require.EventuallyWithT(t, func(collect *assert.CollectT) {
-		cert, err := mysqlDB.ServerX509SVID()
-		require.NoError(collect, err)
-		require.Equal(collect, []string{updatedMySQLDNSName}, cert.DNSNames)
-	}, 2*time.Minute, time.Second)
+	requireMySQLServerCertificate(t, mysqlDB, updatedMySQLDNSName)
 }
 
 func requireMySQLServerDNSName(t *testing.T, spireEnv *spire.Environment, mysqlDB *mysql.Database, dnsName string) {
@@ -92,9 +88,11 @@ func updateMySQLServerDNSName(t *testing.T, spireEnv *spire.Environment, dnsName
 func requireMySQLServerCertificate(t *testing.T, mysqlDB *mysql.Database, dnsName string) {
 	t.Helper()
 
-	cert, err := mysqlDB.ServerX509SVID()
-	require.NoError(t, err)
-	require.Len(t, cert.URIs, 1)
-	require.Equal(t, mysqlSPIFFEID, cert.URIs[0].String())
-	require.Equal(t, []string{dnsName}, cert.DNSNames)
+	require.EventuallyWithT(t, func(collect *assert.CollectT) {
+		cert, err := mysqlDB.ServerX509SVID()
+		require.NoError(collect, err)
+		require.Len(collect, cert.URIs, 1)
+		require.Equal(collect, mysqlSPIFFEID, cert.URIs[0].String())
+		require.Equal(collect, []string{dnsName}, cert.DNSNames)
+	}, 2*time.Minute, time.Second)
 }
