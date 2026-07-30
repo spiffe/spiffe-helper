@@ -43,10 +43,9 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Environment {
 
 	bundleDir := spireBundleDir(tb)
 
-	dockerCompose.AddFile(tb, "spire/compose.yaml", map[string]string{
-		"SPIRE_BUNDLE_DIR": bundleDir,
-		"GO_VERSION":       readGoVersion(tb, moduleRoot),
-	})
+	dockerCompose.AddFile(tb, "spire/compose.yaml")
+	dockerCompose.AddGlobalEnv(tb, "SPIRE_BUNDLE_DIR", bundleDir)
+	dockerCompose.AddGlobalEnv(tb, "GO_VERSION", readGoVersion(tb, moduleRoot))
 
 	startServer(tb, dockerCompose)
 	publishBundle(tb, dockerCompose, bundleDir)

@@ -28,6 +28,7 @@ type Project struct {
 	projectName string
 	files       []string
 	env         []string
+	envKeys     map[string]struct{}
 }
 
 // Result contains the output and error from a docker compose command.
@@ -42,19 +43,27 @@ func New() *Project {
 	return &Project{
 		projectName: "spiffe-helper-it-" + strconv.Itoa(os.Getpid()) + "-" + strconv.FormatUint(projectSequence.Add(1), 10),
 		env:         os.Environ(),
+		envKeys:     make(map[string]struct{}),
 	}
 }
 
-// AddFile adds a docker compose file along with its environment to be managed together.
-func (c *Project) AddFile(tb testing.TB, file string, environment map[string]string) {
+// AddFile adds a docker compose file to be managed by this project.
+func (c *Project) AddFile(tb testing.TB, file string) {
 	tb.Helper()
 
 	require.NotEmpty(tb, file, "Compose file is required")
 	c.files = append(c.files, file)
-	for key, value := range environment {
-		require.NotEmpty(tb, key, "environment variable key is required")
-		c.env = append(c.env, key+"="+value)
-	}
+}
+
+// AddGlobalEnv adds a variable to the global environment used for compose file interpolation.
+func (c *Project) AddGlobalEnv(tb testing.TB, key string, value string) {
+	tb.Helper()
+
+	require.NotEmpty(tb, key, "environment variable key is required")
+	require.NotContains(tb, c.envKeys, key, "environment variable %q is already configured", key)
+
+	c.env = append(c.env, key+"="+value)
+	c.envKeys[key] = struct{}{}
 }
 
 // Up is the equivalent of "docker compose up".

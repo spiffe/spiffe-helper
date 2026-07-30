@@ -40,7 +40,7 @@ func Start(tb testing.TB, dockerCompose *dockercompose.Project) *Database {
 	tb.Helper()
 	require.NotNil(tb, dockerCompose, "Docker Compose project is required")
 
-	dockerCompose.AddFile(tb, "mysql/compose.yaml", nil)
+	dockerCompose.AddFile(tb, "mysql/compose.yaml")
 
 	dockerCompose.Up(tb, "mysql-db", "mysql-helper", "mysql-client")
 	dockerCompose.WaitForExec(
