@@ -19,6 +19,8 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
+          cache: true
+          cache-dependency-path: 'go.sum'
       - name: Run integration tests
         run: make integration-test-verbose
 

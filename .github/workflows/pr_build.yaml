@@ -103,11 +103,8 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - name: Load cached deps
-        uses: actions/cache@v6
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          cache: true
+          cache-dependency-path: 'go.sum'
       - name: Run integration tests
         run: make integration-test-verbose
 
