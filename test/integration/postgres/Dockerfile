@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 go build -o /spiffe-helper ./cmd/spiffe-helper
 
-FROM alpine:3.22
+FROM alpine:3.24
 
 ARG postgres_uid
 RUN addgroup -g "${postgres_uid}" postgres \
