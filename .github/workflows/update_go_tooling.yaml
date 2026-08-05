@@ -34,7 +34,7 @@ jobs:
 
       - name: Setup Go
         if: steps.update_go.outputs.changed == 'true' || steps.update_lint.outputs.changed == 'true'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
