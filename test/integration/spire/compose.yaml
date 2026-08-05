@@ -1,0 +1,25 @@
+services:
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.15.1
+    hostname: spire-server
+    command: ["-config", "/opt/spire/conf/server/server.conf"]
+    volumes:
+      - ./conf/server/server.conf:/opt/spire/conf/server/server.conf:ro
+      - ./conf/server/agent-cacert.pem:/opt/spire/conf/server/agent-cacert.pem:ro
+
+  spire-agent:
+    image: ghcr.io/spiffe/spire-agent:1.15.1
+    hostname: spire-agent
+    pid: "host"
+    depends_on:
+      - spire-server
+    command: ["-config", "/opt/spire/conf/agent/agent.conf"]
+    volumes:
+      - ./conf/agent/agent.conf:/opt/spire/conf/agent/agent.conf:ro
+      - ./conf/agent/agent.crt.pem:/opt/spire/conf/agent/agent.crt.pem:ro
+      - ./conf/agent/agent.key.pem:/opt/spire/conf/agent/agent.key.pem:ro
+      - ${SPIRE_BUNDLE_DIR}/bootstrap.crt:/opt/spire/conf/agent/bootstrap.crt:ro
+      - workload-api:/run/spire
+
+volumes:
+  workload-api:
