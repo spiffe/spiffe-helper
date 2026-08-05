@@ -1,0 +1,67 @@
+name: Update Go Tooling
+
+on:
+  schedule:
+    # Random minute number to avoid GH scheduler stampede
+    - cron: '23 16 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  update-go-tooling:
+    runs-on: ubuntu-22.04
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Update Go version
+        id: update_go
+        uses: faisal-memon/update-go-mod-action@v1
+
+      - name: Update golangci-lint version
+        id: update_lint
+        uses: faisal-memon/update-golangci-lint-action@v1
+        with:
+          update-version-file: 'true'
+          version-file-path: .versions
+
+      - name: Setup Go
+        if: steps.update_go.outputs.changed == 'true' || steps.update_lint.outputs.changed == 'true'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Apply lint fixes
+        if: steps.update_go.outputs.changed == 'true' || steps.update_lint.outputs.changed == 'true'
+        continue-on-error: true
+        run: make lint-fix
+
+      - name: Tidy Go modules
+        if: steps.update_go.outputs.changed == 'true' || steps.update_lint.outputs.changed == 'true'
+        run: make tidy
+
+      - name: Create pull request
+        if: steps.update_go.outputs.changed == 'true' || steps.update_lint.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          branch: automation/update-go-tooling
+          commit-message: Update Go tooling
+          title: Update Go tooling
+          committer: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
+          author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
+          body: |
+            Updates Go and golangci-lint to their latest compatible releases.
+
+            - Go: `${{ steps.update_go.outputs.current-version }}`
+            - golangci-lint: `${{ steps.update_lint.outputs.current-lint-version }}`
+
+            The generated changes have been processed with `make lint-fix`.
+          signoff: true
+          delete-branch: true

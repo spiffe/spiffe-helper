@@ -27,6 +27,9 @@ const (
 	jwtSVIDFilename   = "jwt.json"
 	jwtBundleFileMode = fs.FileMode(0600)
 	jwtSVIDFileMode   = fs.FileMode(0600)
+	testJWTIssuer     = "issuer"
+	testJWTAudience   = "audience"
+	testJWTSVIDHint   = "other"
 )
 
 func TestWriteJWTBundleSet(t *testing.T) {
@@ -54,15 +57,15 @@ func TestWriteJWTSVIDNoHint(t *testing.T) {
 	// Generate Token
 	claims := jwt.Claims{
 		Subject:  spiffeID.String(),
-		Issuer:   "issuer",
+		Issuer:   testJWTIssuer,
 		Expiry:   jwt.NewNumericDate(time.Now()),
-		Audience: []string{"audience"},
+		Audience: []string{testJWTAudience},
 		IssuedAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}
 	token := generateToken(t, claims, key, "key")
 
 	// Create SVID
-	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{"audience"})
+	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{testJWTAudience})
 	require.NoError(t, err)
 
 	// Create SVID array
@@ -88,31 +91,31 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 	// Generate Token
 	claims := jwt.Claims{
 		Subject:  spiffeID.String(),
-		Issuer:   "issuer",
+		Issuer:   testJWTIssuer,
 		Expiry:   jwt.NewNumericDate(time.Now()),
-		Audience: []string{"audience"},
+		Audience: []string{testJWTAudience},
 		IssuedAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}
 	token := generateToken(t, claims, key, "key")
 
 	// Create SVID
-	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{"audience"})
+	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{testJWTAudience})
 	jwtSVID.Hint = "first"
 	require.NoError(t, err)
 
 	// Generate Token2
 	claims = jwt.Claims{
 		Subject:  spiffeID.String(),
-		Issuer:   "issuer",
+		Issuer:   testJWTIssuer,
 		Expiry:   jwt.NewNumericDate(time.Now()),
-		Audience: []string{"audience"},
+		Audience: []string{testJWTAudience},
 		IssuedAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}
 	token = generateToken(t, claims, key, "key")
 
 	// Create SVID
-	jwtSVID2, err := jwtsvid.ParseInsecure(token, []string{"audience"})
-	jwtSVID2.Hint = "other"
+	jwtSVID2, err := jwtsvid.ParseInsecure(token, []string{testJWTAudience})
+	jwtSVID2.Hint = testJWTSVIDHint
 	require.NoError(t, err)
 
 	// Create SVID array
@@ -120,7 +123,7 @@ func TestWriteJWTSVIDWithHint(t *testing.T) {
 
 	// Write to disk
 	tempDir := t.TempDir()
-	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, "other")
+	err = WriteJWTSVID(jwtSVIDs, tempDir, jwtSVIDFilename, jwtSVIDFileMode, testJWTSVIDHint)
 	require.NoError(t, err)
 
 	// Read back and check it's the same
