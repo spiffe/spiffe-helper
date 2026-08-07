@@ -10,7 +10,6 @@ import (
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
-	"github.com/spiffe/spiffe-helper/pkg/disk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -50,7 +49,7 @@ func (s *Sidecar) watchJWTSVIDs(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTExtraAudiences, jwtConfig.JWTSVIDFilename)
+			s.updateJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTExtraAudiences, jwtConfig.JWTSVIDFileName)
 		}()
 	}
 
@@ -73,7 +72,7 @@ func (s *Sidecar) fetchAndWriteX509Context(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteX509Context(x509Context, s.config.AddIntermediatesToBundle, s.config.IncludeFederatedDomains, s.config.OmitExpired, s.config.CertDir, s.config.SVIDFilename, s.config.SVIDKeyFilename, s.config.SVIDBundleFilename, s.config.CertFileMode, s.config.KeyFileMode, s.config.Hint)
+	return s.config.X509Disk.WriteX509Context(x509Context)
 }
 
 func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
@@ -90,13 +89,13 @@ func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
 		return err
 	}
 
-	return disk.WriteJWTBundleSet(jwtBundleSet, s.config.CertDir, s.config.JWTBundleFilename, s.config.JWTBundleFileMode)
+	return s.config.JWTDisk.WriteJWTBundleSet(jwtBundleSet)
 }
 
 func (s *Sidecar) fetchAndWriteJWTSVIDs(ctx context.Context) error {
 	var errs []error
 	for _, jwtConfig := range s.config.JWTSVIDs {
-		if err := s.fetchAndWriteJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSVIDFilename); err != nil {
+		if err := s.fetchAndWriteJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSVIDFileName); err != nil {
 			errs = append(errs, fmt.Errorf("unable to fetch JWT SVID for audience %q: %w", jwtConfig.JWTAudience, err))
 		}
 	}
@@ -104,7 +103,7 @@ func (s *Sidecar) fetchAndWriteJWTSVIDs(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-func (s *Sidecar) fetchAndWriteJWTSVID(ctx context.Context, audience, jwtSVIDFilename string) error {
+func (s *Sidecar) fetchAndWriteJWTSVID(ctx context.Context, audience, jwtSVIDFileName string) error {
 	var jwtSVIDs []*jwtsvid.SVID
 
 	// Retry PermissionDenied errors. We may get a few of these before the cert is minted
@@ -118,5 +117,5 @@ func (s *Sidecar) fetchAndWriteJWTSVID(ctx context.Context, audience, jwtSVIDFil
 		return err
 	}
 
-	return disk.WriteJWTSVID(jwtSVIDs, s.config.CertDir, jwtSVIDFilename, s.config.JWTSVIDFileMode, s.config.Hint)
+	return s.config.JWTDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFileName)
 }
