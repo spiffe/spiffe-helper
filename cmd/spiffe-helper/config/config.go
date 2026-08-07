@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 
+	env "github.com/caarlos0/env/v11"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/token"
-	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
@@ -20,54 +21,56 @@ import (
 )
 
 const (
+	configFormatAuto         = "auto"
+	configFormatHCL          = "hcl"
+	configFormatJSON         = "json"
+	configFormatYAML         = "yaml"
+	envPrefix                = "SPIFFE_HLP_"
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
-	defaultCertFileMode      = 0644
-	defaultKeyFileMode       = 0600
-	defaultJWTBundleFileMode = 0600
-	defaultJWTSVIDFileMode   = 0600
+	defaultCertFileMode      = FileMode(0644)
+	defaultKeyFileMode       = FileMode(0600)
+	defaultJWTBundleFileMode = FileMode(0600)
+	defaultJWTSVIDFileMode   = FileMode(0600)
 	defaultBindPort          = 8081
 	defaultLivenessPath      = "/live"
 	defaultReadinessPath     = "/ready"
 )
 
+type FileMode int
+
 type Config struct {
-	AddIntermediatesToBundle bool   `hcl:"add_intermediates_to_bundle" yaml:"add_intermediates_to_bundle" env:"SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE"`
-	AgentAddress             string `hcl:"agent_address" yaml:"agent_address" env:"SPIFFE_HLP_AGENT_ADDRESS"`
-	Cmd                      string `hcl:"cmd" yaml:"cmd" env:"SPIFFE_HLP_CMD"`
-	CmdArgs                  string `hcl:"cmd_args" yaml:"cmd_args" env:"SPIFFE_HLP_CMD_ARGS"`
-	PIDFilename              string `hcl:"pid_file_name" yaml:"pid_file_name" env:"SPIFFE_HLP_PID_FILE_NAME"`
-	CertDir                  string `hcl:"cert_dir" yaml:"cert_dir" env:"SPIFFE_HLP_CERT_DIR"`
-	CertFileMode             int    `hcl:"cert_file_mode" yaml:"cert_file_mode" env:"SPIFFE_HLP_CERT_FILE_MODE"`
-	KeyFileMode              int    `hcl:"key_file_mode" yaml:"key_file_mode" env:"SPIFFE_HLP_KEY_FILE_MODE"`
-	JWTBundleFileMode        int    `hcl:"jwt_bundle_file_mode" yaml:"jwt_bundle_file_mode" env:"SPIFFE_HLP_JWT_BUNDLE_FILE_MODE"`
-	JWTSVIDFileMode          int    `hcl:"jwt_svid_file_mode" yaml:"jwt_svid_file_mode" env:"SPIFFE_HLP_JWT_SVID_FILE_MODE"`
-	IncludeFederatedDomains  bool   `hcl:"include_federated_domains" yaml:"include_federated_domains" env:"SPIFFE_HLP_INCLUDE_FEDERATED_DOMAINS"`
-	OmitExpired              bool   `hcl:"omit_expired" yaml:"omit_expired" env:"SPIFFE_HLP_OMIT_EXPIRED"`
-	RenewSignal              string `hcl:"renew_signal" yaml:"renew_signal" env:"SPIFFE_HLP_RENEW_SIGNAL"`
-	// Note: DaemonMode does not have an env tag because cleanenv doesn't support *bool types.
-	// Instead, use populateDaemonModeFromEnv for environment variable support.
-	DaemonMode  *bool         `hcl:"daemon_mode" yaml:"daemon_mode"`
-	HealthCheck health.Config `hcl:"health_checks" yaml:"health_checks" env:"SPIFFE_HLP_HEALTH_CHECKS"`
-	Hint        string        `hcl:"hint" yaml:"hint" env:"SPIFFE_HLP_HINT"`
-	LogLevel    string        `hcl:"log_level" yaml:"log_level" env:"SPIFFE_HLP_LOG_LEVEL"`
+	AddIntermediatesToBundle bool          `hcl:"add_intermediates_to_bundle" yaml:"add_intermediates_to_bundle" env:"ADD_INTERMEDIATES_TO_BUNDLE"`
+	AgentAddress             string        `hcl:"agent_address" yaml:"agent_address" env:"AGENT_ADDRESS"`
+	Cmd                      string        `hcl:"cmd" yaml:"cmd" env:"CMD"`
+	CmdArgs                  string        `hcl:"cmd_args" yaml:"cmd_args" env:"CMD_ARGS"`
+	PIDFilename              string        `hcl:"pid_file_name" yaml:"pid_file_name" env:"PID_FILE_NAME"`
+	CertDir                  string        `hcl:"cert_dir" yaml:"cert_dir" env:"CERT_DIR"`
+	CertFileMode             FileMode      `hcl:"cert_file_mode" yaml:"cert_file_mode" env:"CERT_FILE_MODE"`
+	KeyFileMode              FileMode      `hcl:"key_file_mode" yaml:"key_file_mode" env:"KEY_FILE_MODE"`
+	JWTBundleFileMode        FileMode      `hcl:"jwt_bundle_file_mode" yaml:"jwt_bundle_file_mode" env:"JWT_BUNDLE_FILE_MODE"`
+	JWTSVIDFileMode          FileMode      `hcl:"jwt_svid_file_mode" yaml:"jwt_svid_file_mode" env:"JWT_SVID_FILE_MODE"`
+	IncludeFederatedDomains  bool          `hcl:"include_federated_domains" yaml:"include_federated_domains" env:"INCLUDE_FEDERATED_DOMAINS"`
+	OmitExpired              bool          `hcl:"omit_expired" yaml:"omit_expired" env:"OMIT_EXPIRED"`
+	RenewSignal              string        `hcl:"renew_signal" yaml:"renew_signal" env:"RENEW_SIGNAL"`
+	DaemonMode               *bool         `hcl:"daemon_mode" yaml:"daemon_mode" env:"DAEMON_MODE"`
+	HealthCheck              health.Config `hcl:"health_checks" yaml:"health_checks" envPrefix:"HEALTH_"`
+	Hint                     string        `hcl:"hint" yaml:"hint" env:"HINT"`
+	LogLevel                 string        `hcl:"log_level" yaml:"log_level" env:"LOG_LEVEL"`
 
 	// x509 configuration
-	SVIDFilename       string `hcl:"svid_file_name" yaml:"svid_file_name" env:"SPIFFE_HLP_SVID_FILE_NAME"`
-	SVIDKeyFilename    string `hcl:"svid_key_file_name" yaml:"svid_key_file_name" env:"SPIFFE_HLP_SVID_KEY_FILE_NAME"`
-	SVIDBundleFilename string `hcl:"svid_bundle_file_name" yaml:"svid_bundle_file_name" env:"SPIFFE_HLP_SVID_BUNDLE_FILE_NAME"`
+	SVIDFilename       string `hcl:"svid_file_name" yaml:"svid_file_name" env:"SVID_FILE_NAME"`
+	SVIDKeyFilename    string `hcl:"svid_key_file_name" yaml:"svid_key_file_name" env:"SVID_KEY_FILE_NAME"`
+	SVIDBundleFilename string `hcl:"svid_bundle_file_name" yaml:"svid_bundle_file_name" env:"SVID_BUNDLE_FILE_NAME"`
 
 	// JWT configuration
-	// Note: JWTSVIDs does not have an env tag because cleanenv doesn't support arrays of structs.
-	// Instead, use SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array (see populateJWTSVIDsFromEnv for details).
-	JWTSVIDs          []JWTConfig `hcl:"jwt_svids" yaml:"jwt_svids"`
-	JWTBundleFilename string      `hcl:"jwt_bundle_file_name" yaml:"jwt_bundle_file_name" env:"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME"`
+	// SPIFFE_HLP_JWT_SVIDS accepts a YAML/JSON array and replaces file-configured entries.
+	JWTSVIDs          []JWTConfig `hcl:"jwt_svids" yaml:"jwt_svids" env:"JWT_SVIDS"`
+	JWTBundleFilename string      `hcl:"jwt_bundle_file_name" yaml:"jwt_bundle_file_name" env:"JWT_BUNDLE_FILE_NAME"`
 
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions" yaml:"-"`
 }
 
 type JWTConfig struct {
-	// Note: JWTConfig fields do not have env tags because cleanenv doesn't support arrays of structs.
-	// Instead, use SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array (see populateJWTSVIDsFromEnv for details).
 	JWTAudience       string   `hcl:"jwt_audience" yaml:"jwt_audience"`
 	JWTExtraAudiences []string `hcl:"jwt_extra_audiences" yaml:"jwt_extra_audiences"`
 	JWTSVIDFilename   string   `hcl:"jwt_svid_file_name" yaml:"jwt_svid_file_name"`
@@ -76,7 +79,7 @@ type JWTConfig struct {
 }
 
 func ParseConfig(configFile string, configFormat string, daemonModeFlag bool, daemonModeFlagName string) (*Config, error) {
-	if configFile == "" {
+	if configFile == "" || !configFileExists(configFile) || configFileEmpty(configFile) {
 		helperConfig, err := loadConfigFromEnv()
 		if err != nil {
 			return nil, fmt.Errorf("failed to load configuration from environment: %w", err)
@@ -228,18 +231,14 @@ func parseConfigFile(file string, configFormat string) (*Config, error) {
 		return nil, fmt.Errorf("configuration file does not exist: %s", file)
 	}
 
-	if configFormat == "auto" {
-		detectedFormat, err := detectConfigFormat(file)
-		if err != nil {
-			return nil, err
-		}
-		configFormat = detectedFormat
+	if configFormat == configFormatAuto {
+		configFormat = detectConfigFormat(file)
 	}
 
 	switch configFormat {
-	case "hcl":
+	case configFormatHCL:
 		return parseHCLFileAndApplyEnv(file)
-	case "json", "yaml":
+	case configFormatJSON, configFormatYAML:
 		return parseStructuredConfigFile(file)
 	default:
 		return nil, fmt.Errorf("invalid config format: %s", configFormat)
@@ -294,13 +293,13 @@ func parseHCLFileAndApplyEnv(file string) (*Config, error) {
 
 // applyEnvOverrides applies environment-based config on top of the parsed file config.
 func applyEnvOverrides(config *Config) error {
-	if err := cleanenv.ReadEnv(config); err != nil {
-		return err
-	}
-	if err := populateJWTSVIDsFromEnv(config); err != nil {
-		return err
-	}
-	if err := populateDaemonModeFromEnv(config); err != nil {
+	if err := env.ParseWithOptions(config, env.Options{
+		Prefix: envPrefix,
+		FuncMap: map[reflect.Type]env.ParserFunc{
+			reflect.TypeOf([]JWTConfig{}): parseJWTSVIDsEnv,
+			reflect.TypeOf(FileMode(0)):   parseFileModeEnv,
+		},
+	}); err != nil {
 		return err
 	}
 	return nil
@@ -337,16 +336,21 @@ func configFileExists(file string) bool {
 	return err == nil
 }
 
-func detectConfigFormat(file string) (string, error) {
+func configFileEmpty(file string) bool {
+	info, err := os.Stat(file)
+	return err == nil && info.Size() == 0
+}
+
+func detectConfigFormat(file string) string {
 	switch {
 	case strings.HasSuffix(file, ".conf"):
-		return "hcl", nil
+		return configFormatHCL
 	case strings.HasSuffix(file, ".json"):
-		return "json", nil
+		return configFormatJSON
 	case strings.HasSuffix(file, ".yaml"), strings.HasSuffix(file, ".yml"):
-		return "yaml", nil
+		return configFormatYAML
 	default:
-		return "", fmt.Errorf("invalid config file: %s. Supported formats: hcl, json, yaml", file)
+		return configFormatHCL
 	}
 }
 

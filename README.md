@@ -73,6 +73,7 @@ When using `auto` format (the default), the format is determined by the file ext
 - `.conf` files are parsed as HCL
 - `.json` files are parsed as JSON syntax
 - `.yaml` or `.yml` files are parsed as YAML
+- files without a recognized extension are parsed as HCL for backward compatibility
 
 If the configuration file is not specified, does not exist, or is empty, the configuration will be loaded entirely from environment variables (see [Environment Variables](#environment-variables) section below).
 
@@ -86,6 +87,34 @@ For example:
 - `jwt_bundle_file_name` → `SPIFFE_HLP_JWT_BUNDLE_FILE_NAME`
 
 Environment variables override values from the configuration file. If a configuration file is provided, environment variables will override matching fields. If no configuration file is specified or the file does not exist, the entire configuration can be provided via environment variables.
+
+ | Configuration                 | Environment Variable                         |
+ |-------------------------------|----------------------------------------------|
+ | `agent_address`               | `SPIFFE_HLP_AGENT_ADDRESS`                   |
+ | `cmd`                         | `SPIFFE_HLP_CMD`                             |
+ | `cmd_args`                    | `SPIFFE_HLP_CMD_ARGS`                        |
+ | `pid_file_name`               | `SPIFFE_HLP_PID_FILE_NAME`                   |
+ | `cert_dir`                    | `SPIFFE_HLP_CERT_DIR`                        |
+ | `daemon_mode`                 | `SPIFFE_HLP_DAEMON_MODE`                     |
+ | `add_intermediates_to_bundle` | `SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE`     |
+ | `renew_signal`                | `SPIFFE_HLP_RENEW_SIGNAL`                    |
+ | `svid_file_name`              | `SPIFFE_HLP_SVID_FILE_NAME`                  |
+ | `svid_key_file_name`          | `SPIFFE_HLP_SVID_KEY_FILE_NAME`              |
+ | `svid_bundle_file_name`       | `SPIFFE_HLP_SVID_BUNDLE_FILE_NAME`           |
+ | `jwt_svids`                   | `SPIFFE_HLP_JWT_SVIDS`                       |
+ | `jwt_bundle_file_name`        | `SPIFFE_HLP_JWT_BUNDLE_FILE_NAME`            |
+ | `include_federated_domains`   | `SPIFFE_HLP_INCLUDE_FEDERATED_DOMAINS`       |
+ | `cert_file_mode`              | `SPIFFE_HLP_CERT_FILE_MODE`                  |
+ | `key_file_mode`               | `SPIFFE_HLP_KEY_FILE_MODE`                   |
+ | `jwt_bundle_file_mode`        | `SPIFFE_HLP_JWT_BUNDLE_FILE_MODE`            |
+ | `jwt_svid_file_mode`          | `SPIFFE_HLP_JWT_SVID_FILE_MODE`              |
+ | `hint`                        | `SPIFFE_HLP_HINT`                            |
+ | `omit_expired`                | `SPIFFE_HLP_OMIT_EXPIRED`                    |
+ | `log_level`                   | `SPIFFE_HLP_LOG_LEVEL`                       |
+ | `health_checks.listener_enabled` | `SPIFFE_HLP_HEALTH_LISTENER_ENABLED`      |
+ | `health_checks.bind_port`        | `SPIFFE_HLP_HEALTH_BIND_PORT`             |
+ | `health_checks.liveness_path`    | `SPIFFE_HLP_HEALTH_LIVENESS_PATH`         |
+ | `health_checks.readiness_path`   | `SPIFFE_HLP_HEALTH_READINESS_PATH`        |
 
 #### Special Handling for `jwt_svids`
 

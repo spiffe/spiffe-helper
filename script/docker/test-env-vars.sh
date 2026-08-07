@@ -20,7 +20,6 @@ NC='\033[0m' # No Color
 
 IMAGE_NAME="spiffe-helper-test"
 CONTAINER_PREFIX="spiffe-helper-test-"
-GO_VERSION="1.25.3"
 
 # Get the project root directory (parent of script directory)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,10 +31,35 @@ cleanup() {
     docker ps -a --filter "name=${CONTAINER_PREFIX}" --format "{{.Names}}" | xargs -r docker rm -f 2>/dev/null || true
 }
 
+run_with_timeout() {
+    local seconds="$1"
+    shift
+
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "${seconds}" "$@"
+    else
+        "$@" &
+        local command_pid=$!
+        (
+            sleep "${seconds}"
+            kill "${command_pid}" 2>/dev/null || true
+        ) &
+        local watchdog_pid=$!
+
+        wait "${command_pid}"
+        local exit_code=$?
+        kill "${watchdog_pid}" 2>/dev/null || true
+        wait "${watchdog_pid}" 2>/dev/null || true
+        return "${exit_code}"
+    fi
+}
+
 trap cleanup EXIT
 
 # Change to project root
 cd "${PROJECT_ROOT}"
+
+GO_VERSION="$(awk '/^go / {print $2; exit}' go.mod)"
 
 # Build the Docker image
 echo -e "${GREEN}Building Docker image: ${IMAGE_NAME}${NC}"
@@ -70,20 +94,20 @@ run_test() {
     echo ""  # Empty line for readability
     
     # Build docker run command with env vars
-    local docker_cmd="docker run --rm"
+    local docker_cmd=(docker run --rm)
     # Add SPIFFE_HLP_LOG_LEVEL=debug to all tests to see configuration output
-    docker_cmd="${docker_cmd} -e SPIFFE_HLP_LOG_LEVEL=debug"
+    docker_cmd+=(-e SPIFFE_HLP_LOG_LEVEL=debug)
     for env_var in "${env_vars[@]}"; do
-        docker_cmd="${docker_cmd} -e ${env_var}"
+        docker_cmd+=(-e "${env_var}")
     done
     
     # Add daemon-mode=false to make it exit quickly
-    docker_cmd="${docker_cmd} ${IMAGE_NAME} --daemon-mode=false"
+    docker_cmd+=("${IMAGE_NAME}" --daemon-mode=false)
     
     # Run container and capture output with 10 second timeout
     local output
     local exit_code=0
-    output=$(timeout 10 ${docker_cmd} 2>&1) || exit_code=$?
+    output=$(run_with_timeout 10 "${docker_cmd[@]}" 2>&1) || exit_code=$?
     
     # Extract and display the "Reconciled configuration:" key=value pairs
     # The logrus format is: time="..." level=debug msg="Reconciled configuration: key1=value1,key2=value2,..." system=...
@@ -113,8 +137,9 @@ run_test() {
                     # Handle special cases for nested structs
                     config_key=""
                     case "${env_key}" in
-                        LISTENER_ENABLED|BIND_PORT|LIVENESS_PATH|READINESS_PATH)
-                            config_key="health_checks.${env_key,,}"
+                        HEALTH_LISTENER_ENABLED|HEALTH_BIND_PORT|HEALTH_LIVENESS_PATH|HEALTH_READINESS_PATH)
+                            config_key="health_checks.${env_key#HEALTH_}"
+                            config_key="${config_key,,}"
                             ;;
                         JWT_SVIDS)
                             # Structured array value; validated separately below.
@@ -309,10 +334,10 @@ run_test "Health check env vars" \
     "SPIFFE_HLP_SVID_FILE_NAME=svid.pem" \
     "SPIFFE_HLP_SVID_KEY_FILE_NAME=svid-key.pem" \
     "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem" \
-    "SPIFFE_HLP_LISTENER_ENABLED=true" \
-    "SPIFFE_HLP_BIND_PORT=8081" \
-    "SPIFFE_HLP_LIVENESS_PATH=/live" \
-    "SPIFFE_HLP_READINESS_PATH=/ready"
+    "SPIFFE_HLP_HEALTH_LISTENER_ENABLED=true" \
+    "SPIFFE_HLP_HEALTH_BIND_PORT=8081" \
+    "SPIFFE_HLP_HEALTH_LIVENESS_PATH=/live" \
+    "SPIFFE_HLP_HEALTH_READINESS_PATH=/ready"
 
 # Test 5: JWT configuration
 echo -e "\n${GREEN}=== Test 5: JWT Configuration ===${NC}"
@@ -356,10 +381,10 @@ run_test "All configuration options" \
     "SPIFFE_HLP_JWT_BUNDLE_FILE_MODE=0600" \
     "SPIFFE_HLP_JWT_SVID_FILE_MODE=0600" \
     "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
-    "SPIFFE_HLP_LISTENER_ENABLED=true" \
-    "SPIFFE_HLP_BIND_PORT=9090" \
-    "SPIFFE_HLP_LIVENESS_PATH=/health/live" \
-    "SPIFFE_HLP_READINESS_PATH=/health/ready" \
+    "SPIFFE_HLP_HEALTH_LISTENER_ENABLED=true" \
+    "SPIFFE_HLP_HEALTH_BIND_PORT=9090" \
+    "SPIFFE_HLP_HEALTH_LIVENESS_PATH=/health/live" \
+    "SPIFFE_HLP_HEALTH_READINESS_PATH=/health/ready" \
     "SPIFFE_HLP_HINT=test-hint" \
     "SPIFFE_HLP_RENEW_SIGNAL=SIGHUP" \
     'SPIFFE_HLP_JWT_SVIDS=[{"jwt_audience":"test-audience","jwt_svid_file_name":"test.token","jwt_extra_audiences":["aud1","aud2"]}]'
@@ -378,7 +403,7 @@ run_test "Daemon mode via env var (false)" \
 echo -e "\n${GREEN}=== Test 10: Missing Required Fields (Expected to Fail) ===${NC}"
 echo -e "${YELLOW}Testing: Missing required configuration${NC}"
 echo -e "${YELLOW}Container output:${NC}"
-output=$(timeout 10 docker run --rm -e SPIFFE_HLP_LOG_LEVEL=debug "${IMAGE_NAME}" --daemon-mode=false 2>&1) || exit_code=$?
+output=$(run_with_timeout 10 docker run --rm -e SPIFFE_HLP_LOG_LEVEL=debug "${IMAGE_NAME}" --daemon-mode=false 2>&1) || exit_code=$?
 echo "${output}"
 echo ""  # Empty line for readability
 

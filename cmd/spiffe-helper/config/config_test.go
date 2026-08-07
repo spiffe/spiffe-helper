@@ -13,7 +13,6 @@ import (
 
 const (
 	daemonModeFlagName = "daemon-mode"
-	jsonConfigFormat   = "json"
 	testAgentAddress   = "path"
 	testCertFilename   = "cert.pem"
 	testKeyFilename    = "key.pem"
@@ -22,10 +21,46 @@ const (
 	testRenewSignal    = "SIGHUP"
 	configAgentAddress = "MY_ADDRESS"
 	envAgentAddress    = "MY_ENV_ADDRESS"
+
+	envAddIntermediatesToBundleKey = "SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE"
+	envAgentAddressKey             = "SPIFFE_HLP_AGENT_ADDRESS"
+	envCertDirKey                  = "SPIFFE_HLP_CERT_DIR"
+	envCmdKey                      = "SPIFFE_HLP_CMD"
+	envDaemonModeKey               = "SPIFFE_HLP_DAEMON_MODE"
+	envJWTBundleFileNameKey        = "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME"
+	envJWTExtraAudiencesKey        = "SPIFFE_HLP_JWT_EXTRA_AUDIENCES"
+	envSVIDBundleFileNameKey       = "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME"
+	envSVIDFileNameKey             = "SPIFFE_HLP_SVID_FILE_NAME"
+	envSVIDKeyFileNameKey          = "SPIFFE_HLP_SVID_KEY_FILE_NAME"
+	envJWTBundleFilename           = "env-bundle.json"
+	envJWTExtraAudiences           = "env-extra1,env-extra2"
+	envTestAgentAddress            = "/tmp/test-agent.sock"
+	envTrue                        = "true"
+	fileExtraAudience1             = "file-extra1"
+	fileExtraAudience2             = "file-extra2"
+	testJWTBundleFilename          = "test-bundle.json"
+	testSVIDBundleFilename         = "test-bundle.pem"
+	testSVIDFilename               = "test-svid.pem"
+	testSVIDKeyFilename            = "test-key.pem"
+	jsonConfigWithJWTSVID          = `{
+				"agent_address": "/tmp/file-agent.sock",
+				"jwt_bundle_file_name": "file-bundle.json",
+				"jwt_svids": [
+					{
+						"jwt_audience": "file-audience",
+						"jwt_svid_file_name": "file-jwt.token",
+						"jwt_extra_audiences": ["file-extra1", "file-extra2"]
+					}
+				]
+			}`
+	unknownJSONFieldError    = "field foo not found"
+	unknownFirstJWTSVIDName  = "Unknown configuration in first jwt svid"
+	unknownSecondJWTSVIDName = "Unknown configuration in second jwt svid"
+	unknownTopLevelName      = "Unknown configuration at top level"
 )
 
 func TestParseConfig(t *testing.T) {
-	c, err := parseConfigFile("testdata/helper.conf", "hcl")
+	c, err := parseConfigFile("testdata/helper.conf", configFormatHCL)
 
 	assert.NoError(t, err)
 	assert.NoError(t, c.checkForUnknownConfig())
@@ -57,16 +92,16 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, expectedJWTExtraAudiences, c.JWTSVIDs[0].JWTExtraAudiences)
 	assert.True(t, c.AddIntermediatesToBundle)
 	assert.False(t, c.OmitExpired)
-	assert.Equal(t, 444, c.CertFileMode)
-	assert.Equal(t, 444, c.KeyFileMode)
-	assert.Equal(t, 444, c.JWTBundleFileMode)
-	assert.Equal(t, 444, c.JWTSVIDFileMode)
+	assert.Equal(t, FileMode(444), c.CertFileMode)
+	assert.Equal(t, FileMode(444), c.KeyFileMode)
+	assert.Equal(t, FileMode(444), c.JWTBundleFileMode)
+	assert.Equal(t, FileMode(444), c.JWTSVIDFileMode)
 }
 
 func TestParseConfigFileReturnsErrorForMissingFile(t *testing.T) {
 	missingFile := filepath.Join(t.TempDir(), "missing.yaml")
 
-	for _, format := range []string{"hcl", "yaml", jsonConfigFormat, "auto"} {
+	for _, format := range []string{configFormatHCL, configFormatYAML, configFormatJSON, configFormatAuto} {
 		t.Run(format, func(t *testing.T) {
 			_, err := parseConfigFile(missingFile, format)
 			require.EqualError(t, err, "configuration file does not exist: "+missingFile)
@@ -232,7 +267,7 @@ func TestDetectsUnknownHCLConfig(t *testing.T) {
 		expectError string
 	}{
 		{
-			name: "Unknown configuration at top level",
+			name: unknownTopLevelName,
 			config: `
 				agent_address = "/tmp"
 				foo = "bar"
@@ -241,7 +276,7 @@ func TestDetectsUnknownHCLConfig(t *testing.T) {
 			expectError: "unknown top level key(s): bar,foo",
 		},
 		{
-			name: "Unknown configuration in first jwt svid",
+			name: unknownFirstJWTSVIDName,
 			config: `
 				cmd = "echo"
 				jwt_svids = [
@@ -256,7 +291,7 @@ func TestDetectsUnknownHCLConfig(t *testing.T) {
 			expectError: "unknown key(s) in jwt_svids[0]: bar,foo",
 		},
 		{
-			name: "Unknown configuration in second jwt svid",
+			name: unknownSecondJWTSVIDName,
 			config: `
 				cmd = "echo"
 				jwt_svids = [
@@ -282,7 +317,7 @@ func TestDetectsUnknownHCLConfig(t *testing.T) {
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			c, err := parseConfigFile(configFile.Name(), "hcl")
+			c, err := parseConfigFile(configFile.Name(), configFormatHCL)
 			require.NoError(t, err)
 
 			log, _ := test.NewNullLogger()
@@ -303,16 +338,16 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 		expectErrorContain string
 	}{
 		{
-			name: "Unknown configuration at top level",
+			name: unknownTopLevelName,
 			config: `{
 				"agent_address": "/tmp",
 				"foo": "bar",
 				"bar": "foo"
 			}`,
-			expectErrorContain: "field foo not found",
+			expectErrorContain: unknownJSONFieldError,
 		},
 		{
-			name: "Unknown configuration in first jwt svid",
+			name: unknownFirstJWTSVIDName,
 			config: `{
 				"cmd": "echo",
 				"jwt_svids": [
@@ -324,10 +359,10 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 					}
 				]
 			}`,
-			expectErrorContain: "field foo not found",
+			expectErrorContain: unknownJSONFieldError,
 		},
 		{
-			name: "Unknown configuration in second jwt svid",
+			name: unknownSecondJWTSVIDName,
 			config: `{
 				"cmd": "echo",
 				"jwt_svids": [
@@ -343,7 +378,7 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 					}
 				]
 			}`,
-			expectErrorContain: "field foo not found",
+			expectErrorContain: unknownJSONFieldError,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -353,7 +388,7 @@ func TestDetectsUnknownJSONConfig(t *testing.T) {
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			_, err = parseConfigFile(configFile.Name(), jsonConfigFormat)
+			_, err = parseConfigFile(configFile.Name(), configFormatJSON)
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.expectErrorContain)
 
@@ -371,24 +406,24 @@ func TestDetectsUnknownYAMLConfig(t *testing.T) {
 		expectErrorContain string
 	}{
 		{
-			name: "Unknown configuration at top level",
+			name: unknownTopLevelName,
 			config: `agent_address: "/tmp"
 foo: "bar"
 bar: "foo"`,
-			expectErrorContain: "field foo not found",
+			expectErrorContain: unknownJSONFieldError,
 		},
 		{
-			name: "Unknown configuration in first jwt svid",
+			name: unknownFirstJWTSVIDName,
 			config: `cmd: "echo"
 jwt_svids:
   - jwt_audience: "your-audience"
     jwt_svid_file_name: "jwt_svid.token"
     foo: "bar"
     bar: "foo"`,
-			expectErrorContain: "field foo not found",
+			expectErrorContain: unknownJSONFieldError,
 		},
 		{
-			name: "Unknown configuration in second jwt svid",
+			name: unknownSecondJWTSVIDName,
 			config: `cmd: "echo"
 jwt_svids:
   - jwt_audience: "your-audience-0"
@@ -397,7 +432,7 @@ jwt_svids:
     jwt_svid_file_name: "jwt_svid-1.token"
     foo: "bar"
     bar: "foo"`,
-			expectErrorContain: "field foo not found",
+			expectErrorContain: unknownJSONFieldError,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -407,7 +442,7 @@ jwt_svids:
 			_, err = configFile.WriteString(tt.config)
 			require.NoError(t, err)
 
-			_, err = parseConfigFile(configFile.Name(), "yaml")
+			_, err = parseConfigFile(configFile.Name(), configFormatYAML)
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.expectErrorContain)
 
@@ -447,7 +482,7 @@ func TestDefaultAgentAddress(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("SPIFFE_ENDPOINT_SOCKET", tt.envSPIFFEEndpointSocket)
+			t.Setenv("SPIFFE_ENDPOINT_SOCKET", tt.envSPIFFEEndpointSocket)
 
 			config := &Config{
 				AgentAddress:       tt.agentAddress,
@@ -536,19 +571,19 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		{
 			name: "Basic configuration from env vars",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":         "/tmp/test-agent.sock",
-				"SPIFFE_HLP_SVID_FILE_NAME":        "test-svid.pem",
-				"SPIFFE_HLP_SVID_KEY_FILE_NAME":    "test-key.pem",
-				"SPIFFE_HLP_SVID_BUNDLE_FILE_NAME": "test-bundle.pem",
-				"SPIFFE_HLP_CERT_DIR":              "test-certs",
-				"SPIFFE_HLP_CMD":                   "test-cmd",
-				"SPIFFE_HLP_CMD_ARGS":              "test-args",
+				envAgentAddressKey:       envTestAgentAddress,
+				envSVIDFileNameKey:       testSVIDFilename,
+				envSVIDKeyFileNameKey:    testSVIDKeyFilename,
+				envSVIDBundleFileNameKey: testSVIDBundleFilename,
+				envCertDirKey:            "test-certs",
+				envCmdKey:                "test-cmd",
+				"SPIFFE_HLP_CMD_ARGS":    "test-args",
 			},
 			expectedConfig: func(c *Config) {
-				assert.Equal(t, "/tmp/test-agent.sock", c.AgentAddress)
-				assert.Equal(t, "test-svid.pem", c.SVIDFilename)
-				assert.Equal(t, "test-key.pem", c.SVIDKeyFilename)
-				assert.Equal(t, "test-bundle.pem", c.SVIDBundleFilename)
+				assert.Equal(t, envTestAgentAddress, c.AgentAddress)
+				assert.Equal(t, testSVIDFilename, c.SVIDFilename)
+				assert.Equal(t, testSVIDKeyFilename, c.SVIDKeyFilename)
+				assert.Equal(t, testSVIDBundleFilename, c.SVIDBundleFilename)
 				assert.Equal(t, "test-certs", c.CertDir)
 				assert.Equal(t, "test-cmd", c.Cmd)
 				assert.Equal(t, "test-args", c.CmdArgs)
@@ -557,34 +592,33 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		{
 			name: "Boolean and integer fields from env vars",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":               "/tmp/test-agent.sock",
-				"SPIFFE_HLP_SVID_FILE_NAME":              "test-svid.pem",
-				"SPIFFE_HLP_SVID_KEY_FILE_NAME":          "test-key.pem",
-				"SPIFFE_HLP_SVID_BUNDLE_FILE_NAME":       "test-bundle.pem",
-				"SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE": "true",
-				"SPIFFE_HLP_OMIT_EXPIRED":                "true",
-				"SPIFFE_HLP_CERT_FILE_MODE":              "0644",
-				"SPIFFE_HLP_KEY_FILE_MODE":               "0600",
+				envAgentAddressKey:             envTestAgentAddress,
+				envSVIDFileNameKey:             testSVIDFilename,
+				envSVIDKeyFileNameKey:          testSVIDKeyFilename,
+				envSVIDBundleFileNameKey:       testSVIDBundleFilename,
+				envAddIntermediatesToBundleKey: envTrue,
+				"SPIFFE_HLP_OMIT_EXPIRED":      envTrue,
+				"SPIFFE_HLP_CERT_FILE_MODE":    "0644",
+				"SPIFFE_HLP_KEY_FILE_MODE":     "0600",
 			},
 			expectedConfig: func(c *Config) {
 				assert.True(t, c.AddIntermediatesToBundle)
 				assert.True(t, c.OmitExpired)
-				assert.Equal(t, 0644, c.CertFileMode)
-				assert.Equal(t, 0600, c.KeyFileMode)
+				assert.Equal(t, FileMode(0644), c.CertFileMode)
+				assert.Equal(t, FileMode(0600), c.KeyFileMode)
 			},
 		},
 		{
 			name: "Nested HealthCheck struct from env vars",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":         "/tmp/test-agent.sock",
-				"SPIFFE_HLP_SVID_FILE_NAME":        "test-svid.pem",
-				"SPIFFE_HLP_SVID_KEY_FILE_NAME":    "test-key.pem",
-				"SPIFFE_HLP_SVID_BUNDLE_FILE_NAME": "test-bundle.pem",
-				// cleanenv reads nested field env tags directly (does not combine with parent)
-				"SPIFFE_HLP_LISTENER_ENABLED": "true",
-				"SPIFFE_HLP_BIND_PORT":        "9090",
-				"SPIFFE_HLP_LIVENESS_PATH":    "/health",
-				"SPIFFE_HLP_READINESS_PATH":   "/ready",
+				envAgentAddressKey:                   envTestAgentAddress,
+				envSVIDFileNameKey:                   testSVIDFilename,
+				envSVIDKeyFileNameKey:                testSVIDKeyFilename,
+				envSVIDBundleFileNameKey:             testSVIDBundleFilename,
+				"SPIFFE_HLP_HEALTH_LISTENER_ENABLED": envTrue,
+				"SPIFFE_HLP_HEALTH_BIND_PORT":        "9090",
+				"SPIFFE_HLP_HEALTH_LIVENESS_PATH":    "/health",
+				"SPIFFE_HLP_HEALTH_READINESS_PATH":   "/ready",
 			},
 			expectedConfig: func(c *Config) {
 				assert.True(t, c.HealthCheck.ListenerEnabled)
@@ -596,43 +630,38 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		{
 			name: "JWT configuration with JWTBundleFilename from env vars",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":        "/tmp/test-agent.sock",
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "test-bundle.json",
+				envAgentAddressKey:      envTestAgentAddress,
+				envJWTBundleFileNameKey: testJWTBundleFilename,
 			},
 			expectedConfig: func(c *Config) {
 				// Verify JWT-related fields can be configured via env vars
-				assert.Equal(t, "/tmp/test-agent.sock", c.AgentAddress)
-				assert.Equal(t, "test-bundle.json", c.JWTBundleFilename)
-				// Note: JWTSVIDs (array of JWTConfig) cannot be set via env vars alone
-				// due to cleanenv limitation with arrays of structs. Use a config file for JWTSVIDs.
-				// JWTBundleFilename is sufficient for JWT validation when no JWTSVIDs are needed.
+				assert.Equal(t, envTestAgentAddress, c.AgentAddress)
+				assert.Equal(t, testJWTBundleFilename, c.JWTBundleFilename)
 				assert.Empty(t, c.JWTSVIDs)
 			},
 		},
 		{
 			name: "Attempt to set JWTSVIDs nested fields via env vars (env-only mode)",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":        "/tmp/test-agent.sock",
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "test-bundle.json",
+				envAgentAddressKey:      envTestAgentAddress,
+				envJWTBundleFileNameKey: testJWTBundleFilename,
 				// Attempt to set nested fields within JWTSVIDs array
-				"SPIFFE_HLP_JWT_AUDIENCE":        "env-audience",
-				"SPIFFE_HLP_JWT_SVID_FILE_NAME":  "env-file.token",
-				"SPIFFE_HLP_JWT_EXTRA_AUDIENCES": "env-extra1,env-extra2",
+				"SPIFFE_HLP_JWT_AUDIENCE":       "env-audience",
+				"SPIFFE_HLP_JWT_SVID_FILE_NAME": "env-file.token",
+				envJWTExtraAudiencesKey:         envJWTExtraAudiences,
 			},
 			expectedConfig: func(c *Config) {
-				// Verify that nested fields in JWTSVIDs cannot be set via env vars when array is empty
-				// cleanenv does not support arrays of structs via environment variables
-				assert.Equal(t, "/tmp/test-agent.sock", c.AgentAddress)
-				assert.Equal(t, "test-bundle.json", c.JWTBundleFilename)
-				// JWTSVIDs array remains empty - env vars for nested fields are ignored
+				// Individual nested JWTSVID fields are ignored; use SPIFFE_HLP_JWT_SVIDS for array configuration.
+				assert.Equal(t, envTestAgentAddress, c.AgentAddress)
+				assert.Equal(t, testJWTBundleFilename, c.JWTBundleFilename)
 				assert.Empty(t, c.JWTSVIDs)
 			},
 		},
 		{
 			name: "JWTSVIDs from YAML/JSON array env var",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":        "/tmp/test-agent.sock",
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "test-bundle.json",
+				envAgentAddressKey:      envTestAgentAddress,
+				envJWTBundleFileNameKey: testJWTBundleFilename,
 				"SPIFFE_HLP_JWT_SVIDS": `[{
 					"jwt_audience": "audience-0",
 					"jwt_svid_file_name": "file-0.token",
@@ -644,8 +673,8 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 				}]`,
 			},
 			expectedConfig: func(c *Config) {
-				assert.Equal(t, "/tmp/test-agent.sock", c.AgentAddress)
-				assert.Equal(t, "test-bundle.json", c.JWTBundleFilename)
+				assert.Equal(t, envTestAgentAddress, c.AgentAddress)
+				assert.Equal(t, testJWTBundleFilename, c.JWTBundleFilename)
 				require.Len(t, c.JWTSVIDs, 2)
 				assert.Equal(t, "audience-0", c.JWTSVIDs[0].JWTAudience)
 				assert.Equal(t, "file-0.token", c.JWTSVIDs[0].JWTSVIDFilename)
@@ -658,11 +687,11 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		{
 			name: "DaemonMode from env vars (true)",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":         "/tmp/test-agent.sock",
-				"SPIFFE_HLP_SVID_FILE_NAME":        "test-svid.pem",
-				"SPIFFE_HLP_SVID_KEY_FILE_NAME":    "test-key.pem",
-				"SPIFFE_HLP_SVID_BUNDLE_FILE_NAME": "test-bundle.pem",
-				"SPIFFE_HLP_DAEMON_MODE":           "true",
+				envAgentAddressKey:       envTestAgentAddress,
+				envSVIDFileNameKey:       testSVIDFilename,
+				envSVIDKeyFileNameKey:    testSVIDKeyFilename,
+				envSVIDBundleFileNameKey: testSVIDBundleFilename,
+				envDaemonModeKey:         envTrue,
 			},
 			expectedConfig: func(c *Config) {
 				require.NotNil(t, c.DaemonMode)
@@ -672,11 +701,11 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		{
 			name: "DaemonMode from env vars (false)",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":         "/tmp/test-agent.sock",
-				"SPIFFE_HLP_SVID_FILE_NAME":        "test-svid.pem",
-				"SPIFFE_HLP_SVID_KEY_FILE_NAME":    "test-key.pem",
-				"SPIFFE_HLP_SVID_BUNDLE_FILE_NAME": "test-bundle.pem",
-				"SPIFFE_HLP_DAEMON_MODE":           "false",
+				envAgentAddressKey:       envTestAgentAddress,
+				envSVIDFileNameKey:       testSVIDFilename,
+				envSVIDKeyFileNameKey:    testSVIDKeyFilename,
+				envSVIDBundleFileNameKey: testSVIDBundleFilename,
+				envDaemonModeKey:         "false",
 			},
 			expectedConfig: func(c *Config) {
 				require.NotNil(t, c.DaemonMode)
@@ -686,11 +715,11 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		{
 			name: "DaemonMode from env vars (alternative formats)",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS":         "/tmp/test-agent.sock",
-				"SPIFFE_HLP_SVID_FILE_NAME":        "test-svid.pem",
-				"SPIFFE_HLP_SVID_KEY_FILE_NAME":    "test-key.pem",
-				"SPIFFE_HLP_SVID_BUNDLE_FILE_NAME": "test-bundle.pem",
-				"SPIFFE_HLP_DAEMON_MODE":           "1",
+				envAgentAddressKey:       envTestAgentAddress,
+				envSVIDFileNameKey:       testSVIDFilename,
+				envSVIDKeyFileNameKey:    testSVIDKeyFilename,
+				envSVIDBundleFileNameKey: testSVIDBundleFilename,
+				envDaemonModeKey:         "1",
 			},
 			expectedConfig: func(c *Config) {
 				require.NotNil(t, c.DaemonMode)
@@ -700,12 +729,12 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		{
 			name: "Missing required fields should fail validation",
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS": "/tmp/test-agent.sock",
+				envAgentAddressKey: envTestAgentAddress,
 				// Missing SVID files - validation should fail
 			},
 			expectedConfig: func(c *Config) {
 				// Config should load successfully, but validation will fail
-				assert.Equal(t, "/tmp/test-agent.sock", c.AgentAddress)
+				assert.Equal(t, envTestAgentAddress, c.AgentAddress)
 			},
 			expectError:    true,
 			expectErrorMsg: "at least one of the sets",
@@ -714,10 +743,7 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set environment variables
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
-				t.Cleanup(func() {
-					os.Unsetenv(key)
-				})
+				t.Setenv(key, value)
 			}
 
 			// Load config from env vars only
@@ -746,12 +772,9 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 }
 
 func TestInvalidJWTSVIDsEnvVar(t *testing.T) {
-	os.Setenv("SPIFFE_HLP_AGENT_ADDRESS", "/tmp/test-agent.sock")
-	t.Cleanup(func() { os.Unsetenv("SPIFFE_HLP_AGENT_ADDRESS") })
-	os.Setenv("SPIFFE_HLP_JWT_BUNDLE_FILE_NAME", "test-bundle.json")
-	t.Cleanup(func() { os.Unsetenv("SPIFFE_HLP_JWT_BUNDLE_FILE_NAME") })
-	os.Setenv("SPIFFE_HLP_JWT_SVIDS", "not-a-list")
-	t.Cleanup(func() { os.Unsetenv("SPIFFE_HLP_JWT_SVIDS") })
+	t.Setenv(envAgentAddressKey, envTestAgentAddress)
+	t.Setenv(envJWTBundleFileNameKey, testJWTBundleFilename)
+	t.Setenv("SPIFFE_HLP_JWT_SVIDS", "not-a-list")
 
 	_, err := loadConfigFromEnv()
 	require.Error(t, err)
@@ -771,7 +794,7 @@ func TestConfigFileWithEnvOverrides(t *testing.T) {
 	}{
 		{
 			name:         "JSON config file with string field override",
-			configFormat: jsonConfigFormat,
+			configFormat: configFormatJSON,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"svid_file_name": "file-svid.pem",
@@ -781,8 +804,8 @@ func TestConfigFileWithEnvOverrides(t *testing.T) {
 				"cert_dir": "file-certs"
 			}`,
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS": "/tmp/env-agent.sock",
-				"SPIFFE_HLP_CMD":           "env-cmd",
+				envAgentAddressKey: "/tmp/env-agent.sock",
+				envCmdKey:          "env-cmd",
 			},
 			expectedConfig: func(c *Config) {
 				// Env vars should override file values
@@ -797,7 +820,7 @@ func TestConfigFileWithEnvOverrides(t *testing.T) {
 		},
 		{
 			name:         "YAML config file with boolean and integer overrides",
-			configFormat: "yaml",
+			configFormat: configFormatYAML,
 			configFile: `agent_address: "/tmp/file-agent.sock"
 svid_file_name: "file-svid.pem"
 svid_key_file_name: "file-key.pem"
@@ -807,21 +830,21 @@ omit_expired: false
 cert_file_mode: 0644
 key_file_mode: 0600`,
 			envVars: map[string]string{
-				"SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE": "true",
-				"SPIFFE_HLP_CERT_FILE_MODE":              "0755",
+				envAddIntermediatesToBundleKey: envTrue,
+				"SPIFFE_HLP_CERT_FILE_MODE":    "0755",
 			},
 			expectedConfig: func(c *Config) {
 				// Env vars should override file values
 				assert.True(t, c.AddIntermediatesToBundle)
-				assert.Equal(t, 0755, c.CertFileMode)
+				assert.Equal(t, FileMode(0755), c.CertFileMode)
 				// Non-overridden values should come from file
 				assert.False(t, c.OmitExpired)
-				assert.Equal(t, 0600, c.KeyFileMode)
+				assert.Equal(t, FileMode(0600), c.KeyFileMode)
 			},
 		},
 		{
 			name:         "JSON config file with nested HealthCheck override",
-			configFormat: jsonConfigFormat,
+			configFormat: configFormatJSON,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"svid_file_name": "file-svid.pem",
@@ -835,9 +858,8 @@ key_file_mode: 0600`,
 				}
 			}`,
 			envVars: map[string]string{
-				// cleanenv reads nested field env tags directly (does not combine with parent)
-				"SPIFFE_HLP_LISTENER_ENABLED": "true",
-				"SPIFFE_HLP_BIND_PORT":        "9090",
+				"SPIFFE_HLP_HEALTH_LISTENER_ENABLED": envTrue,
+				"SPIFFE_HLP_HEALTH_BIND_PORT":        "9090",
 			},
 			expectedConfig: func(c *Config) {
 				// Env vars should override file values
@@ -850,7 +872,7 @@ key_file_mode: 0600`,
 		},
 		{
 			name:         "YAML config file with multiple overrides",
-			configFormat: "yaml",
+			configFormat: configFormatYAML,
 			configFile: `agent_address: "/tmp/file-agent.sock"
 svid_file_name: "file-svid.pem"
 svid_key_file_name: "file-key.pem"
@@ -859,9 +881,9 @@ cmd: "file-cmd"
 cert_dir: "file-certs"
 renew_signal: "SIGUSR1"`,
 			envVars: map[string]string{
-				"SPIFFE_HLP_AGENT_ADDRESS": "/tmp/env-agent.sock",
-				"SPIFFE_HLP_CMD":           "env-cmd",
-				"SPIFFE_HLP_CERT_DIR":      "env-certs",
+				envAgentAddressKey: "/tmp/env-agent.sock",
+				envCmdKey:          "env-cmd",
+				envCertDirKey:      "env-certs",
 			},
 			expectedConfig: func(c *Config) {
 				// All env vars should override file values
@@ -874,67 +896,46 @@ renew_signal: "SIGUSR1"`,
 		},
 		{
 			name:         "JSON config file with JWTSVIDs and JWTExtraAudiences",
-			configFormat: jsonConfigFormat,
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"jwt_bundle_file_name": "file-bundle.json",
-				"jwt_svids": [
-					{
-						"jwt_audience": "file-audience",
-						"jwt_svid_file_name": "file-jwt.token",
-						"jwt_extra_audiences": ["file-extra1", "file-extra2"]
-					}
-				]
-			}`,
+			configFormat: configFormatJSON,
+			configFile:   jsonConfigWithJWTSVID,
 			envVars: map[string]string{
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "env-bundle.json",
+				envJWTBundleFileNameKey: envJWTBundleFilename,
 			},
 			expectedConfig: func(c *Config) {
 				// JWTBundleFilename should be overridden by env var
-				assert.Equal(t, "env-bundle.json", c.JWTBundleFilename)
+				assert.Equal(t, envJWTBundleFilename, c.JWTBundleFilename)
 				// JWTSVIDs should come from file (arrays of structs can't be overridden via env vars)
 				require.Len(t, c.JWTSVIDs, 1)
 				assert.Equal(t, "file-audience", c.JWTSVIDs[0].JWTAudience)
 				assert.Equal(t, "file-jwt.token", c.JWTSVIDs[0].JWTSVIDFilename)
-				assert.Equal(t, []string{"file-extra1", "file-extra2"}, c.JWTSVIDs[0].JWTExtraAudiences)
+				assert.Equal(t, []string{fileExtraAudience1, fileExtraAudience2}, c.JWTSVIDs[0].JWTExtraAudiences)
 			},
 		},
 		{
 			name:         "Attempt to override JWTSVIDs nested fields via env vars (file with override)",
-			configFormat: jsonConfigFormat,
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"jwt_bundle_file_name": "file-bundle.json",
-				"jwt_svids": [
-					{
-						"jwt_audience": "file-audience",
-						"jwt_svid_file_name": "file-jwt.token",
-						"jwt_extra_audiences": ["file-extra1", "file-extra2"]
-					}
-				]
-			}`,
+			configFormat: configFormatJSON,
+			configFile:   jsonConfigWithJWTSVID,
 			envVars: map[string]string{
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "env-bundle.json",
+				envJWTBundleFileNameKey: envJWTBundleFilename,
 				// Attempt to override nested fields within JWTSVIDs array
-				"SPIFFE_HLP_JWT_AUDIENCE":        "env-audience",
-				"SPIFFE_HLP_JWT_SVID_FILE_NAME":  "env-file.token",
-				"SPIFFE_HLP_JWT_EXTRA_AUDIENCES": "env-extra1,env-extra2",
+				"SPIFFE_HLP_JWT_AUDIENCE":       "env-audience",
+				"SPIFFE_HLP_JWT_SVID_FILE_NAME": "env-file.token",
+				envJWTExtraAudiencesKey:         envJWTExtraAudiences,
 			},
 			expectedConfig: func(c *Config) {
 				// JWTBundleFilename should be overridden by env var
-				assert.Equal(t, "env-bundle.json", c.JWTBundleFilename)
-				// JWTSVIDs nested fields cannot be overridden via env vars
-				// cleanenv does not support overriding individual fields within array elements
+				assert.Equal(t, envJWTBundleFilename, c.JWTBundleFilename)
+				// Individual nested JWTSVID fields cannot be overridden via env vars.
 				require.Len(t, c.JWTSVIDs, 1)
 				// Values should remain from file, not from env vars
 				assert.Equal(t, "file-audience", c.JWTSVIDs[0].JWTAudience)
 				assert.Equal(t, "file-jwt.token", c.JWTSVIDs[0].JWTSVIDFilename)
-				assert.Equal(t, []string{"file-extra1", "file-extra2"}, c.JWTSVIDs[0].JWTExtraAudiences)
+				assert.Equal(t, []string{fileExtraAudience1, fileExtraAudience2}, c.JWTSVIDs[0].JWTExtraAudiences)
 			},
 		},
 		{
 			name:         "YAML config file with multiple JWTSVIDs and JWTExtraAudiences",
-			configFormat: "yaml",
+			configFormat: configFormatYAML,
 			configFile: `agent_address: "/tmp/file-agent.sock"
 jwt_bundle_file_name: "file-bundle.json"
 jwt_svids:
@@ -958,7 +959,7 @@ jwt_svids:
 		},
 		{
 			name:         "Attempt to override JWTExtraAudiences in YAML JWTSVIDs via env vars",
-			configFormat: "yaml",
+			configFormat: configFormatYAML,
 			configFile: `agent_address: "/tmp/file-agent.sock"
 jwt_bundle_file_name: "file-bundle.json"
 jwt_svids:
@@ -966,38 +967,27 @@ jwt_svids:
     jwt_svid_file_name: "file-jwt.token"
     jwt_extra_audiences: ["file-extra1", "file-extra2"]`,
 			envVars: map[string]string{
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "env-bundle.json",
+				envJWTBundleFileNameKey: envJWTBundleFilename,
 				// Attempt to override JWTExtraAudiences within JWTSVIDs array
-				"SPIFFE_HLP_JWT_EXTRA_AUDIENCES": "env-extra1,env-extra2,env-extra3",
+				envJWTExtraAudiencesKey: "env-extra1,env-extra2,env-extra3",
 			},
 			expectedConfig: func(c *Config) {
 				// JWTBundleFilename should be overridden by env var
-				assert.Equal(t, "env-bundle.json", c.JWTBundleFilename)
-				// JWTExtraAudiences cannot be overridden via env vars when it's nested in an array element
-				// cleanenv does not support overriding individual fields within array elements
+				assert.Equal(t, envJWTBundleFilename, c.JWTBundleFilename)
+				// JWTExtraAudiences cannot be overridden individually when nested in an array element.
 				require.Len(t, c.JWTSVIDs, 1)
 				assert.Equal(t, "file-audience", c.JWTSVIDs[0].JWTAudience)
 				assert.Equal(t, "file-jwt.token", c.JWTSVIDs[0].JWTSVIDFilename)
 				// Values should remain from file, not from env vars
-				assert.Equal(t, []string{"file-extra1", "file-extra2"}, c.JWTSVIDs[0].JWTExtraAudiences)
+				assert.Equal(t, []string{fileExtraAudience1, fileExtraAudience2}, c.JWTSVIDs[0].JWTExtraAudiences)
 			},
 		},
 		{
 			name:         "Override file-based JWTSVIDs with YAML/JSON array env var",
-			configFormat: jsonConfigFormat,
-			configFile: `{
-				"agent_address": "/tmp/file-agent.sock",
-				"jwt_bundle_file_name": "file-bundle.json",
-				"jwt_svids": [
-					{
-						"jwt_audience": "file-audience",
-						"jwt_svid_file_name": "file-jwt.token",
-						"jwt_extra_audiences": ["file-extra1", "file-extra2"]
-					}
-				]
-			}`,
+			configFormat: configFormatJSON,
+			configFile:   jsonConfigWithJWTSVID,
 			envVars: map[string]string{
-				"SPIFFE_HLP_JWT_BUNDLE_FILE_NAME": "env-bundle.json",
+				envJWTBundleFileNameKey: envJWTBundleFilename,
 				"SPIFFE_HLP_JWT_SVIDS": `[{
 					"jwt_audience": "env-audience-0",
 					"jwt_svid_file_name": "env-file-0.token",
@@ -1010,7 +1000,7 @@ jwt_svids:
 			},
 			expectedConfig: func(c *Config) {
 				// JWTBundleFilename should be overridden by env var
-				assert.Equal(t, "env-bundle.json", c.JWTBundleFilename)
+				assert.Equal(t, envJWTBundleFilename, c.JWTBundleFilename)
 				// JWTSVIDs from env var should completely replace file-based JWTSVIDs
 				require.Len(t, c.JWTSVIDs, 2)
 				assert.Equal(t, "env-audience-0", c.JWTSVIDs[0].JWTAudience)
@@ -1023,7 +1013,7 @@ jwt_svids:
 		},
 		{
 			name:         "JSON config file with DaemonMode override via env var",
-			configFormat: jsonConfigFormat,
+			configFormat: configFormatJSON,
 			configFile: `{
 				"agent_address": "/tmp/file-agent.sock",
 				"svid_file_name": "file-svid.pem",
@@ -1032,7 +1022,7 @@ jwt_svids:
 				"daemon_mode": true
 			}`,
 			envVars: map[string]string{
-				"SPIFFE_HLP_DAEMON_MODE": "false",
+				envDaemonModeKey: "false",
 			},
 			expectedConfig: func(c *Config) {
 				// Env var should override file value
@@ -1044,7 +1034,7 @@ jwt_svids:
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary config file
 			var fileExt string
-			if tt.configFormat == jsonConfigFormat {
+			if tt.configFormat == configFormatJSON {
 				fileExt = ".json"
 			} else {
 				fileExt = ".yaml"
@@ -1059,10 +1049,7 @@ jwt_svids:
 
 			// Set environment variables
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
-				t.Cleanup(func() {
-					os.Unsetenv(key)
-				})
+				t.Setenv(key, value)
 			}
 
 			// Load config from file (env vars will override)
