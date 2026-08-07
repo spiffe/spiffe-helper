@@ -2,6 +2,8 @@ export GO111MODULE=on
 DIR := ${CURDIR}
 PLATFORMS ?= linux/amd64,linux/arm64
 
+include .versions
+
 E:=@
 ifeq ($(V),1)
 	E=
@@ -29,6 +31,10 @@ help:
 	@echo "$(bold)Test:$(reset)"
 	@echo "  $(cyan)test$(reset)                          - run unit tests"
 	@echo "  $(cyan)test-integration-docker$(reset)       - run Docker-based integration tests for environment variable configuration"
+	@echo "  $(cyan)unit-test$(reset)                     - run unit tests"
+	@echo "  $(cyan)integration-test$(reset)              - run integration tests"
+	@echo "  $(cyan)integration-test-verbose$(reset)      - run integration tests with verbose output"
+	@echo "  $(cyan)test-wine$(reset)                     - run unit tests for Windows with Wine"
 	@echo
 	@echo "$(bold)Code cleanliness:$(reset)"
 	@echo "  $(cyan)lint$(reset)                          - run linters aggregator"
@@ -101,7 +107,7 @@ else
 endif
 go_path := PATH="$(go_bin_dir):$(PATH)"
 
-golangci_lint_version = v2.5.0
+golangci_lint_version := $(GOLANGCI_LINT_VERSION)
 golangci_lint_dir = $(build_dir)/golangci_lint/$(golangci_lint_version)
 golangci_lint_bin = $(golangci_lint_dir)/golangci-lint
 golangci_lint_cache = $(golangci_lint_dir)/cache
@@ -214,7 +220,7 @@ lint-fix: $(golangci_lint_bin) | go-check
 # Build targets
 ############################################################################
 
-.PHONY: build test test-integration-docker clean distclean artifact tarball rpm docker-build container-builder load-images
+.PHONY: build artifact tarball rpm docker-build container-builder load-images
 
 build: | go-check
 	$(E)CGO_ENABLED=0 $(go_path) go build -ldflags '$(go_ldflags)' -o spiffe-helper${exe} ./cmd/spiffe-helper
@@ -243,19 +249,39 @@ tarball: build
 rpm:
 	@OUTDIR="$(OUTDIR)" TAG="$(TAG)" BUILD="$(BUILD)" ./script/rpm/build-rpm.sh
 
+############################################################################
+# Test targets
+############################################################################
+
+.PHONY: test unit-test test-integration-docker integration-test integration-test-verbose test-wine
+
 # If you want detailed test output run "GO_TEST_OPTS=-v make test"
-test: | go-check
+test: unit-test
+
+unit-test: | go-check
 	go test $(GO_TEST_OPTS) ./...
 
 test-integration-docker:
 	@echo "Running Docker-based integration tests for environment variable configuration..."
 	$(E)bash script/docker/test-env-vars.sh
 
+integration-test: | go-check
+	go test -tags=integration $(GO_TEST_OPTS) ./test/integration/...
+
+integration-test-verbose:
+	$(E)$(MAKE) GO_TEST_OPTS="-v $(GO_TEST_OPTS)" integration-test
+
 # Invoke the test suite by cross-compiling for Windows and running with
 # Wine. If in future tests are added that run on real win32 but not wine
 # a -tags wine could be added here.
 test-wine: | go-check
 	GOOS=windows go test $(GO_TEST_OPTS) -exec $(WINE) ./...
+
+############################################################################
+# Clean targets
+############################################################################
+
+.PHONY: clean
 
 clean: | go-check
 	go clean ./cmd/spiffe-helper

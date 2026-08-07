@@ -14,6 +14,14 @@ import (
 const (
 	daemonModeFlagName = "daemon-mode"
 	jsonConfigFormat   = "json"
+	testAgentAddress   = "path"
+	testCertFilename   = "cert.pem"
+	testKeyFilename    = "key.pem"
+	testBundleFilename = "bundle.pem"
+	testPIDFilename    = "pidfile"
+	testRenewSignal    = "SIGHUP"
+	configAgentAddress = "MY_ADDRESS"
+	envAgentAddress    = "MY_ENV_ADDRESS"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -26,7 +34,7 @@ func TestParseConfig(t *testing.T) {
 	expectedCmd := "hot-restarter.py"
 	expectedCmdArgs := "start_envoy.sh"
 	expectedCertDir := "certs"
-	expectedRenewSignal := "SIGHUP"
+	expectedRenewSignal := testRenewSignal
 	expectedSVIDFilename := "svid.pem"
 	expectedKeyFilename := "svid_key.pem"
 	expectedSVIDBundleFilename := "svid_bundle.pem"
@@ -74,18 +82,18 @@ func TestValidateConfig(t *testing.T) {
 		skipWindows bool
 	}{
 		{
-			name: "no error",
+			name: "valid x509 config",
 			config: &Config{
-				AgentAddress:       "path",
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				AgentAddress:       testAgentAddress,
+				SVIDFilename:       testCertFilename,
+				SVIDKeyFilename:    testKeyFilename,
+				SVIDBundleFilename: testBundleFilename,
 			},
 		},
 		{
-			name: "no error",
+			name: "valid jwt svid config",
 			config: &Config{
-				AgentAddress: "path",
+				AgentAddress: testAgentAddress,
 				JWTSVIDs: []JWTConfig{{
 					JWTSVIDFilename: "jwt.token",
 					JWTAudience:     "your-audience",
@@ -94,9 +102,9 @@ func TestValidateConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "no error",
+			name: "valid jwt bundle config",
 			config: &Config{
-				AgentAddress:      "path",
+				AgentAddress:      testAgentAddress,
 				JWTBundleFilename: "bundle.json",
 			},
 		},
@@ -104,31 +112,31 @@ func TestValidateConfig(t *testing.T) {
 			name: "no error in oneshot mode",
 			config: &Config{
 				DaemonMode:         &[]bool{false}[0],
-				AgentAddress:       "path",
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				AgentAddress:       testAgentAddress,
+				SVIDFilename:       testCertFilename,
+				SVIDKeyFilename:    testKeyFilename,
+				SVIDBundleFilename: testBundleFilename,
 			},
 		},
 		{
 			name: "no set specified",
 			config: &Config{
-				AgentAddress: "path",
+				AgentAddress: testAgentAddress,
 			},
 			expectError: "at least one of the sets ('svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name'), 'jwt_svids', or 'jwt_bundle_file_name' must be fully specified",
 		},
 		{
 			name: "missing svid config",
 			config: &Config{
-				AgentAddress: "path",
-				SVIDFilename: "cert.pem",
+				AgentAddress: testAgentAddress,
+				SVIDFilename: testCertFilename,
 			},
 			expectError: "all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified",
 		},
 		{
 			name: "missing jwt audience",
 			config: &Config{
-				AgentAddress: "path",
+				AgentAddress: testAgentAddress,
 				JWTSVIDs: []JWTConfig{{
 					JWTSVIDFilename: "jwt.token",
 				}},
@@ -138,7 +146,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "missing jwt path",
 			config: &Config{
-				AgentAddress: "path",
+				AgentAddress: testAgentAddress,
 				JWTSVIDs: []JWTConfig{{
 					JWTAudience: "my-audience",
 				}},
@@ -148,12 +156,12 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "no error with pid_file_name and renew_signal",
 			config: &Config{
-				PIDFilename:        "pidfile",
-				RenewSignal:        "SIGHUP",
-				AgentAddress:       "path",
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				PIDFilename:        testPIDFilename,
+				RenewSignal:        testRenewSignal,
+				AgentAddress:       testAgentAddress,
+				SVIDFilename:       testCertFilename,
+				SVIDKeyFilename:    testKeyFilename,
+				SVIDBundleFilename: testBundleFilename,
 			},
 			skipWindows: true,
 		},
@@ -163,7 +171,7 @@ func TestValidateConfig(t *testing.T) {
 			name: "pid_file_name set in !daemon_mode",
 			config: &Config{
 				DaemonMode:  &[]bool{false}[0],
-				PIDFilename: "pidfile",
+				PIDFilename: testPIDFilename,
 			},
 			expectError: "pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode",
 			skipWindows: true,
@@ -175,7 +183,7 @@ func TestValidateConfig(t *testing.T) {
 			// command when certs are renewed.
 			name: "renew_signal required if pid_file_name set",
 			config: &Config{
-				PIDFilename: "pidfile",
+				PIDFilename: testPIDFilename,
 				RenewSignal: "",
 			},
 			expectError: "must specify renew_signal when using pid_file_name",
@@ -190,11 +198,11 @@ func TestValidateConfig(t *testing.T) {
 			name: "renew_signal allowed without pid_file_name",
 			config: &Config{
 				Cmd:                "echo",
-				RenewSignal:        "SIGHUP",
-				AgentAddress:       "path",
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				RenewSignal:        testRenewSignal,
+				AgentAddress:       testAgentAddress,
+				SVIDFilename:       testCertFilename,
+				SVIDKeyFilename:    testKeyFilename,
+				SVIDBundleFilename: testBundleFilename,
 			},
 			skipWindows: true,
 		},
@@ -413,7 +421,6 @@ func TestDefaultAgentAddress(t *testing.T) {
 	for _, tt := range []struct {
 		name                    string
 		agentAddress            string
-		envSPIREAgentAddress    string
 		envSPIFFEEndpointSocket string
 		expectedAgentAddress    string
 		expectError             string
@@ -424,44 +431,32 @@ func TestDefaultAgentAddress(t *testing.T) {
 		},
 		{
 			name:                 "Agent Address set in config but not in env",
-			agentAddress:         "MY_ADDRESS",
-			expectedAgentAddress: "MY_ADDRESS",
-		},
-		{
-			name:                 "Agent Address not set in config but SPIRE_AGENT_ADDRESS is set in env",
-			envSPIREAgentAddress: "MY_ENV_ADDRESS",
-			expectedAgentAddress: "MY_ENV_ADDRESS",
+			agentAddress:         configAgentAddress,
+			expectedAgentAddress: configAgentAddress,
 		},
 		{
 			name:                    "Agent Address not set in config but SPIFFE_ENDPOINT_SOCKET is set in env",
-			envSPIFFEEndpointSocket: "MY_ENV_ADDRESS",
-			expectedAgentAddress:    "MY_ENV_ADDRESS",
-		},
-		{
-			name:                    "Both SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET are set in env",
-			envSPIREAgentAddress:    "MY_SPIRE_AGENT_ADDRESS",
-			envSPIFFEEndpointSocket: "MY_SPIFFE_ENDPOINT_SOCKET",
-			expectError:             "both SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET set. Use SPIFFE_ENDPOINT_SOCKET only. Support for SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0",
+			envSPIFFEEndpointSocket: envAgentAddress,
+			expectedAgentAddress:    envAgentAddress,
 		},
 		{
 			name:                    "Agent Address set in config and set in env",
-			agentAddress:            "MY_ADDRESS",
-			envSPIFFEEndpointSocket: "MY_ENV_ADDRESS",
-			expectedAgentAddress:    "MY_ADDRESS",
+			agentAddress:            configAgentAddress,
+			envSPIFFEEndpointSocket: envAgentAddress,
+			expectedAgentAddress:    configAgentAddress,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("SPIRE_AGENT_ADDRESS", tt.envSPIREAgentAddress)
 			os.Setenv("SPIFFE_ENDPOINT_SOCKET", tt.envSPIFFEEndpointSocket)
 
 			config := &Config{
 				AgentAddress:       tt.agentAddress,
-				SVIDFilename:       "cert.pem",
-				SVIDKeyFilename:    "key.pem",
-				SVIDBundleFilename: "bundle.pem",
+				SVIDFilename:       testCertFilename,
+				SVIDKeyFilename:    testKeyFilename,
+				SVIDBundleFilename: testBundleFilename,
 			}
 
-			log, hook := test.NewNullLogger()
+			log, _ := test.NewNullLogger()
 			err := config.ValidateConfig(log)
 			if tt.expectError != "" {
 				require.EqualError(t, err, tt.expectError)
@@ -470,11 +465,6 @@ func TestDefaultAgentAddress(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedAgentAddress, config.AgentAddress)
-
-			if tt.envSPIREAgentAddress != "" && tt.envSPIFFEEndpointSocket == "" {
-				require.NotNil(t, hook.LastEntry())
-				assert.Equal(t, "SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0. Use SPIFFE_ENDPOINT_SOCKET instead.", hook.LastEntry().Message)
-			}
 		})
 	}
 }
@@ -519,9 +509,9 @@ func TestNewSidecarConfig(t *testing.T) {
 
 func TestDaemonModeFlag(t *testing.T) {
 	config := &Config{
-		SVIDFilename:       "cert.pem",
-		SVIDKeyFilename:    "key.pem",
-		SVIDBundleFilename: "bundle.pem",
+		SVIDFilename:       testCertFilename,
+		SVIDKeyFilename:    testKeyFilename,
+		SVIDBundleFilename: testBundleFilename,
 	}
 
 	daemonModeFlag := flag.Bool(daemonModeFlagName, true, "Toggle running as a daemon to rotate X.509/JWT or just fetch and exit")
