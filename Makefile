@@ -30,6 +30,7 @@ help:
 	@echo
 	@echo "$(bold)Test:$(reset)"
 	@echo "  $(cyan)test$(reset)                          - run unit tests"
+	@echo "  $(cyan)test-integration-docker$(reset)       - run Docker-based integration tests for environment variable configuration"
 	@echo "  $(cyan)unit-test$(reset)                     - run unit tests"
 	@echo "  $(cyan)integration-test$(reset)              - run integration tests"
 	@echo "  $(cyan)integration-test-verbose$(reset)      - run integration tests with verbose output"
@@ -252,13 +253,17 @@ rpm:
 # Test targets
 ############################################################################
 
-.PHONY: test unit-test integration-test integration-test-verbose test-wine
+.PHONY: test unit-test test-integration-docker integration-test integration-test-verbose test-wine
 
 # If you want detailed test output run "GO_TEST_OPTS=-v make test"
 test: unit-test
 
 unit-test: | go-check
 	go test $(GO_TEST_OPTS) ./...
+
+test-integration-docker:
+	@echo "Running Docker-based integration tests for environment variable configuration..."
+	$(E)bash script/docker/test-env-vars.sh
 
 integration-test: | go-check
 	go test -tags=integration $(GO_TEST_OPTS) ./test/integration/...

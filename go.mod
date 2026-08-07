@@ -3,6 +3,7 @@ module github.com/spiffe/spiffe-helper
 go 1.26.5
 
 require (
+	github.com/caarlos0/env/v11 v11.4.1
 	github.com/hashicorp/hcl v1.0.1-vault-7
 	github.com/spiffe/go-spiffe/v2 v2.8.1
 	github.com/stretchr/testify v1.11.1
@@ -42,5 +43,5 @@ require (
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )
