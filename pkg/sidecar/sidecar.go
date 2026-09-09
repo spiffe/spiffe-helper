@@ -117,11 +117,11 @@ func (s *Sidecar) setupHealth() {
 		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 	}
 	if s.jwtBundleEnabled() {
-		jwtBundleFilePath := s.config.JWTDisk.BundlePath()
+		jwtBundleFilePath := s.config.JWT.Disk.BundlePath()
 		s.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
 	}
-	for _, jwtConfig := range s.config.JWTSVIDs {
-		jwtSVIDFileName := s.config.JWTDisk.SVIDPath(jwtConfig.JWTSVIDFileName)
+	for _, jwtConfig := range s.config.JWT.SVIDs {
+		jwtSVIDFileName := s.config.JWT.Disk.SVIDPath(jwtConfig.JWTSVIDFileName)
 		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFileName] = writeStatusUnwritten
 	}
 }
@@ -230,7 +230,7 @@ func (s *Sidecar) setupClients(ctx context.Context) error {
 // updateCertificates Updates the certificates stored in disk and signal the Process to restart
 func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
-	if err := s.config.X509Disk.WriteX509Context(svidResponse); err != nil {
+	if err := s.config.X509.Disk.WriteX509Context(svidResponse); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
 		writeStatus := writeStatusFailed
 		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
@@ -415,8 +415,8 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 		return nil, err
 	}
 
-	jwtSVIDPath := s.config.JWTDisk.SVIDPath(jwtSVIDFileName)
-	if err = s.config.JWTDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFileName); err != nil {
+	jwtSVIDPath := s.config.JWT.Disk.SVIDPath(jwtSVIDFileName)
+	if err = s.config.JWT.Disk.WriteJWTSVID(jwtSVIDs, jwtSVIDFileName); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
 		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDPath] = writeStatusFailed
 		return nil, err
@@ -458,15 +458,15 @@ func (s *Sidecar) updateJWTSVID(ctx context.Context, jwtAudience string, jwtExtr
 }
 
 func (s *Sidecar) x509Enabled() bool {
-	return s.config.X509Disk != nil
+	return s.config.X509.Enabled
 }
 
 func (s *Sidecar) jwtBundleEnabled() bool {
-	return s.config.JWTDisk != nil && s.config.JWTDisk.BundleEnabled()
+	return s.config.JWT.Enabled && s.config.JWT.Disk.BundleEnabled()
 }
 
 func (s *Sidecar) jwtSVIDsEnabled() bool {
-	return len(s.config.JWTSVIDs) > 0
+	return s.config.JWT.Enabled && len(s.config.JWT.SVIDs) > 0
 }
 
 // x509Watcher is a sample implementation of the workload.X509SVIDWatcher interface
@@ -515,8 +515,8 @@ type JWTBundlesWatcher struct {
 // OnJWTBundlesUpdate is run every time a bundle is updated
 func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	w.sidecar.config.Log.Debug("Updating JWT bundle")
-	jwtBundleFilePath := w.sidecar.config.JWTDisk.BundlePath()
-	if err := w.sidecar.config.JWTDisk.WriteJWTBundleSet(jwkSet); err != nil {
+	jwtBundleFilePath := w.sidecar.config.JWT.Disk.BundlePath()
+	if err := w.sidecar.config.JWT.Disk.WriteJWTBundleSet(jwkSet); err != nil {
 		w.sidecar.config.Log.Errorf("Error writing JWT Bundle to disk: %v", err)
 		w.sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusFailed
 		return

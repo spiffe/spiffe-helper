@@ -458,29 +458,35 @@ func TestSidecar_RunDaemon(t *testing.T) {
 				Cmd:         testEchoCommand,
 				Log:         log,
 				RenewSignal: testCase.renewSignal,
-				X509Disk: disk.NewX509(disk.X509Config{
-					Dir:                      certDir,
-					SVIDFileName:             testSVIDFileName,
-					SVIDKeyFileName:          testSVIDKeyFileName,
-					SVIDBundleFileName:       testSVIDBundleFileName,
-					CertFileMode:             os.FileMode(0644),
-					KeyFileMode:              os.FileMode(0600),
-					AddIntermediatesToBundle: testCase.intermediateInBundle,
-					IncludeFederatedDomains:  testCase.federatedDomains,
-				}),
-				JWTDisk: disk.NewJWT(disk.JWTConfig{
-					Dir:            certDir,
-					BundleFileMode: os.FileMode(0600),
-					SVIDFileMode:   os.FileMode(0600),
-				}),
+				X509: X509Config{
+					Enabled: true,
+					Disk: disk.NewX509(disk.X509Config{
+						Dir:                      certDir,
+						SVIDFileName:             testSVIDFileName,
+						SVIDKeyFileName:          testSVIDKeyFileName,
+						SVIDBundleFileName:       testSVIDBundleFileName,
+						CertFileMode:             os.FileMode(0644),
+						KeyFileMode:              os.FileMode(0600),
+						AddIntermediatesToBundle: testCase.intermediateInBundle,
+						IncludeFederatedDomains:  testCase.federatedDomains,
+					}),
+				},
+				JWT: JWTConfig{
+					Enabled: true,
+					Disk: disk.NewJWT(disk.JWTConfig{
+						Dir:            certDir,
+						BundleFileMode: os.FileMode(0600),
+						SVIDFileMode:   os.FileMode(0600),
+					}),
+				},
 			}
 
 			s := newSidecarTest(t, withConfig(config))
 			defer s.Close(t)
 
-			svidFile := config.X509Disk.SVIDPath()
-			svidKeyFile := config.X509Disk.SVIDKeyPath()
-			svidBundleFile := config.X509Disk.SVIDBundlePath()
+			svidFile := config.X509.Disk.SVIDPath()
+			svidKeyFile := config.X509.Disk.SVIDKeyPath()
+			svidBundleFile := config.X509.Disk.SVIDBundlePath()
 
 			// Push response to start updating process
 			s.watcher.OnX509ContextUpdate(testCase.response)
@@ -649,7 +655,7 @@ func TestNew(t *testing.T) {
 		svidKeyFileName           string
 		svidBundleFileName        string
 		jwtBundleFileName         string
-		jwtSVIDs                  []JWTConfig
+		jwtSVIDs                  []JWTSVIDConfig
 		expectedErr               string
 		expectedFileWriteStatuses FileWriteStatuses
 	}{
@@ -659,7 +665,7 @@ func TestNew(t *testing.T) {
 			svidKeyFileName:    "svid_key.pem",
 			svidBundleFileName: "svid_bundle.pem",
 			jwtBundleFileName:  "jwt_bundle.json",
-			jwtSVIDs: []JWTConfig{
+			jwtSVIDs: []JWTSVIDConfig{
 				{
 					JWTAudience:     "my-audience",
 					JWTSVIDFileName: "jwt_svid.jwt",
@@ -675,7 +681,7 @@ func TestNew(t *testing.T) {
 		},
 		{
 			certDir: tmpdir,
-			jwtSVIDs: []JWTConfig{
+			jwtSVIDs: []JWTSVIDConfig{
 				{
 					JWTAudience:     "my-audience",
 					JWTSVIDFileName: "jwt_svid.jwt",
@@ -696,19 +702,25 @@ func TestNew(t *testing.T) {
 				Log: log,
 			}
 			if c.certDir != "" && c.svidFileName != "" {
-				config.X509Disk = disk.NewX509(disk.X509Config{
-					Dir:                c.certDir,
-					SVIDFileName:       c.svidFileName,
-					SVIDKeyFileName:    c.svidKeyFileName,
-					SVIDBundleFileName: c.svidBundleFileName,
-				})
+				config.X509 = X509Config{
+					Enabled: true,
+					Disk: disk.NewX509(disk.X509Config{
+						Dir:                c.certDir,
+						SVIDFileName:       c.svidFileName,
+						SVIDKeyFileName:    c.svidKeyFileName,
+						SVIDBundleFileName: c.svidBundleFileName,
+					}),
+				}
 			}
 			if c.jwtBundleFileName != "" || len(c.jwtSVIDs) > 0 {
-				config.JWTDisk = disk.NewJWT(disk.JWTConfig{
-					Dir:            c.certDir,
-					BundleFileName: c.jwtBundleFileName,
-				})
-				config.JWTSVIDs = c.jwtSVIDs
+				config.JWT = JWTConfig{
+					Enabled: true,
+					Disk: disk.NewJWT(disk.JWTConfig{
+						Dir:            c.certDir,
+						BundleFileName: c.jwtBundleFileName,
+					}),
+					SVIDs: c.jwtSVIDs,
+				}
 			}
 			sidecar := New(config)
 			assert.NotNil(t, sidecar)

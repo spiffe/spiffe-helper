@@ -25,8 +25,8 @@ type JWT struct {
 	c JWTConfig
 }
 
-func NewJWT(c JWTConfig) *JWT {
-	return &JWT{
+func NewJWT(c JWTConfig) JWT {
+	return JWT{
 		c: c,
 	}
 }

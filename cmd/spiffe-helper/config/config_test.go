@@ -360,28 +360,28 @@ func TestNewSidecarConfig(t *testing.T) {
 	assert.Equal(t, config.AgentAddress, sidecarConfig.AgentAddress)
 	assert.Equal(t, config.Cmd, sidecarConfig.Cmd)
 
-	// Ensure X509Disk JWTDisk were created
-	require.NotNil(t, sidecarConfig.X509Disk)
-	require.NotNil(t, sidecarConfig.JWTDisk)
+	// Ensure X509 and JWT were enabled
+	require.True(t, sidecarConfig.X509.Enabled)
+	require.True(t, sidecarConfig.JWT.Enabled)
 
 	// Check X509 fields are set correctly
 	expectedSVIDPath := path.Join(config.CertDir, config.SVIDFileName)
-	require.Equal(t, expectedSVIDPath, sidecarConfig.X509Disk.SVIDPath())
+	require.Equal(t, expectedSVIDPath, sidecarConfig.X509.Disk.SVIDPath())
 
 	expectedSVIDKeyPath := path.Join(config.CertDir, config.SVIDKeyFileName)
-	require.Equal(t, expectedSVIDKeyPath, sidecarConfig.X509Disk.SVIDKeyPath())
+	require.Equal(t, expectedSVIDKeyPath, sidecarConfig.X509.Disk.SVIDKeyPath())
 
 	expectedSVIDBundlePath := path.Join(config.CertDir, config.SVIDBundleFileName)
-	require.Equal(t, expectedSVIDBundlePath, sidecarConfig.X509Disk.SVIDBundlePath())
+	require.Equal(t, expectedSVIDBundlePath, sidecarConfig.X509.Disk.SVIDBundlePath())
 
 	// Ensure JWT Config was populated correctly
 	expectedBundlePath := path.Join(config.CertDir, config.JWTBundleFileName)
-	require.Equal(t, expectedBundlePath, sidecarConfig.JWTDisk.BundlePath())
+	require.Equal(t, expectedBundlePath, sidecarConfig.JWT.Disk.BundlePath())
 
-	require.Len(t, sidecarConfig.JWTSVIDs, len(config.JWTSVIDs))
+	require.Len(t, sidecarConfig.JWT.SVIDs, len(config.JWTSVIDs))
 	for i := range config.JWTSVIDs {
-		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWTSVIDs[i].JWTAudience)
-		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFileName, sidecarConfig.JWTSVIDs[i].JWTSVIDFileName)
+		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWT.SVIDs[i].JWTAudience)
+		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFileName, sidecarConfig.JWT.SVIDs[i].JWTSVIDFileName)
 	}
 
 	// Ensure empty fields were not populated

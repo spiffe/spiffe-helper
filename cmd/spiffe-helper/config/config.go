@@ -239,38 +239,42 @@ func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	}
 
 	if config.x509Enabled() {
-		sidecarConfig.X509Disk = disk.NewX509(disk.X509Config{
-			Dir:                      config.CertDir,
-			CertFileMode:             fs.FileMode(config.CertFileMode), //nolint:gosec
-			KeyFileMode:              fs.FileMode(config.KeyFileMode),  //nolint:gosec
-			SVIDFileName:             config.SVIDFileName,
-			SVIDKeyFileName:          config.SVIDKeyFileName,
-			SVIDBundleFileName:       config.SVIDBundleFileName,
-			AddIntermediatesToBundle: config.AddIntermediatesToBundle,
-			IncludeFederatedDomains:  config.IncludeFederatedDomains,
-			OmitExpired:              config.OmitExpired,
-			Hint:                     config.Hint,
-		})
+		sidecarConfig.X509 = sidecar.X509Config{
+			Enabled: true,
+			Disk: disk.NewX509(disk.X509Config{
+				Dir:                      config.CertDir,
+				CertFileMode:             fs.FileMode(config.CertFileMode), //nolint:gosec
+				KeyFileMode:              fs.FileMode(config.KeyFileMode),  //nolint:gosec
+				SVIDFileName:             config.SVIDFileName,
+				SVIDKeyFileName:          config.SVIDKeyFileName,
+				SVIDBundleFileName:       config.SVIDBundleFileName,
+				AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+				IncludeFederatedDomains:  config.IncludeFederatedDomains,
+				OmitExpired:              config.OmitExpired,
+				Hint:                     config.Hint,
+			}),
+		}
 	}
 
 	if config.jwtEnabled() {
-		jwtDiskConfig := disk.JWTConfig{
-			Dir:            config.CertDir,
-			Hint:           config.Hint,
-			BundleFileName: config.JWTBundleFileName,
-			BundleFileMode: fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
-			SVIDFileMode:   fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
+		sidecarConfig.JWT = sidecar.JWTConfig{
+			Enabled: true,
+			Disk: disk.NewJWT(disk.JWTConfig{
+				Dir:            config.CertDir,
+				Hint:           config.Hint,
+				BundleFileName: config.JWTBundleFileName,
+				BundleFileMode: fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
+				SVIDFileMode:   fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
+			}),
 		}
 
 		for _, jwtSVID := range config.JWTSVIDs {
-			sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
+			sidecarConfig.JWT.SVIDs = append(sidecarConfig.JWT.SVIDs, sidecar.JWTSVIDConfig{
 				JWTAudience:       jwtSVID.JWTAudience,
 				JWTExtraAudiences: jwtSVID.JWTExtraAudiences,
 				JWTSVIDFileName:   jwtSVID.JWTSVIDFileName,
 			})
 		}
-
-		sidecarConfig.JWTDisk = disk.NewJWT(jwtDiskConfig)
 	}
 
 	return sidecarConfig

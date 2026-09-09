@@ -45,7 +45,7 @@ func (s *Sidecar) watchJWTBundles(ctx context.Context) error {
 
 func (s *Sidecar) watchJWTSVIDs(ctx context.Context) error {
 	var wg sync.WaitGroup
-	for _, jwtConfig := range s.config.JWTSVIDs {
+	for _, jwtConfig := range s.config.JWT.SVIDs {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -72,7 +72,7 @@ func (s *Sidecar) fetchAndWriteX509Context(ctx context.Context) error {
 		return err
 	}
 
-	return s.config.X509Disk.WriteX509Context(x509Context)
+	return s.config.X509.Disk.WriteX509Context(x509Context)
 }
 
 func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
@@ -89,12 +89,12 @@ func (s *Sidecar) fetchAndWriteJWTBundle(ctx context.Context) error {
 		return err
 	}
 
-	return s.config.JWTDisk.WriteJWTBundleSet(jwtBundleSet)
+	return s.config.JWT.Disk.WriteJWTBundleSet(jwtBundleSet)
 }
 
 func (s *Sidecar) fetchAndWriteJWTSVIDs(ctx context.Context) error {
 	var errs []error
-	for _, jwtConfig := range s.config.JWTSVIDs {
+	for _, jwtConfig := range s.config.JWT.SVIDs {
 		if err := s.fetchAndWriteJWTSVID(ctx, jwtConfig.JWTAudience, jwtConfig.JWTSVIDFileName); err != nil {
 			errs = append(errs, fmt.Errorf("unable to fetch JWT SVID for audience %q: %w", jwtConfig.JWTAudience, err))
 		}
@@ -117,5 +117,5 @@ func (s *Sidecar) fetchAndWriteJWTSVID(ctx context.Context, audience, jwtSVIDFil
 		return err
 	}
 
-	return s.config.JWTDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFileName)
+	return s.config.JWT.Disk.WriteJWTSVID(jwtSVIDs, jwtSVIDFileName)
 }

@@ -31,8 +31,8 @@ type X509 struct {
 	c X509Config
 }
 
-func NewX509(c X509Config) *X509 {
-	return &X509{
+func NewX509(c X509Config) X509 {
+	return X509{
 		c: c,
 	}
 }

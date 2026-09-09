@@ -167,19 +167,25 @@ func (s *sidecarTest) MockUpdateX509Certificate(ctx context.Context, t *testing.
 func defaultTestConfig(certDir string) *Config {
 	return &Config{
 		Cmd: testEchoCommand,
-		X509Disk: disk.NewX509(disk.X509Config{
-			Dir:                certDir,
-			SVIDFileName:       testSVIDFileName,
-			SVIDKeyFileName:    testSVIDKeyFileName,
-			SVIDBundleFileName: testSVIDBundleFileName,
-			CertFileMode:       fs.FileMode(0644),
-			KeyFileMode:        fs.FileMode(0600),
-		}),
-		JWTDisk: disk.NewJWT(disk.JWTConfig{
-			Dir:            certDir,
-			BundleFileMode: fs.FileMode(0600),
-			SVIDFileMode:   fs.FileMode(0600),
-		}),
+		X509: X509Config{
+			Enabled: true,
+			Disk: disk.NewX509(disk.X509Config{
+				Dir:                certDir,
+				SVIDFileName:       testSVIDFileName,
+				SVIDKeyFileName:    testSVIDKeyFileName,
+				SVIDBundleFileName: testSVIDBundleFileName,
+				CertFileMode:       fs.FileMode(0644),
+				KeyFileMode:        fs.FileMode(0600),
+			}),
+		},
+		JWT: JWTConfig{
+			Enabled: true,
+			Disk: disk.NewJWT(disk.JWTConfig{
+				Dir:            certDir,
+				BundleFileMode: fs.FileMode(0600),
+				SVIDFileMode:   fs.FileMode(0600),
+			}),
+		},
 	}
 }
 

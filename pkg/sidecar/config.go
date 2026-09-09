@@ -24,17 +24,25 @@ type Config struct {
 	// The signal that the process to be launched expects to reload the certificates. Not supported on Windows.
 	RenewSignal string
 
-	// X.509 SVID related disk writer
-	X509Disk *disk.X509
+	// X.509 SVID configuration
+	X509 X509Config
 
-	// JWT SVID related disk writer
-	JWTDisk *disk.JWT
+	// JWT SVID configuration
+	JWT JWTConfig
+}
 
-	// JWT SVIDs to fetch and write to disk
-	JWTSVIDs []JWTConfig
+type X509Config struct {
+	Enabled bool
+	Disk    disk.X509
 }
 
 type JWTConfig struct {
+	Enabled bool
+	Disk    disk.JWT
+	SVIDs   []JWTSVIDConfig
+}
+
+type JWTSVIDConfig struct {
 	// The audience for the JWT SVID to fetch
 	JWTAudience string
 
