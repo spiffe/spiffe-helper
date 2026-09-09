@@ -23,6 +23,12 @@ type Config struct {
 	// Signal external process via PID file
 	PIDFilename string
 
+	// Process to launch and monitor.
+	Start StartConfig
+
+	// Actions to perform after certificates are renewed.
+	Reload ReloadConfig
+
 	// The directory name to store the x509s and/or JWTs.
 	CertDir string
 
@@ -69,6 +75,28 @@ type Config struct {
 	Hint string
 }
 
+type StartConfig struct {
+	// The path to the process to launch.
+	Cmd string
+
+	// The arguments of the process to launch.
+	Args string
+}
+
+type ReloadConfig struct {
+	// The path to a one-shot command to run after certificates are renewed.
+	Cmd string
+
+	// The arguments for the one-shot reload command.
+	Args string
+
+	// The signal that the launched process or PID file expects to reload certificates. Not supported on Windows.
+	Signal string
+
+	// The path to a file containing the process ID to signal.
+	PIDFilename string
+}
+
 type JWTConfig struct {
 	// The audience for the JWT SVID to fetch
 	JWTAudience string
@@ -78,4 +106,32 @@ type JWTConfig struct {
 
 	// The filename to save the JWT SVID to
 	JWTSVIDFilename string
+}
+
+func (c *Config) startCmd() string {
+	if c.Start.Cmd != "" {
+		return c.Start.Cmd
+	}
+	return c.Cmd
+}
+
+func (c *Config) startArgs() string {
+	if c.Start.Args != "" {
+		return c.Start.Args
+	}
+	return c.CmdArgs
+}
+
+func (c *Config) reloadSignal() string {
+	if c.Reload.Signal != "" {
+		return c.Reload.Signal
+	}
+	return c.RenewSignal
+}
+
+func (c *Config) reloadPIDFilename() string {
+	if c.Reload.PIDFilename != "" {
+		return c.Reload.PIDFilename
+	}
+	return c.PIDFilename
 }

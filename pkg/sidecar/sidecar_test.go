@@ -265,6 +265,31 @@ func TestSidecar_TestCmdRuns(t *testing.T) {
 	}
 }
 
+func TestSidecar_ReloadCommandRuns(t *testing.T) {
+	if onWindows() {
+		t.Skip("Skipping tests that invoke unix shell commands on Windows")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	s := newSidecarTest(t)
+	defer s.Close(t)
+
+	reloadFile := path.Join(t.TempDir(), "reloaded")
+	s.sidecar.config.Cmd = ""
+	s.sidecar.config.Start = StartConfig{}
+	s.sidecar.config.Reload = ReloadConfig{
+		Cmd:  "touch",
+		Args: reloadFile,
+	}
+
+	svid := newTestX509SVID(t, s.rootCA)
+	s.MockUpdateX509Certificate(ctx, t, svid)
+
+	require.FileExists(t, reloadFile)
+}
+
 // A short-lived process gets re-launched whenever the certs are rotated. The
 // pid must change in each iteration.
 //

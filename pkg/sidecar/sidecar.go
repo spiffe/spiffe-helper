@@ -242,19 +242,42 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
 	s.config.Log.Info("X.509 certificates updated")
 
-	if s.config.Cmd != "" {
+	if s.config.Reload.Cmd != "" {
+		if err := s.runReloadCommand(); err != nil {
+			s.config.Log.WithError(err).Error("Unable to run reload command")
+		}
+	}
+
+	if s.config.startCmd() != "" {
 		if err := s.signalProcess(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal process")
 		}
 	}
 
-	if s.config.PIDFilename != "" {
+	if s.config.reloadPIDFilename() != "" {
 		if err := s.signalPIDFileWithRetry(); err != nil {
 			s.config.Log.WithError(err).Error("Unable to signal PID file")
 		}
 	}
 
 	s.hooks.certReady(svidResponse)
+}
+
+func (s *Sidecar) runReloadCommand() error {
+	cmdArgs, err := getCmdArgs(s.config.Reload.Args)
+	if err != nil {
+		return fmt.Errorf("error parsing reload command arguments: %w", err)
+	}
+
+	cmd := exec.Command(s.config.Reload.Cmd, cmdArgs...) // #nosec
+	cmd.Stdin = s.stdin
+	cmd.Stdout = s.stdout
+	cmd.Stderr = s.stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("error executing reload command %q: %w", s.config.Reload.Cmd, err)
+	}
+
+	return nil
 }
 
 // signalProcessCMD sends the renew signal to the process or starts it if its first time
@@ -265,12 +288,12 @@ func (s *Sidecar) signalProcess() error {
 	defer s.mu.Unlock()
 
 	if !s.processRunning {
-		cmdArgs, err := getCmdArgs(s.config.CmdArgs)
+		cmdArgs, err := getCmdArgs(s.config.startArgs())
 		if err != nil {
 			return fmt.Errorf("error parsing cmd arguments: %w", err)
 		}
 
-		cmd := exec.Command(s.config.Cmd, cmdArgs...) // #nosec
+		cmd := exec.Command(s.config.startCmd(), cmdArgs...) // #nosec
 
 		// By attaching stdin we allow spiffe-helper to be used in a
 		// pipeline or as a simple passthrough. Because it consumes the
@@ -289,13 +312,13 @@ func (s *Sidecar) signalProcess() error {
 		cmd.Stdout = s.stdout
 		cmd.Stderr = s.stderr
 		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("error executing process \"%v\": %w", s.config.Cmd, err)
+			return fmt.Errorf("error executing process \"%v\": %w", s.config.startCmd(), err)
 		}
 		s.process = cmd.Process
 		s.processRunning = true
 		go s.checkProcessExit()
 	} else {
-		if err := SignalProcess(s.process, s.config.RenewSignal); err != nil {
+		if err := SignalProcess(s.process, s.config.reloadSignal()); err != nil {
 			return err
 		}
 	}
@@ -319,14 +342,15 @@ func (s *Sidecar) signalPIDFileWithRetry() error {
 
 // signalPID sends the renew signal to the PID file
 func (s *Sidecar) signalPIDFile() (int, error) {
-	fileBytes, err := os.ReadFile(s.config.PIDFilename)
+	pidFilename := s.config.reloadPIDFilename()
+	fileBytes, err := os.ReadFile(pidFilename)
 	if err != nil {
-		return 0, fmt.Errorf("failed to read pid file %q: %w", s.config.PIDFilename, err)
+		return 0, fmt.Errorf("failed to read pid file %q: %w", pidFilename, err)
 	}
 
 	pid, err := strconv.Atoi(string(bytes.TrimSpace(fileBytes)))
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse pid file %q: %w", s.config.PIDFilename, err)
+		return 0, fmt.Errorf("failed to parse pid file %q: %w", pidFilename, err)
 	}
 
 	pidProcess, err := os.FindProcess(pid)
@@ -334,7 +358,7 @@ func (s *Sidecar) signalPIDFile() (int, error) {
 		return pid, fmt.Errorf("failed to find process id %d: %w", pid, err)
 	}
 
-	return pid, SignalProcess(pidProcess, s.config.RenewSignal)
+	return pid, SignalProcess(pidProcess, s.config.reloadSignal())
 }
 
 // Goroutine to watch a running process until it exits and report its exit status.
