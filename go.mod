@@ -6,7 +6,7 @@ require (
 	github.com/hashicorp/hcl v1.0.1-vault-7
 	github.com/spiffe/go-spiffe/v2 v2.8.1
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 	google.golang.org/grpc v1.83.0
 	k8s.io/apimachinery v0.37.0
 	k8s.io/client-go v0.37.0
