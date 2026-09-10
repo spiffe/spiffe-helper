@@ -42,8 +42,8 @@ func NewX509(c X509Config) *X509 {
 // the svid, key and bundle of certificates.
 // It is possible to change output setting `addIntermediatesToBundle` as true.
 func (x *X509) WriteX509Context(x509Context *workloadapi.X509Context) error {
-	svidFile := path.Join(x.c.Dir, x.c.SVIDFileName)
-	svidBundleFile := path.Join(x.c.Dir, x.c.SVIDBundleFileName)
+	svidFile := x.SVIDPath()
+	svidBundleFile := x.SVIDBundlePath()
 
 	svid, err := x.getX509SVID(x509Context)
 	if err != nil {
@@ -118,8 +118,7 @@ func (x *X509) writeKey(data []byte) error {
 		Bytes: data,
 	}
 
-	svidKeyFile := path.Join(x.c.Dir, x.c.SVIDKeyFileName)
-	return os.WriteFile(svidKeyFile, pem.EncodeToMemory(b), x.c.KeyFileMode)
+	return os.WriteFile(x.SVIDKeyPath(), pem.EncodeToMemory(b), x.c.KeyFileMode)
 }
 
 // SVIDPath returns the full path for the SVID file

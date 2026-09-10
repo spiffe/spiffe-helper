@@ -59,9 +59,8 @@ func (j *JWT) WriteJWTSVID(jwtSVIDs []*jwtsvid.SVID, fileName string) error {
 	}
 
 	jwtSVIDMarshaled := []byte(jwtSVID.Marshal())
-	filePath := path.Join(j.c.Dir, fileName)
 
-	return os.WriteFile(filePath, jwtSVIDMarshaled, j.c.SVIDFileMode)
+	return os.WriteFile(j.SVIDPath(fileName), jwtSVIDMarshaled, j.c.SVIDFileMode)
 }
 
 func (j *JWT) BundlePath() string {
@@ -83,9 +82,7 @@ func (j *JWT) writeJSON(certs map[string]any) error {
 		return err
 	}
 
-	filePath := path.Join(j.c.Dir, j.c.BundleFileName)
-
-	return os.WriteFile(filePath, file, j.c.BundleFileMode)
+	return os.WriteFile(j.BundlePath(), file, j.c.BundleFileMode)
 }
 
 // getJWTSVID extracts the JWT SVID that matches the hint or returns the default
