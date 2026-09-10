@@ -107,7 +107,7 @@ func TestMain(m *testing.M) {
 
 // Validate pid_file_name signalling behaviour, simulating daemon-mode execution with
 // workload api server responses. A signal is sent to the test case process itself.
-func TestSidecar_TestPidFilenameSignalling(t *testing.T) {
+func TestSidecar_TestPidFileNameSignalling(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
@@ -157,7 +157,7 @@ func TestSidecar_TestPidFilenameSignalling(t *testing.T) {
 			s := newSidecarTest(t)
 
 			config := s.sidecar.config
-			config.PIDFilename = pidfile
+			config.PIDFileName = pidfile
 			config.RenewSignal = SignalName(tc.signal)
 
 			// Fake the workload api server issuing a new SVID. This will also
