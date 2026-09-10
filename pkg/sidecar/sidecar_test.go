@@ -722,10 +722,49 @@ func TestNew(t *testing.T) {
 					SVIDs: c.jwtSVIDs,
 				}
 			}
-			sidecar := New(config)
+			sidecar, err := New(config)
+			require.NoError(t, err)
 			assert.NotNil(t, sidecar)
 			assert.Equal(t, config, sidecar.config)
 			assert.Equal(t, c.expectedFileWriteStatuses, sidecar.health.FileWriteStatuses)
+		})
+	}
+}
+
+func TestNewRejectsEnabledConfigWithoutDisk(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		config      *Config
+		expectError string
+	}{
+		{
+			name:        "nil config",
+			expectError: "sidecar config is nil",
+		},
+		{
+			name: "x509 enabled without disk",
+			config: &Config{
+				X509: X509Config{
+					Enabled: true,
+				},
+			},
+			expectError: "x509 disk config is enabled but not initialized",
+		},
+		{
+			name: "jwt enabled without disk",
+			config: &Config{
+				JWT: JWTConfig{
+					Enabled: true,
+				},
+			},
+			expectError: "jwt disk config is enabled but not initialized",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			sidecar, err := New(tt.config)
+
+			require.EqualError(t, err, tt.expectError)
+			require.Nil(t, sidecar)
 		})
 	}
 }

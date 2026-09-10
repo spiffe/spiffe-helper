@@ -33,12 +33,12 @@ type Config struct {
 
 type X509Config struct {
 	Enabled bool
-	Disk    disk.X509
+	Disk    *disk.X509
 }
 
 type JWTConfig struct {
 	Enabled bool
-	Disk    disk.JWT
+	Disk    *disk.JWT
 	SVIDs   []JWTSVIDConfig
 }
 

@@ -83,7 +83,11 @@ const (
 )
 
 // New creates a new SPIFFE sidecar
-func New(config *Config) *Sidecar {
+func New(config *Config) (*Sidecar, error) {
+	if err := validateConfig(config); err != nil {
+		return nil, err
+	}
+
 	s := &Sidecar{
 		config: config,
 		health: Health{
@@ -108,7 +112,21 @@ func New(config *Config) *Sidecar {
 	}
 
 	s.setupHealth()
-	return s
+	return s, nil
+}
+
+func validateConfig(config *Config) error {
+	if config == nil {
+		return errors.New("sidecar config is nil")
+	}
+	if config.X509.Enabled && config.X509.Disk == nil {
+		return errors.New("x509 disk config is enabled but not initialized")
+	}
+	if config.JWT.Enabled && config.JWT.Disk == nil {
+		return errors.New("jwt disk config is enabled but not initialized")
+	}
+
+	return nil
 }
 
 func (s *Sidecar) setupHealth() {

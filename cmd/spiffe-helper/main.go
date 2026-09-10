@@ -57,7 +57,11 @@ func main() {
 
 func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
 	sidecarConfig := config.NewSidecarConfig(hclConfig, log)
-	spiffeSidecar := sidecar.New(sidecarConfig)
+	spiffeSidecar, err := sidecar.New(sidecarConfig)
+	if err != nil {
+		return err
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -76,7 +80,7 @@ func startSidecar(hclConfig *config.Config, log logrus.FieldLogger) error {
 		tasks = append(tasks, healthServer.Start)
 	}
 
-	err := util.RunTasks(ctx, tasks...)
+	err = util.RunTasks(ctx, tasks...)
 	if errors.Is(err, context.Canceled) {
 		return nil
 	}

@@ -81,9 +81,12 @@ func newSidecarTest(t *testing.T, opts ...option) *sidecarTest {
 		opt(config)
 	}
 
+	sidecar, err := New(config)
+	require.NoError(t, err)
+
 	s := &sidecarTest{
 		rootCA:  spiffetest.NewCA(t),
-		sidecar: New(config),
+		sidecar: sidecar,
 		certDir: certDir,
 
 		// Observers for internal state transitions
