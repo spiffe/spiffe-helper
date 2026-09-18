@@ -44,6 +44,7 @@ type Config struct {
 	DaemonMode               *bool         `hcl:"daemon_mode"`
 	HealthCheck              health.Config `hcl:"health_checks"`
 	Hint                     string        `hcl:"hint"`
+	LogLevel                 string        `hcl:"log_level"`
 
 	// x509 configuration
 	SVIDFilename       string `hcl:"svid_file_name"`
