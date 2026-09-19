@@ -31,6 +31,10 @@ func NewJWT(c JWTConfig) *JWT {
 	}
 }
 
+func (j *JWT) Config() JWTConfig {
+	return j.c
+}
+
 // WriteJWTBundleSet write the given JWT bundles to disk
 func (j *JWT) WriteJWTBundleSet(jwkSet *jwtbundle.Set) error {
 	var errs []error

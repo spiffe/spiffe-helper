@@ -80,6 +80,7 @@ func newSidecarTest(t *testing.T, opts ...option) *sidecarTest {
 	for _, opt := range opts {
 		opt(config)
 	}
+	certDir = certDirFromConfig(config, certDir)
 
 	sidecar, err := New(config)
 	require.NoError(t, err)
@@ -190,6 +191,17 @@ func defaultTestConfig(certDir string) *Config {
 			}),
 		},
 	}
+}
+
+func certDirFromConfig(config *Config, fallback string) string {
+	if config.X509.Disk != nil {
+		return config.X509.Disk.Config().Dir
+	}
+	if config.JWT.Disk != nil {
+		return config.JWT.Disk.Config().Dir
+	}
+
+	return fallback
 }
 
 // option is a functional option for configuring newSidecarTest

@@ -37,6 +37,10 @@ func NewX509(c X509Config) *X509 {
 	}
 }
 
+func (x *X509) Config() X509Config {
+	return x.c
+}
+
 // WriteX509Context takes a X509Context, representing a svid message from
 // the Workload API, and calls writeCerts and writeKey to write to disk
 // the svid, key and bundle of certificates.

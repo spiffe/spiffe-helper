@@ -2,11 +2,12 @@ package config
 
 import (
 	"flag"
+	"io/fs"
 	"os"
-	"path"
 	"testing"
 
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/spiffe/spiffe-helper/pkg/disk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +18,8 @@ const (
 	testCertFileName   = "cert.pem"
 	testKeyFileName    = "key.pem"
 	testBundleFileName = "bundle.pem"
+	testJWTBundleName  = "jwt_bundle.json"
+	testJWTAudience    = "my-audience"
 	testPIDFileName    = "pidfile"
 	testRenewSignal    = "SIGHUP"
 	configAgentAddress = "MY_ADDRESS"
@@ -38,7 +41,7 @@ func TestParseConfig(t *testing.T) {
 	expectedKeyFileName := "svid_key.pem"
 	expectedSVIDBundleFileName := "svid_bundle.pem"
 	expectedJWTSVIDFileName := "jwt_svid.token"
-	expectedJWTBundleFileName := "jwt_bundle.json"
+	expectedJWTBundleFileName := testJWTBundleName
 	expectedJWTAudience := "your-audience"
 	expectedJWTExtraAudiences := []string{"your-extra-audience-1", "your-extra-audience-2"}
 
@@ -136,7 +139,7 @@ func TestValidateConfig(t *testing.T) {
 			config: &Config{
 				AgentAddress: testAgentAddress,
 				JWTSVIDs: []JWTConfig{{
-					JWTAudience: "my-audience",
+					JWTAudience: testJWTAudience,
 				}},
 			},
 			expectError: "'jwt_file_name' is required in 'jwt_svids'",
@@ -340,16 +343,22 @@ func TestNewSidecarConfig(t *testing.T) {
 		AgentAddress:            "my-agent-address",
 		Cmd:                     "my-cmd",
 		CertDir:                 "my-cert-dir",
+		CertFileMode:            0644,
+		KeyFileMode:             0600,
 		SVIDFileName:            "my-svid",
 		SVIDKeyFileName:         "my-key",
 		SVIDBundleFileName:      "my-bundle",
 		IncludeFederatedDomains: true,
 		OmitExpired:             true,
-		JWTBundleFileName:       "jwt_bundle.json",
+		Hint:                    "my-hint",
+		JWTBundleFileName:       testJWTBundleName,
+		JWTBundleFileMode:       0640,
+		JWTSVIDFileMode:         0604,
 		JWTSVIDs: []JWTConfig{
 			{
-				JWTAudience:     "my-audience",
-				JWTSVIDFileName: "my-jwt-filename",
+				JWTAudience:       testJWTAudience,
+				JWTExtraAudiences: []string{"my-extra-audience"},
+				JWTSVIDFileName:   "my-jwt-filename",
 			},
 		},
 	}
@@ -364,28 +373,59 @@ func TestNewSidecarConfig(t *testing.T) {
 	require.True(t, sidecarConfig.X509.Enabled)
 	require.True(t, sidecarConfig.JWT.Enabled)
 
-	// Check X509 fields are set correctly
-	expectedSVIDPath := path.Join(config.CertDir, config.SVIDFileName)
-	require.Equal(t, expectedSVIDPath, sidecarConfig.X509.Disk.SVIDPath())
-
-	expectedSVIDKeyPath := path.Join(config.CertDir, config.SVIDKeyFileName)
-	require.Equal(t, expectedSVIDKeyPath, sidecarConfig.X509.Disk.SVIDKeyPath())
-
-	expectedSVIDBundlePath := path.Join(config.CertDir, config.SVIDBundleFileName)
-	require.Equal(t, expectedSVIDBundlePath, sidecarConfig.X509.Disk.SVIDBundlePath())
+	// Ensure X509 Config was populated correctly
+	require.Equal(t, disk.X509Config{
+		Dir:                      config.CertDir,
+		SVIDFileName:             config.SVIDFileName,
+		SVIDKeyFileName:          config.SVIDKeyFileName,
+		SVIDBundleFileName:       config.SVIDBundleFileName,
+		CertFileMode:             fs.FileMode(config.CertFileMode), //nolint:gosec
+		KeyFileMode:              fs.FileMode(config.KeyFileMode),  //nolint:gosec
+		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+		IncludeFederatedDomains:  config.IncludeFederatedDomains,
+		OmitExpired:              config.OmitExpired,
+		Hint:                     config.Hint,
+	}, sidecarConfig.X509.Disk.Config())
 
 	// Ensure JWT Config was populated correctly
-	expectedBundlePath := path.Join(config.CertDir, config.JWTBundleFileName)
-	require.Equal(t, expectedBundlePath, sidecarConfig.JWT.Disk.BundlePath())
+	require.Equal(t, disk.JWTConfig{
+		Dir:            config.CertDir,
+		BundleFileName: config.JWTBundleFileName,
+		BundleFileMode: fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
+		SVIDFileMode:   fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
+		Hint:           config.Hint,
+	}, sidecarConfig.JWT.Disk.Config())
 
 	require.Len(t, sidecarConfig.JWT.SVIDs, len(config.JWTSVIDs))
 	for i := range config.JWTSVIDs {
 		assert.Equal(t, config.JWTSVIDs[i].JWTAudience, sidecarConfig.JWT.SVIDs[i].JWTAudience)
+		assert.Equal(t, config.JWTSVIDs[i].JWTExtraAudiences, sidecarConfig.JWT.SVIDs[i].JWTExtraAudiences)
 		assert.Equal(t, config.JWTSVIDs[i].JWTSVIDFileName, sidecarConfig.JWT.SVIDs[i].JWTSVIDFileName)
 	}
 
 	// Ensure empty fields were not populated
 	assert.Empty(t, sidecarConfig.RenewSignal)
+}
+
+func TestNewSidecarConfigWithoutX509(t *testing.T) {
+	config := &Config{
+		CertDir:           "my-cert-dir",
+		JWTBundleFileName: testJWTBundleName,
+		JWTSVIDs: []JWTConfig{
+			{
+				JWTAudience:     testJWTAudience,
+				JWTSVIDFileName: "my-jwt-filename",
+			},
+		},
+	}
+
+	sidecarConfig := NewSidecarConfig(config, nil)
+
+	require.False(t, sidecarConfig.X509.Enabled)
+	require.Nil(t, sidecarConfig.X509.Disk)
+	require.True(t, sidecarConfig.JWT.Enabled)
+	require.NotNil(t, sidecarConfig.JWT.Disk)
+	require.Len(t, sidecarConfig.JWT.SVIDs, len(config.JWTSVIDs))
 }
 
 func TestDaemonModeFlag(t *testing.T) {
