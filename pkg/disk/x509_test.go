@@ -1,8 +1,10 @@
 package disk
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"io/fs"
-	"path"
+	"os"
 	"testing"
 
 	"github.com/spiffe/go-spiffe/v2/bundle/x509bundle"
@@ -15,9 +17,9 @@ import (
 )
 
 const (
-	svidFilename       = "svid.pem"
-	svidKeyFilename    = "svid_key.pem"
-	svidBundleFilename = "svid_bundle.pem"
+	svidFileName       = "svid.pem"
+	svidKeyFileName    = "svid_key.pem"
+	svidBundleFileName = "svid_bundle.pem"
 	certFileMode       = fs.FileMode(0600)
 	keyFileMode        = fs.FileMode(0600)
 	testWorkloadID     = "spiffe://example.test/workload"
@@ -175,24 +177,77 @@ func TestWriteX509Context(t *testing.T) {
 					}
 				}
 
-				err = WriteX509Context(x509Context, test.intermediateInBundle, test.includeFederatedDomains, test.omitExpired, tempDir, svidFilename, svidKeyFilename, svidBundleFilename, certFileMode, keyFileMode, hint)
+				disk := NewX509(X509Config{
+					Dir:                      tempDir,
+					SVIDFileName:             svidFileName,
+					SVIDKeyFileName:          svidKeyFileName,
+					SVIDBundleFileName:       svidBundleFileName,
+					CertFileMode:             certFileMode,
+					KeyFileMode:              keyFileMode,
+					AddIntermediatesToBundle: test.intermediateInBundle,
+					IncludeFederatedDomains:  test.includeFederatedDomains,
+					OmitExpired:              test.omitExpired,
+					Hint:                     hint,
+				})
+				err = disk.WriteX509Context(x509Context)
 				require.NoError(t, err)
 
 				// Load certificates from disk and validate it is expected
-				actualCerts, err := util.LoadCertificates(path.Join(tempDir, svidFilename))
+				svidPath := disk.SVIDPath()
+				actualCertPEM, err := os.ReadFile(svidPath)
+				require.NoError(t, err)
+				require.Equal(t, encodeCertificates(t, certs), actualCertPEM)
+
+				actualCerts, err := util.LoadCertificates(svidPath)
 				require.NoError(t, err)
 				require.Equal(t, certs, actualCerts)
 
 				// Load key from disk and validate it is expected
-				actualKey, err := util.LoadPrivateKey(path.Join(tempDir, svidKeyFilename))
+				svidKeyPath := disk.SVIDKeyPath()
+				actualKeyPEM, err := os.ReadFile(svidKeyPath)
+				require.NoError(t, err)
+				require.Equal(t, encodePrivateKey(t, key), actualKeyPEM)
+
+				actualKey, err := util.LoadPrivateKey(svidKeyPath)
 				require.NoError(t, err)
 				require.Equal(t, key, actualKey)
 
 				// Load bundle from disk and validate it is expected
-				actualBundle, err := util.LoadCertificates(path.Join(tempDir, svidBundleFilename))
+				svidBundlePath := disk.SVIDBundlePath()
+				actualBundlePEM, err := os.ReadFile(svidBundlePath)
+				require.NoError(t, err)
+				require.Equal(t, encodeCertificates(t, bundle), actualBundlePEM)
+
+				actualBundle, err := util.LoadCertificates(svidBundlePath)
 				require.NoError(t, err)
 				require.Equal(t, bundle, actualBundle)
 			})
 		}
 	}
+}
+
+func encodeCertificates(t *testing.T, certs []*x509.Certificate) []byte {
+	t.Helper()
+
+	pemData := make([]byte, 0, len(certs)*1024)
+	for _, cert := range certs {
+		pemData = append(pemData, pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		})...)
+	}
+
+	return pemData
+}
+
+func encodePrivateKey(t *testing.T, key any) []byte {
+	t.Helper()
+
+	privateKey, err := x509.MarshalPKCS8PrivateKey(key)
+	require.NoError(t, err)
+
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: privateKey,
+	})
 }
