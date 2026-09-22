@@ -23,7 +23,7 @@ jobs:
 
       - name: Update Go version
         id: update_go
-        uses: faisal-memon/update-go-mod-action@v1
+        uses: faisal-memon/update-go-mod-action@v2
 
       - name: Update golangci-lint version
         id: update_lint
