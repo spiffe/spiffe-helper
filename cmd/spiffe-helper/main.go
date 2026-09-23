@@ -41,17 +41,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := hclConfig.ValidateConfig(log); err != nil {
-		log.WithError(err).Errorf("invalid configuration")
-		os.Exit(1)
-	}
-
 	if hclConfig.LogLevel != "" {
 		level, err := logrus.ParseLevel(hclConfig.LogLevel)
 		if err != nil {
 			log.WithError(err).Fatalf("Invalid log_level %q in config. Valid values: trace, debug, info, warn, error, fatal, panic", hclConfig.LogLevel)
 		}
 		log.Logger.SetLevel(level)
+	}
+
+	if err := hclConfig.ValidateConfig(log); err != nil {
+		log.WithError(err).Errorf("invalid configuration")
+		os.Exit(1)
 	}
 
 	if err = startSidecar(hclConfig, log); err != nil {
