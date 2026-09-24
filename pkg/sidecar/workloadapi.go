@@ -27,7 +27,7 @@ var (
 
 func (s *Sidecar) watchX509Context(ctx context.Context) error {
 	err := s.client.WatchX509Context(ctx, &x509Watcher{sidecar: s})
-	if err != nil && !errors.Is(err, context.Canceled) {
+	if !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("watching X.509 context: %w", err)
 	}
 
@@ -36,7 +36,7 @@ func (s *Sidecar) watchX509Context(ctx context.Context) error {
 
 func (s *Sidecar) watchJWTBundles(ctx context.Context) error {
 	err := s.client.WatchJWTBundles(ctx, &JWTBundlesWatcher{sidecar: s})
-	if err != nil && !errors.Is(err, context.Canceled) {
+	if !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("watching JWT bundle updates: %w", err)
 	}
 
