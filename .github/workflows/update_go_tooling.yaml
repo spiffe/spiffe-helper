@@ -59,7 +59,7 @@ jobs:
           body: |
             Updates Go and golangci-lint to their latest compatible releases.
 
-            - Go: `${{ steps.update_go.outputs.current-version }}`
+            - Go: `${{ steps.update_go.outputs.updated-version }}`
             - golangci-lint: `${{ steps.update_lint.outputs.current-lint-version }}`
 
             The generated changes have been processed with `make lint-fix`.
