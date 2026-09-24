@@ -89,4 +89,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Create the release using the version number as the title
-        run: gh release create "${GITHUB_REF#refs/tags/}" ./spiffe-helper_${{ github.ref_name }}_Linux-x86_64.tar.gz ./spiffe-helper_${{ github.ref_name }}_Linux-arm64.tar.gz --title "${GITHUB_REF#refs/tags/}"
+        run: gh release create "${GITHUB_REF#refs/tags/}" ./spiffe-helper_${{ github.ref_name }}_Linux-x86_64.tar.gz ./spiffe-helper_${{ github.ref_name }}_Linux-arm64.tar.gz --title "${GITHUB_REF#refs/tags/}" --generate-notes
