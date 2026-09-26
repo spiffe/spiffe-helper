@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/go-jose/go-jose/v3 v3.0.5
 	github.com/hashicorp/hcl v1.0.1-vault-7
-	github.com/sirupsen/logrus v1.9.4
+	github.com/sirupsen/logrus v1.10.2
 	github.com/spiffe/go-spiffe/v2 v2.8.2
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sys v0.48.0
