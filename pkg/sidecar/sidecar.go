@@ -309,7 +309,7 @@ func (s *Sidecar) signalProcess() error {
 		}
 		s.process = cmd.Process
 		s.processRunning = true
-		go s.checkProcessExit()
+		go s.checkProcessExit(cmd)
 	} else {
 		if err := SignalProcess(s.process, s.config.RenewSignal); err != nil {
 			return err
@@ -355,7 +355,7 @@ func (s *Sidecar) signalPIDFile() (int, error) {
 
 // Goroutine to watch a running process until it exits and report its exit status.
 // Does NOT trigger a restart of a process when it exits.
-func (s *Sidecar) checkProcessExit() {
+func (s *Sidecar) checkProcessExit(cmd *exec.Cmd) {
 	s.mu.Lock()
 	if !s.processRunning {
 		// This is the only function that should clear the processRunning flag
@@ -363,13 +363,12 @@ func (s *Sidecar) checkProcessExit() {
 		// started.
 		panic("checkProcessExit called with no process running")
 	}
-	// copy the Process object so we don't have to hold the lock while waiting;
-	// that would deadlock with signalProcess when there's a workload update.
-	proc := s.process
 	s.mu.Unlock()
 
-	state, err := proc.Wait()
-	if err != nil {
+	// Wait on the Cmd rather than its Process so that copying to non-file
+	// stdio writers has finished before the exit is reported.
+	var exitErr *exec.ExitError
+	if err := cmd.Wait(); err != nil && !errors.As(err, &exitErr) {
 		// We assume the process has exited here, but this could
 		// potentially be due to an error in the Wait call. We could
 		// look up the process by pid to see if it still exists, but
@@ -378,11 +377,11 @@ func (s *Sidecar) checkProcessExit() {
 		s.config.Log.Errorf("error waiting for process exit: %v", err)
 	}
 
-	s.hooks.cmdExit(*state)
-
 	s.mu.Lock()
 	s.processRunning = false
 	s.mu.Unlock()
+
+	s.hooks.cmdExit(*cmd.ProcessState)
 }
 
 func (s *Sidecar) fetchJWTSVIDs(ctx context.Context, jwtAudience string, jwtExtraAudiences []string) ([]*jwtsvid.SVID, error) {
