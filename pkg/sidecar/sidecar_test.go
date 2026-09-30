@@ -4,15 +4,18 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"encoding/json"
 	"os"
 	"path"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
 	"github.com/spiffe/go-spiffe/v2/bundle/x509bundle"
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
@@ -779,6 +782,90 @@ func Test_CheckReadiness(t *testing.T) {
 		},
 	}
 	assert.True(t, sidecar.CheckReadiness())
+}
+
+// newHealthTestSidecar returns a sidecar that tracks an X.509 SVID, a JWT
+// bundle and a JWT SVID.
+func newHealthTestSidecar(t *testing.T) *Sidecar {
+	t.Helper()
+
+	config := defaultTestConfig(t.TempDir())
+	config.Cmd = ""
+	config.Log, _ = test.NewNullLogger()
+	jwtDiskConfig := config.JWT.Disk.Config()
+	jwtDiskConfig.BundleFileName = testJWTBundleFileName
+	config.JWT.Disk = disk.NewJWT(jwtDiskConfig)
+	config.JWT.SVIDs = []JWTSVIDConfig{{JWTAudience: testJWTAudience, JWTSVIDFileName: testJWTSVIDFileName}}
+
+	s, err := New(config)
+	require.NoError(t, err)
+
+	return s
+}
+
+// TestSidecar_HealthConcurrentAccess reads and writes the health write
+// statuses concurrently, as daemon mode does. Run it with -race.
+func TestSidecar_HealthConcurrentAccess(t *testing.T) {
+	const iterations = 200
+
+	s := newHealthTestSidecar(t)
+	x509Context := newTestX509SVID(t, spiffetest.NewCA(t)).x509Context()
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for range iterations {
+			s.updateCertificates(x509Context)
+		}
+	})
+	// Two writers of the JWT status map. The bundle callback also stands in
+	// for performJWTSVIDUpdate, which needs a Workload API.
+	for range 2 {
+		wg.Go(func() {
+			for range iterations {
+				JWTBundlesWatcher{sidecar: s}.OnJWTBundlesUpdate(jwtbundle.NewSet())
+			}
+		})
+	}
+	wg.Go(func() {
+		for range iterations {
+			s.CheckLiveness()
+			s.CheckReadiness()
+			_, err := json.Marshal(s.GetHealth())
+			assert.NoError(t, err)
+		}
+	})
+	wg.Wait()
+
+	written := writeStatusWritten
+	assert.Equal(t, FileWriteStatuses{
+		X509WriteStatus: &written,
+		JWTWriteStatus: map[string]string{
+			s.config.JWT.Disk.BundlePath():                  writeStatusWritten,
+			s.config.JWT.Disk.SVIDPath(testJWTSVIDFileName): writeStatusUnwritten,
+		},
+	}, s.GetHealth().FileWriteStatuses)
+}
+
+// TestSidecar_GetHealthReturnsCopy checks that changing the result of
+// GetHealth does not change the sidecar's state.
+func TestSidecar_GetHealthReturnsCopy(t *testing.T) {
+	s := newHealthTestSidecar(t)
+	unwritten := writeStatusUnwritten
+	want := Health{
+		FileWriteStatuses: FileWriteStatuses{
+			X509WriteStatus: &unwritten,
+			JWTWriteStatus: map[string]string{
+				s.config.JWT.Disk.BundlePath():                  writeStatusUnwritten,
+				s.config.JWT.Disk.SVIDPath(testJWTSVIDFileName): writeStatusUnwritten,
+			},
+		},
+	}
+
+	got := s.GetHealth()
+	*got.FileWriteStatuses.X509WriteStatus = writeStatusFailed
+	got.FileWriteStatuses.JWTWriteStatus[s.config.JWT.Disk.BundlePath()] = writeStatusFailed
+
+	assert.Equal(t, want, s.GetHealth())
 }
 
 func onWindows() bool {

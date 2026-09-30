@@ -31,6 +31,9 @@ const (
 	testSVIDFileName       = "svid.pem"
 	testSVIDKeyFileName    = "svid_key.pem"
 	testSVIDBundleFileName = "svid_bundle.pem"
+	testJWTBundleFileName  = "jwt_bundle.json"
+	testJWTSVIDFileName    = "jwt_svid.jwt"
+	testJWTAudience        = "my-audience"
 )
 
 // sidecarTest is a helper struct to create a sidecar instance for testing.

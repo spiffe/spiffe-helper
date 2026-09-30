@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"strconv"
@@ -53,6 +54,9 @@ type Sidecar struct {
 
 	// Health server
 	health Health
+
+	// Mutex to protect health
+	healthMu sync.RWMutex
 
 	// stdio to connect to the 'cmd' to run. These are used in tests to
 	// capture and/or redirect I/O from the guest command. In future they
@@ -131,17 +135,28 @@ func validateConfig(config *Config) error {
 
 func (s *Sidecar) setupHealth() {
 	if s.x509Enabled() {
-		writeStatus := writeStatusUnwritten
-		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
+		s.setX509WriteStatus(writeStatusUnwritten)
 	}
 	if s.jwtBundleEnabled() {
-		jwtBundleFilePath := s.config.JWT.Disk.BundlePath()
-		s.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusUnwritten
+		s.setJWTWriteStatus(s.config.JWT.Disk.BundlePath(), writeStatusUnwritten)
 	}
 	for _, jwtConfig := range s.config.JWT.SVIDs {
-		jwtSVIDFileName := s.config.JWT.Disk.SVIDPath(jwtConfig.JWTSVIDFileName)
-		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDFileName] = writeStatusUnwritten
+		s.setJWTWriteStatus(s.config.JWT.Disk.SVIDPath(jwtConfig.JWTSVIDFileName), writeStatusUnwritten)
 	}
+}
+
+func (s *Sidecar) setX509WriteStatus(writeStatus string) {
+	s.healthMu.Lock()
+	defer s.healthMu.Unlock()
+
+	s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
+}
+
+func (s *Sidecar) setJWTWriteStatus(filePath, writeStatus string) {
+	s.healthMu.Lock()
+	defer s.healthMu.Unlock()
+
+	s.health.FileWriteStatuses.JWTWriteStatus[filePath] = writeStatus
 }
 
 // RunDaemon starts the main loop
@@ -250,12 +265,10 @@ func (s *Sidecar) updateCertificates(svidResponse *workloadapi.X509Context) {
 	s.config.Log.Debug("Updating X.509 certificates")
 	if err := s.config.X509.Disk.WriteX509Context(svidResponse); err != nil {
 		s.config.Log.WithError(err).Error("Unable to dump bundle")
-		writeStatus := writeStatusFailed
-		s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
+		s.setX509WriteStatus(writeStatusFailed)
 		return
 	}
-	writeStatus := writeStatusWritten
-	s.health.FileWriteStatuses.X509WriteStatus = &writeStatus
+	s.setX509WriteStatus(writeStatusWritten)
 	s.config.Log.Info("X.509 certificates updated")
 
 	if s.config.Cmd != "" {
@@ -436,10 +449,10 @@ func (s *Sidecar) performJWTSVIDUpdate(ctx context.Context, jwtAudience string, 
 	jwtSVIDPath := s.config.JWT.Disk.SVIDPath(jwtSVIDFileName)
 	if err = s.config.JWT.Disk.WriteJWTSVID(jwtSVIDs, jwtSVIDFileName); err != nil {
 		s.config.Log.Errorf("Unable to update JWT SVID: %v", err)
-		s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDPath] = writeStatusFailed
+		s.setJWTWriteStatus(jwtSVIDPath, writeStatusFailed)
 		return nil, err
 	}
-	s.health.FileWriteStatuses.JWTWriteStatus[jwtSVIDPath] = writeStatusWritten
+	s.setJWTWriteStatus(jwtSVIDPath, writeStatusWritten)
 
 	s.config.Log.Info("JWT SVID updated")
 	return jwtSVIDs, nil
@@ -536,10 +549,10 @@ func (w JWTBundlesWatcher) OnJWTBundlesUpdate(jwkSet *jwtbundle.Set) {
 	jwtBundleFilePath := w.sidecar.config.JWT.Disk.BundlePath()
 	if err := w.sidecar.config.JWT.Disk.WriteJWTBundleSet(jwkSet); err != nil {
 		w.sidecar.config.Log.Errorf("Error writing JWT Bundle to disk: %v", err)
-		w.sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusFailed
+		w.sidecar.setJWTWriteStatus(jwtBundleFilePath, writeStatusFailed)
 		return
 	}
-	w.sidecar.health.FileWriteStatuses.JWTWriteStatus[jwtBundleFilePath] = writeStatusWritten
+	w.sidecar.setJWTWriteStatus(jwtBundleFilePath, writeStatusWritten)
 
 	w.sidecar.config.Log.Info("JWT bundle updated")
 }
@@ -552,6 +565,9 @@ func (w JWTBundlesWatcher) OnJWTBundlesWatchError(err error) {
 }
 
 func (s *Sidecar) CheckLiveness() bool {
+	s.healthMu.RLock()
+	defer s.healthMu.RUnlock()
+
 	for _, writeStatus := range s.health.FileWriteStatuses.JWTWriteStatus {
 		if writeStatus == writeStatusFailed {
 			return false
@@ -564,6 +580,9 @@ func (s *Sidecar) CheckLiveness() bool {
 }
 
 func (s *Sidecar) CheckReadiness() bool {
+	s.healthMu.RLock()
+	defer s.healthMu.RUnlock()
+
 	for _, writeStatus := range s.health.FileWriteStatuses.JWTWriteStatus {
 		if writeStatus != writeStatusWritten {
 			return false
@@ -572,6 +591,17 @@ func (s *Sidecar) CheckReadiness() bool {
 	return !s.x509Enabled() || *s.health.FileWriteStatuses.X509WriteStatus == writeStatusWritten
 }
 
+// GetHealth returns a deep copy of the health state.
 func (s *Sidecar) GetHealth() Health {
-	return s.health
+	s.healthMu.RLock()
+	defer s.healthMu.RUnlock()
+
+	health := s.health
+	health.FileWriteStatuses.JWTWriteStatus = maps.Clone(s.health.FileWriteStatuses.JWTWriteStatus)
+	if s.health.FileWriteStatuses.X509WriteStatus != nil {
+		x509WriteStatus := *s.health.FileWriteStatuses.X509WriteStatus
+		health.FileWriteStatuses.X509WriteStatus = &x509WriteStatus
+	}
+
+	return health
 }
