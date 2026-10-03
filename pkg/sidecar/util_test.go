@@ -217,6 +217,24 @@ func withConfig(cfg *Config) option {
 	}
 }
 
+// withoutCmd returns an option that runs no command on certificate updates
+func withoutCmd() option {
+	return func(config *Config) {
+		config.Cmd = ""
+	}
+}
+
+// withJWTBundleAndSVID returns an option that configures the sidecar to write
+// a JWT bundle and one JWT SVID
+func withJWTBundleAndSVID() option {
+	return func(config *Config) {
+		jwtDiskConfig := config.JWT.Disk.Config()
+		jwtDiskConfig.BundleFileName = testJWTBundleFileName
+		config.JWT.Disk = disk.NewJWT(jwtDiskConfig)
+		config.JWT.SVIDs = []JWTSVIDConfig{{JWTAudience: testJWTAudience, JWTSVIDFileName: testJWTSVIDFileName}}
+	}
+}
+
 // One X.509 SVID with its chain and private key, as will be generated for the CA
 // and sent via the fake workload API server to the x.509 watcher. May not necessarily
 // have the same root CA as the sidecarTest instance, since we might be testing

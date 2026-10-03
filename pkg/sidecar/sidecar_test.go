@@ -784,32 +784,15 @@ func Test_CheckReadiness(t *testing.T) {
 	assert.True(t, sidecar.CheckReadiness())
 }
 
-// newHealthTestSidecar returns a sidecar that tracks an X.509 SVID, a JWT
-// bundle and a JWT SVID.
-func newHealthTestSidecar(t *testing.T) *Sidecar {
-	t.Helper()
-
-	config := defaultTestConfig(t.TempDir())
-	config.Cmd = ""
-	config.Log, _ = test.NewNullLogger()
-	jwtDiskConfig := config.JWT.Disk.Config()
-	jwtDiskConfig.BundleFileName = testJWTBundleFileName
-	config.JWT.Disk = disk.NewJWT(jwtDiskConfig)
-	config.JWT.SVIDs = []JWTSVIDConfig{{JWTAudience: testJWTAudience, JWTSVIDFileName: testJWTSVIDFileName}}
-
-	s, err := New(config)
-	require.NoError(t, err)
-
-	return s
-}
-
 // TestSidecar_HealthConcurrentAccess reads and writes the health write
 // statuses concurrently, as daemon mode does. Run it with -race.
 func TestSidecar_HealthConcurrentAccess(t *testing.T) {
 	const iterations = 200
 
-	s := newHealthTestSidecar(t)
-	x509Context := newTestX509SVID(t, spiffetest.NewCA(t)).x509Context()
+	st := newSidecarTest(t, withoutCmd(), withJWTBundleAndSVID())
+	defer st.Close(t)
+	s := st.sidecar
+	x509Context := newTestX509SVID(t, st.rootCA).x509Context()
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
@@ -849,7 +832,9 @@ func TestSidecar_HealthConcurrentAccess(t *testing.T) {
 // TestSidecar_GetHealthReturnsCopy checks that changing the result of
 // GetHealth does not change the sidecar's state.
 func TestSidecar_GetHealthReturnsCopy(t *testing.T) {
-	s := newHealthTestSidecar(t)
+	st := newSidecarTest(t, withJWTBundleAndSVID())
+	defer st.Close(t)
+	s := st.sidecar
 	unwritten := writeStatusUnwritten
 	want := Health{
 		FileWriteStatuses: FileWriteStatuses{
