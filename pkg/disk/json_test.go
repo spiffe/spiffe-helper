@@ -202,3 +202,54 @@ func getSignerAlgorithm(signer crypto.Signer) (jose.SignatureAlgorithm, error) {
 		return "", fmt.Errorf("unable to determine signature algorithm for public key type %T", publicKey)
 	}
 }
+
+func TestWriteJWTAppliesFileModeToExistingFiles(t *testing.T) {
+	spiffeID := spiffeid.RequireFromString("spiffe://example.test/workload")
+
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+
+	token := generateToken(t, jwt.Claims{
+		Subject:  spiffeID.String(),
+		Issuer:   testJWTIssuer,
+		Expiry:   jwt.NewNumericDate(time.Now()),
+		Audience: []string{testJWTAudience},
+		IssuedAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+	}, key, "mode-key")
+
+	jwtSVID, err := jwtsvid.ParseInsecure(token, []string{testJWTAudience})
+	require.NoError(t, err)
+	jwtSVIDs := []*jwtsvid.SVID{jwtSVID}
+
+	jwtBundleSet := jwtbundle.NewSet(jwtbundle.New(spiffeid.RequireTrustDomainFromString("example.test")))
+
+	tempDir := t.TempDir()
+	newJWT := func(mode fs.FileMode) *JWT {
+		return NewJWT(JWTConfig{
+			Dir:            tempDir,
+			BundleFileName: jwtBundleFilename,
+			BundleFileMode: mode,
+			SVIDFileMode:   mode,
+		})
+	}
+
+	first := newJWT(jwtSVIDFileMode)
+	require.NoError(t, first.WriteJWTSVID(jwtSVIDs, jwtSVIDFilename))
+	require.NoError(t, first.WriteJWTBundleSet(jwtBundleSet))
+
+	// The files written by the previous run are still in place when the
+	// configured mode changes.
+	second := newJWT(fs.FileMode(0640))
+	require.NoError(t, second.WriteJWTSVID(jwtSVIDs, jwtSVIDFilename))
+	require.NoError(t, second.WriteJWTBundleSet(jwtBundleSet))
+
+	for _, file := range []string{second.SVIDPath(jwtSVIDFilename), second.BundlePath()} {
+		info, err := os.Stat(file)
+		require.NoError(t, err)
+		require.Equal(t, fs.FileMode(0640), info.Mode().Perm(), file)
+	}
+
+	actualToken, err := os.ReadFile(second.SVIDPath(jwtSVIDFilename))
+	require.NoError(t, err)
+	require.Equal(t, token, string(actualToken))
+}
