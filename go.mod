@@ -1,6 +1,6 @@
 module github.com/spiffe/spiffe-helper
 
-go 1.27.1
+go 1.27.3
 
 require (
 	github.com/go-jose/go-jose/v3 v3.0.5
