@@ -8,6 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/spiffe/spiffe-helper/pkg/disk"
+	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -196,6 +197,31 @@ func TestValidateConfig(t *testing.T) {
 				SVIDBundleFileName: testBundleFileName,
 			},
 			skipWindows: true,
+		},
+		{
+			name: "same liveness and readiness path",
+			config: &Config{
+				AgentAddress:      testAgentAddress,
+				JWTBundleFileName: testJWTBundleName,
+				HealthCheck: health.Config{
+					ListenerEnabled: true,
+					LivenessPath:    "/health",
+					ReadinessPath:   "/health",
+				},
+			},
+			expectError: "'liveness_path' and 'readiness_path' must be different",
+		},
+		{
+			name: "liveness path set to default readiness path",
+			config: &Config{
+				AgentAddress:      testAgentAddress,
+				JWTBundleFileName: testJWTBundleName,
+				HealthCheck: health.Config{
+					ListenerEnabled: true,
+					LivenessPath:    defaultReadinessPath,
+				},
+			},
+			expectError: "'liveness_path' and 'readiness_path' must be different",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

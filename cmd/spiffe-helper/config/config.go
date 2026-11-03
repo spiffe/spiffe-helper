@@ -183,6 +183,9 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		if c.HealthCheck.ReadinessPath == "" {
 			c.HealthCheck.ReadinessPath = defaultReadinessPath
 		}
+		if c.HealthCheck.LivenessPath == c.HealthCheck.ReadinessPath {
+			return errors.New("'liveness_path' and 'readiness_path' must be different")
+		}
 	}
 
 	return nil
