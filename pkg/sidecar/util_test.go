@@ -31,6 +31,9 @@ const (
 	testSVIDFileName       = "svid.pem"
 	testSVIDKeyFileName    = "svid_key.pem"
 	testSVIDBundleFileName = "svid_bundle.pem"
+	testJWTBundleFileName  = "jwt_bundle.json"
+	testJWTSVIDFileName    = "jwt_svid.jwt"
+	testJWTAudience        = "my-audience"
 )
 
 // sidecarTest is a helper struct to create a sidecar instance for testing.
@@ -211,6 +214,24 @@ type option func(*Config)
 func withConfig(cfg *Config) option {
 	return func(config *Config) {
 		*config = *cfg
+	}
+}
+
+// withoutCmd returns an option that runs no command on certificate updates
+func withoutCmd() option {
+	return func(config *Config) {
+		config.Cmd = ""
+	}
+}
+
+// withJWTBundleAndSVID returns an option that configures the sidecar to write
+// a JWT bundle and one JWT SVID
+func withJWTBundleAndSVID() option {
+	return func(config *Config) {
+		jwtDiskConfig := config.JWT.Disk.Config()
+		jwtDiskConfig.BundleFileName = testJWTBundleFileName
+		config.JWT.Disk = disk.NewJWT(jwtDiskConfig)
+		config.JWT.SVIDs = []JWTSVIDConfig{{JWTAudience: testJWTAudience, JWTSVIDFileName: testJWTSVIDFileName}}
 	}
 }
 
