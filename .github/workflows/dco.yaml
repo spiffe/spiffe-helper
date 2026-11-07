@@ -19,6 +19,8 @@ jobs:
           args: --exclude-pattern '(dependabot|github-actions)\[bot\]@users\.noreply\.github\.com'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Accept merge queue commit
+      - name: Skip DCO check in merge queue
         if: github.event_name == 'merge_group'
-        run: echo "DCO was checked on the pull request; skipping GitHub's synthetic merge commit."
+        run: |
+          echo "Skipping DCO check for merge queue - DCO is validated on PR commits before entering the queue"
+          exit 0
