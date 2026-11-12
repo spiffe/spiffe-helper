@@ -13,8 +13,14 @@ jobs:
     name: Check DCO
     steps:
       - name: Run dco-check
+        if: github.event_name != 'merge_group'
         uses: christophebedard/dco-check@ec8bfc43106afe98b323ace9133650df10497e12 # 0.5.1
         with:
           args: --exclude-pattern '(dependabot|github-actions)\[bot\]@users\.noreply\.github\.com'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Skip DCO check in merge queue
+        if: github.event_name == 'merge_group'
+        run: |
+          echo "Skipping DCO check for merge queue - DCO is validated on PR commits before entering the queue"
+          exit 0
