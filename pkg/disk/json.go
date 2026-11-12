@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path"
 
 	"github.com/spiffe/go-spiffe/v2/bundle/jwtbundle"
@@ -64,7 +63,7 @@ func (j *JWT) WriteJWTSVID(jwtSVIDs []*jwtsvid.SVID, fileName string) error {
 
 	jwtSVIDMarshaled := []byte(jwtSVID.Marshal())
 
-	return os.WriteFile(j.SVIDPath(fileName), jwtSVIDMarshaled, j.c.SVIDFileMode)
+	return writeFile(j.SVIDPath(fileName), jwtSVIDMarshaled, j.c.SVIDFileMode)
 }
 
 func (j *JWT) BundlePath() string {
@@ -86,7 +85,7 @@ func (j *JWT) writeJSON(certs map[string]any) error {
 		return err
 	}
 
-	return os.WriteFile(j.BundlePath(), file, j.c.BundleFileMode)
+	return writeFile(j.BundlePath(), file, j.c.BundleFileMode)
 }
 
 // getJWTSVID extracts the JWT SVID that matches the hint or returns the default
