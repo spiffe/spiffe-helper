@@ -48,6 +48,8 @@ func TestWriteJWTBundleSet(t *testing.T) {
 
 	err := jwtDisk.WriteJWTBundleSet(jwtBundleSet)
 	require.NoError(t, err)
+	err = jwtDisk.WriteJWTBundleSet(jwtBundleSet)
+	require.NoError(t, err)
 
 	actualJWTBundle, err := jwtbundle.Load(td, path.Join(tempDir, jwtBundleFilename))
 	require.NoError(t, err)
@@ -86,6 +88,9 @@ func TestWriteJWTSVIDNoHint(t *testing.T) {
 		BundleFileMode: jwtBundleFileMode,
 		SVIDFileMode:   jwtSVIDFileMode,
 	})
+	err = jwtDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFilename)
+	require.NoError(t, err)
+	// A renewal replaces an existing file, so exercise the repeated-write path.
 	err = jwtDisk.WriteJWTSVID(jwtSVIDs, jwtSVIDFilename)
 	require.NoError(t, err)
 
