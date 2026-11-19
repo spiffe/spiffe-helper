@@ -5,7 +5,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/fs"
-	"os"
 	"path"
 	"time"
 
@@ -111,7 +110,7 @@ func (x *X509) writeCerts(file string, certs []*x509.Certificate) error {
 		pemData = append(pemData, pem.EncodeToMemory(b)...)
 	}
 
-	return os.WriteFile(file, pemData, x.c.CertFileMode)
+	return writeFile(file, pemData, x.c.CertFileMode)
 }
 
 // writeKey takes a private key as a slice of bytes,
@@ -122,7 +121,7 @@ func (x *X509) writeKey(data []byte) error {
 		Bytes: data,
 	}
 
-	return os.WriteFile(x.SVIDKeyPath(), pem.EncodeToMemory(b), x.c.KeyFileMode)
+	return writeFile(x.SVIDKeyPath(), pem.EncodeToMemory(b), x.c.KeyFileMode)
 }
 
 // SVIDPath returns the full path for the SVID file

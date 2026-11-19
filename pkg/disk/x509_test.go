@@ -251,3 +251,49 @@ func encodePrivateKey(t *testing.T, key any) []byte {
 		Bytes: privateKey,
 	})
 }
+
+func TestWriteX509ContextAppliesFileModesToExistingFiles(t *testing.T) {
+	rootCA := spiffetest.NewCA(t)
+	spiffeID := spiffeid.RequireFromString(testWorkloadID)
+	certs, key := rootCA.CreateX509SVID(spiffeID.String())
+
+	x509Context := &workloadapi.X509Context{
+		Bundles: x509bundle.NewSet(x509bundle.FromX509Authorities(spiffeID.TrustDomain(), rootCA.Roots())),
+		SVIDs: []*x509svid.SVID{
+			{
+				ID:           spiffeID,
+				Certificates: certs,
+				PrivateKey:   key,
+			},
+		},
+	}
+
+	tempDir := t.TempDir()
+	newDisk := func(mode fs.FileMode) *X509 {
+		return NewX509(X509Config{
+			Dir:                tempDir,
+			SVIDFileName:       svidFileName,
+			SVIDKeyFileName:    svidKeyFileName,
+			SVIDBundleFileName: svidBundleFileName,
+			CertFileMode:       mode,
+			KeyFileMode:        mode,
+		})
+	}
+
+	require.NoError(t, newDisk(certFileMode).WriteX509Context(x509Context))
+
+	// The files written by the previous run are still in place when the
+	// configured modes change.
+	disk := newDisk(fs.FileMode(0640))
+	require.NoError(t, disk.WriteX509Context(x509Context))
+
+	for _, file := range []string{disk.SVIDPath(), disk.SVIDKeyPath(), disk.SVIDBundlePath()} {
+		info, err := os.Stat(file)
+		require.NoError(t, err)
+		require.Equal(t, fs.FileMode(0640), info.Mode().Perm(), file)
+	}
+
+	actualCerts, err := util.LoadCertificates(disk.SVIDPath())
+	require.NoError(t, err)
+	require.Equal(t, certs, actualCerts)
+}
