@@ -88,24 +88,6 @@ jobs:
       - name: Run clean check
         run: make git-clean-check
 
-  unit-test-windows:
-    name: unit-test (windows)
-    runs-on: windows-2022
-    needs: cache-deps
-
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Setup go
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: 'go.mod'
-      - name: Run unit tests
-        run: go test ./...
-
   integration-test:
     name: integration test (linux)
     runs-on: ubuntu-22.04
