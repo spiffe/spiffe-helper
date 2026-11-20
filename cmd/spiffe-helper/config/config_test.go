@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io/fs"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/sirupsen/logrus/hooks/test"
@@ -225,7 +226,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipWindows && os.Getenv("GOOS") == "windows" {
+			if tt.skipWindows && runtime.GOOS == "windows" {
 				t.Skip("skipping test on windows")
 			}
 			log, _ := test.NewNullLogger()
