@@ -66,3 +66,11 @@ func TestWriteX509ContextWithReadOnlyFileMode(t *testing.T) {
 	}
 	require.ElementsMatch(t, []string{svidFileName, svidKeyFileName, svidBundleFileName}, names)
 }
+
+func assertFileMode(t *testing.T, file string, expected fs.FileMode) {
+	t.Helper()
+
+	info, err := os.Stat(file)
+	require.NoError(t, err)
+	require.Equal(t, expected, info.Mode().Perm(), file)
+}
