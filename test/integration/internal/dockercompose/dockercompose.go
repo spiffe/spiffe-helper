@@ -78,6 +78,15 @@ func (c *Project) Up(tb testing.TB, services ...string) {
 	c.mustRun(tb, args...)
 }
 
+// Build builds the images for the specified Compose services.
+func (c *Project) Build(tb testing.TB, services ...string) {
+	tb.Helper()
+
+	args := []string{"build"}
+	args = append(args, services...)
+	c.mustRun(tb, args...)
+}
+
 // Exec runs a command in a docker compose service and returns the result.
 func (c *Project) Exec(service string, command ...string) Result {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
@@ -97,7 +106,7 @@ func (c *Project) Run(service string, timeout time.Duration, env map[string]stri
 	}
 	sort.Strings(keys)
 
-	baseArgs := []string{"run", "--build", "--rm", "--no-deps", "-T"}
+	baseArgs := []string{"run", "--rm", "--no-deps", "-T"}
 	envArgs := make([]string, 0, 2*len(keys))
 	for _, key := range keys {
 		envArgs = append(envArgs, "--env", key+"="+env[key])

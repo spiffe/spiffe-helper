@@ -17,6 +17,7 @@ func TestEnvironmentConfiguration(t *testing.T) {
 	dockerCompose := dockercompose.New()
 	dockerCompose.AddFile(t, "env/compose.yaml")
 	dockerCompose.AddGlobalEnv(t, "GO_VERSION", readGoVersion(t))
+	dockerCompose.Build(t, "spiffe-helper-env")
 	t.Cleanup(func() { dockerCompose.Cleanup(t) })
 
 	baseEnv := map[string]string{
