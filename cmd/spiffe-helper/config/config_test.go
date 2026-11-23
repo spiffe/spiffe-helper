@@ -4,6 +4,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/sirupsen/logrus/hooks/test"
@@ -243,7 +244,7 @@ func TestValidateConfig(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipWindows && os.Getenv("GOOS") == "windows" {
+			if tt.skipWindows && runtime.GOOS == "windows" {
 				t.Skip("skipping test on windows")
 			}
 			log, _ := test.NewNullLogger()
@@ -788,6 +789,7 @@ func TestConfigFileWithEnvOverrides(t *testing.T) {
 		expectedConfig func(*Config)
 		expectError    bool
 		expectErrorMsg string
+		skipWindows    bool
 	}{
 		{
 			name:         "JSON config file with string field override",
@@ -890,6 +892,7 @@ renew_signal: "SIGUSR1"`,
 				// Non-overridden value should come from file
 				assert.Equal(t, "SIGUSR1", c.RenewSignal)
 			},
+			skipWindows: true,
 		},
 		{
 			name:         "JSON config file with JWTSVIDs and JWTExtraAudiences",
@@ -1029,6 +1032,10 @@ jwt_svids:
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipWindows && runtime.GOOS == "windows" {
+				t.Skip("skipping test on windows")
+			}
+
 			// Create temporary config file
 			var fileExt string
 			if tt.configFormat == configFormatJSON {
