@@ -368,7 +368,6 @@ func configFileEmpty(file string) bool {
 
 func detectConfigFormat(file string) string {
 	file = strings.ToLower(file)
-
 	switch {
 	case strings.HasSuffix(file, ".conf"):
 		return configFormatHCL
