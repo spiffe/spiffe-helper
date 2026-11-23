@@ -98,6 +98,12 @@ spiffe-helper can be run in `daemon_mode` with no `cmd` or `pid_file_name`. It
 will fetch and renew the certificates, overwrite them on disk, and the process
 will pick up the changes.
 
+Certificate files are replaced atomically during renewal. A process that
+already has the previous file open can finish reading it, while new readers
+opening the path see the new file. Processes that track the old file inode or
+keep the file open without reopening it must use their own reload mechanism;
+configure `cmd` or `pid_file_name` when necessary.
+
 This approach is recommended where possible.
 
 #### Use in daemon-mode with `cmd` to run a process or a reload command
