@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spiffe/spiffe-helper/test/integration/internal/dockercompose"
 	"github.com/stretchr/testify/require"
@@ -76,7 +77,7 @@ func TestEnvironmentConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := dockerCompose.Run("spiffe-helper-env", tt.env, "--daemon-mode=false")
+			result := dockerCompose.Run("spiffe-helper-env", 10*time.Second, tt.env, "--daemon-mode=false")
 			output := result.Stdout + result.Stderr
 			if tt.expectError != "" {
 				require.Contains(t, output, tt.expectError)

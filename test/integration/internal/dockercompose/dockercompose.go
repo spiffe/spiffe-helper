@@ -86,9 +86,9 @@ func (c *Project) Exec(service string, command ...string) Result {
 	return c.exec(ctx, service, command...)
 }
 
-// Run runs a one-off command in a Compose service.
-func (c *Project) Run(service string, env map[string]string, command ...string) Result {
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+// Run runs a one-off command in a Compose service until the timeout expires.
+func (c *Project) Run(service string, timeout time.Duration, env map[string]string, command ...string) Result {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	keys := make([]string, 0, len(env))
