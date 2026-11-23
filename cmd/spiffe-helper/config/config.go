@@ -26,7 +26,7 @@ const (
 	configFormatHCL          = "hcl"
 	configFormatJSON         = "json"
 	configFormatYAML         = "yaml"
-	envPrefix                = "SPIFFE_HLP_"
+	envPrefix                = "SPIFFE_HELPER_"
 	defaultAgentAddress      = "/tmp/spire-agent/public/api.sock"
 	defaultCertFileMode      = FileMode(0644)
 	defaultKeyFileMode       = FileMode(0600)
@@ -64,7 +64,7 @@ type Config struct {
 	SVIDBundleFileName string `hcl:"svid_bundle_file_name" yaml:"svid_bundle_file_name" env:"SVID_BUNDLE_FILE_NAME"`
 
 	// JWT configuration
-	// SPIFFE_HLP_JWT_SVIDS accepts a YAML/JSON array and replaces file-configured entries.
+	// SPIFFE_HELPER_JWT_SVIDS accepts a YAML/JSON array and replaces file-configured entries.
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids" yaml:"jwt_svids" env:"JWT_SVIDS"`
 	JWTBundleFileName string      `hcl:"jwt_bundle_file_name" yaml:"jwt_bundle_file_name" env:"JWT_BUNDLE_FILE_NAME"`
 

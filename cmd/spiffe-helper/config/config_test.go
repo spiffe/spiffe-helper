@@ -22,16 +22,16 @@ const (
 	configAgentAddress = "MY_ADDRESS"
 	envAgentAddress    = "MY_ENV_ADDRESS"
 
-	envAddIntermediatesToBundleKey = "SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE"
-	envAgentAddressKey             = "SPIFFE_HLP_AGENT_ADDRESS"
-	envCertDirKey                  = "SPIFFE_HLP_CERT_DIR"
-	envCmdKey                      = "SPIFFE_HLP_CMD"
-	envDaemonModeKey               = "SPIFFE_HLP_DAEMON_MODE"
-	envJWTBundleFileNameKey        = "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME"
-	envJWTExtraAudiencesKey        = "SPIFFE_HLP_JWT_EXTRA_AUDIENCES"
-	envSVIDBundleFileNameKey       = "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME"
-	envSVIDFileNameKey             = "SPIFFE_HLP_SVID_FILE_NAME"
-	envSVIDKeyFileNameKey          = "SPIFFE_HLP_SVID_KEY_FILE_NAME"
+	envAddIntermediatesToBundleKey = "SPIFFE_HELPER_ADD_INTERMEDIATES_TO_BUNDLE"
+	envAgentAddressKey             = "SPIFFE_HELPER_AGENT_ADDRESS"
+	envCertDirKey                  = "SPIFFE_HELPER_CERT_DIR"
+	envCmdKey                      = "SPIFFE_HELPER_CMD"
+	envDaemonModeKey               = "SPIFFE_HELPER_DAEMON_MODE"
+	envJWTBundleFileNameKey        = "SPIFFE_HELPER_JWT_BUNDLE_FILE_NAME"
+	envJWTExtraAudiencesKey        = "SPIFFE_HELPER_JWT_EXTRA_AUDIENCES"
+	envSVIDBundleFileNameKey       = "SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME"
+	envSVIDFileNameKey             = "SPIFFE_HELPER_SVID_FILE_NAME"
+	envSVIDKeyFileNameKey          = "SPIFFE_HELPER_SVID_KEY_FILE_NAME"
 	envJWTBundleFileName           = "env-bundle.json"
 	envJWTExtraAudiences           = "env-extra1,env-extra2"
 	envTestAgentAddress            = "/tmp/test-agent.sock"
@@ -574,7 +574,7 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 				envSVIDBundleFileNameKey: testSVIDBundleFileName,
 				envCertDirKey:            "test-certs",
 				envCmdKey:                "test-cmd",
-				"SPIFFE_HLP_CMD_ARGS":    "test-args",
+				"SPIFFE_HELPER_CMD_ARGS": "test-args",
 			},
 			expectedConfig: func(c *Config) {
 				assert.Equal(t, envTestAgentAddress, c.AgentAddress)
@@ -594,9 +594,9 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 				envSVIDKeyFileNameKey:          testSVIDKeyFileName,
 				envSVIDBundleFileNameKey:       testSVIDBundleFileName,
 				envAddIntermediatesToBundleKey: envTrue,
-				"SPIFFE_HLP_OMIT_EXPIRED":      envTrue,
-				"SPIFFE_HLP_CERT_FILE_MODE":    "0644",
-				"SPIFFE_HLP_KEY_FILE_MODE":     "0600",
+				"SPIFFE_HELPER_OMIT_EXPIRED":   envTrue,
+				"SPIFFE_HELPER_CERT_FILE_MODE": "0644",
+				"SPIFFE_HELPER_KEY_FILE_MODE":  "0600",
 			},
 			expectedConfig: func(c *Config) {
 				assert.True(t, c.AddIntermediatesToBundle)
@@ -608,14 +608,14 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 		{
 			name: "Nested HealthCheck struct from env vars",
 			envVars: map[string]string{
-				envAgentAddressKey:                   envTestAgentAddress,
-				envSVIDFileNameKey:                   testSVIDFileName,
-				envSVIDKeyFileNameKey:                testSVIDKeyFileName,
-				envSVIDBundleFileNameKey:             testSVIDBundleFileName,
-				"SPIFFE_HLP_HEALTH_LISTENER_ENABLED": envTrue,
-				"SPIFFE_HLP_HEALTH_BIND_PORT":        "9090",
-				"SPIFFE_HLP_HEALTH_LIVENESS_PATH":    "/health",
-				"SPIFFE_HLP_HEALTH_READINESS_PATH":   "/ready",
+				envAgentAddressKey:                      envTestAgentAddress,
+				envSVIDFileNameKey:                      testSVIDFileName,
+				envSVIDKeyFileNameKey:                   testSVIDKeyFileName,
+				envSVIDBundleFileNameKey:                testSVIDBundleFileName,
+				"SPIFFE_HELPER_HEALTH_LISTENER_ENABLED": envTrue,
+				"SPIFFE_HELPER_HEALTH_BIND_PORT":        "9090",
+				"SPIFFE_HELPER_HEALTH_LIVENESS_PATH":    "/health",
+				"SPIFFE_HELPER_HEALTH_READINESS_PATH":   "/ready",
 			},
 			expectedConfig: func(c *Config) {
 				assert.True(t, c.HealthCheck.ListenerEnabled)
@@ -643,12 +643,12 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 				envAgentAddressKey:      envTestAgentAddress,
 				envJWTBundleFileNameKey: testJWTBundleFileName,
 				// Attempt to set nested fields within JWTSVIDs array
-				"SPIFFE_HLP_JWT_AUDIENCE":       "env-audience",
-				"SPIFFE_HLP_JWT_SVID_FILE_NAME": "env-file.token",
-				envJWTExtraAudiencesKey:         envJWTExtraAudiences,
+				"SPIFFE_HELPER_JWT_AUDIENCE":       "env-audience",
+				"SPIFFE_HELPER_JWT_SVID_FILE_NAME": "env-file.token",
+				envJWTExtraAudiencesKey:            envJWTExtraAudiences,
 			},
 			expectedConfig: func(c *Config) {
-				// Individual nested JWTSVID fields are ignored; use SPIFFE_HLP_JWT_SVIDS for array configuration.
+				// Individual nested JWTSVID fields are ignored; use SPIFFE_HELPER_JWT_SVIDS for array configuration.
 				assert.Equal(t, envTestAgentAddress, c.AgentAddress)
 				assert.Equal(t, testJWTBundleFileName, c.JWTBundleFileName)
 				assert.Empty(t, c.JWTSVIDs)
@@ -659,7 +659,7 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 			envVars: map[string]string{
 				envAgentAddressKey:      envTestAgentAddress,
 				envJWTBundleFileNameKey: testJWTBundleFileName,
-				"SPIFFE_HLP_JWT_SVIDS": `[{
+				"SPIFFE_HELPER_JWT_SVIDS": `[{
 					"jwt_audience": "audience-0",
 					"jwt_svid_file_name": "file-0.token",
 					"jwt_extra_audiences": ["extra0-1", "extra0-2"]
@@ -771,11 +771,11 @@ func TestConfigFromEnvVarsOnly(t *testing.T) {
 func TestInvalidJWTSVIDsEnvVar(t *testing.T) {
 	t.Setenv(envAgentAddressKey, envTestAgentAddress)
 	t.Setenv(envJWTBundleFileNameKey, testJWTBundleFileName)
-	t.Setenv("SPIFFE_HLP_JWT_SVIDS", "not-a-list")
+	t.Setenv("SPIFFE_HELPER_JWT_SVIDS", "not-a-list")
 
 	_, err := loadConfigFromEnv()
 	require.Error(t, err)
-	require.ErrorContains(t, err, "invalid value for SPIFFE_HLP_JWT_SVIDS")
+	require.ErrorContains(t, err, "invalid value for SPIFFE_HELPER_JWT_SVIDS")
 }
 
 func TestConfigFileWithEnvOverrides(t *testing.T) {
@@ -828,7 +828,7 @@ cert_file_mode: 0644
 key_file_mode: 0600`,
 			envVars: map[string]string{
 				envAddIntermediatesToBundleKey: envTrue,
-				"SPIFFE_HLP_CERT_FILE_MODE":    "0755",
+				"SPIFFE_HELPER_CERT_FILE_MODE": "0755",
 			},
 			expectedConfig: func(c *Config) {
 				// Env vars should override file values
@@ -855,8 +855,8 @@ key_file_mode: 0600`,
 				}
 			}`,
 			envVars: map[string]string{
-				"SPIFFE_HLP_HEALTH_LISTENER_ENABLED": envTrue,
-				"SPIFFE_HLP_HEALTH_BIND_PORT":        "9090",
+				"SPIFFE_HELPER_HEALTH_LISTENER_ENABLED": envTrue,
+				"SPIFFE_HELPER_HEALTH_BIND_PORT":        "9090",
 			},
 			expectedConfig: func(c *Config) {
 				// Env vars should override file values
@@ -915,9 +915,9 @@ renew_signal: "SIGUSR1"`,
 			envVars: map[string]string{
 				envJWTBundleFileNameKey: envJWTBundleFileName,
 				// Attempt to override nested fields within JWTSVIDs array
-				"SPIFFE_HLP_JWT_AUDIENCE":       "env-audience",
-				"SPIFFE_HLP_JWT_SVID_FILE_NAME": "env-file.token",
-				envJWTExtraAudiencesKey:         envJWTExtraAudiences,
+				"SPIFFE_HELPER_JWT_AUDIENCE":       "env-audience",
+				"SPIFFE_HELPER_JWT_SVID_FILE_NAME": "env-file.token",
+				envJWTExtraAudiencesKey:            envJWTExtraAudiences,
 			},
 			expectedConfig: func(c *Config) {
 				// JWTBundleFileName should be overridden by env var
@@ -985,7 +985,7 @@ jwt_svids:
 			configFile:   jsonConfigWithJWTSVID,
 			envVars: map[string]string{
 				envJWTBundleFileNameKey: envJWTBundleFileName,
-				"SPIFFE_HLP_JWT_SVIDS": `[{
+				"SPIFFE_HELPER_JWT_SVIDS": `[{
 					"jwt_audience": "env-audience-0",
 					"jwt_svid_file_name": "env-file-0.token",
 					"jwt_extra_audiences": ["env-extra0-1", "env-extra0-2"]

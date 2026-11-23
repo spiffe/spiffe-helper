@@ -10,13 +10,13 @@ import (
 
 const (
 	// Environment variable key for JWTSVIDs JSON array
-	envJWTSVIDsKey = "SPIFFE_HLP_JWT_SVIDS"
+	envJWTSVIDsKey = "SPIFFE_HELPER_JWT_SVIDS"
 )
 
-// parseJWTSVIDsEnv parses SPIFFE_HLP_JWT_SVIDS as a YAML/JSON array.
+// parseJWTSVIDsEnv parses SPIFFE_HELPER_JWT_SVIDS as a YAML/JSON array.
 // Expected format:
 //
-//	SPIFFE_HLP_JWT_SVIDS='[{"jwt_audience":"aud","jwt_svid_file_name":"file.token","jwt_extra_audiences":["extra"]}]'
+//	SPIFFE_HELPER_JWT_SVIDS='[{"jwt_audience":"aud","jwt_svid_file_name":"file.token","jwt_extra_audiences":["extra"]}]'
 func parseJWTSVIDsEnv(value string) (interface{}, error) {
 	jwtSVIDsJSON := strings.TrimSpace(value)
 	if jwtSVIDsJSON == "" {

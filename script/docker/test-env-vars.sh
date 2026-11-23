@@ -95,8 +95,8 @@ run_test() {
     
     # Build docker run command with env vars
     local docker_cmd=(docker run --rm)
-    # Add SPIFFE_HLP_LOG_LEVEL=debug to all tests to see configuration output
-    docker_cmd+=(-e SPIFFE_HLP_LOG_LEVEL=debug)
+    # Add SPIFFE_HELPER_LOG_LEVEL=debug to all tests to see configuration output
+    docker_cmd+=(-e SPIFFE_HELPER_LOG_LEVEL=debug)
     for env_var in "${env_vars[@]}"; do
         docker_cmd+=(-e "${env_var}")
     done
@@ -128,12 +128,12 @@ run_test() {
             # Create a map of expected values from environment variables
             declare -A expected_values
             for env_var in "${env_vars[@]}"; do
-                # Parse env var: SPIFFE_HLP_KEY=value
-                if [[ "${env_var}" =~ ^SPIFFE_HLP_([^=]+)=(.*)$ ]]; then
+                # Parse env var: SPIFFE_HELPER_KEY=value
+                if [[ "${env_var}" =~ ^SPIFFE_HELPER_([^=]+)=(.*)$ ]]; then
                     env_key="${BASH_REMATCH[1]}"
                     env_value="${BASH_REMATCH[2]}"
                     
-                    # Convert SPIFFE_HLP_KEY to config field name (lowercase, underscores)
+                    # Convert SPIFFE_HELPER_KEY to config field name (lowercase, underscores)
                     # Handle special cases for nested structs
                     config_key=""
                     case "${env_key}" in
@@ -164,7 +164,7 @@ run_test() {
             # Capture structured JWTSVIDs environment variable for separate validation
             local jwt_svids_env=""
             for env_var in "${env_vars[@]}"; do
-                if [[ "${env_var}" =~ ^SPIFFE_HLP_JWT_SVIDS=(.*)$ ]]; then
+                if [[ "${env_var}" =~ ^SPIFFE_HELPER_JWT_SVIDS=(.*)$ ]]; then
                     jwt_svids_env="${BASH_REMATCH[1]}"
                 fi
             done
@@ -296,114 +296,114 @@ run_test() {
 # Test 1: Basic environment variables
 echo -e "\n${GREEN}=== Test 1: Basic Environment Variables ===${NC}"
 run_test "Basic config with required fields" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_SVID_FILE_NAME=svid.pem" \
-    "SPIFFE_HLP_SVID_KEY_FILE_NAME=svid-key.pem" \
-    "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem"
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_SVID_FILE_NAME=svid.pem" \
+    "SPIFFE_HELPER_SVID_KEY_FILE_NAME=svid-key.pem" \
+    "SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME=bundle.pem"
 
 # Test 2: Boolean environment variables
 echo -e "\n${GREEN}=== Test 2: Boolean Environment Variables ===${NC}"
 run_test "Boolean values" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_SVID_FILE_NAME=svid.pem" \
-    "SPIFFE_HLP_SVID_KEY_FILE_NAME=svid-key.pem" \
-    "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem" \
-    "SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE=true" \
-    "SPIFFE_HLP_INCLUDE_FEDERATED_DOMAINS=false" \
-    "SPIFFE_HLP_OMIT_EXPIRED=true"
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_SVID_FILE_NAME=svid.pem" \
+    "SPIFFE_HELPER_SVID_KEY_FILE_NAME=svid-key.pem" \
+    "SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME=bundle.pem" \
+    "SPIFFE_HELPER_ADD_INTERMEDIATES_TO_BUNDLE=true" \
+    "SPIFFE_HELPER_INCLUDE_FEDERATED_DOMAINS=false" \
+    "SPIFFE_HELPER_OMIT_EXPIRED=true"
 
 # Test 3: Integer environment variables
 echo -e "\n${GREEN}=== Test 3: Integer Environment Variables ===${NC}"
 run_test "Integer values (file modes)" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_SVID_FILE_NAME=svid.pem" \
-    "SPIFFE_HLP_SVID_KEY_FILE_NAME=svid-key.pem" \
-    "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem" \
-    "SPIFFE_HLP_CERT_FILE_MODE=0644" \
-    "SPIFFE_HLP_KEY_FILE_MODE=0600" \
-    "SPIFFE_HLP_JWT_BUNDLE_FILE_MODE=0600"
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_SVID_FILE_NAME=svid.pem" \
+    "SPIFFE_HELPER_SVID_KEY_FILE_NAME=svid-key.pem" \
+    "SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME=bundle.pem" \
+    "SPIFFE_HELPER_CERT_FILE_MODE=0644" \
+    "SPIFFE_HELPER_KEY_FILE_MODE=0600" \
+    "SPIFFE_HELPER_JWT_BUNDLE_FILE_MODE=0600"
 
 # Test 4: Health check configuration
 echo -e "\n${GREEN}=== Test 4: Health Check Configuration ===${NC}"
 run_test "Health check env vars" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_SVID_FILE_NAME=svid.pem" \
-    "SPIFFE_HLP_SVID_KEY_FILE_NAME=svid-key.pem" \
-    "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem" \
-    "SPIFFE_HLP_HEALTH_LISTENER_ENABLED=true" \
-    "SPIFFE_HLP_HEALTH_BIND_PORT=8081" \
-    "SPIFFE_HLP_HEALTH_LIVENESS_PATH=/live" \
-    "SPIFFE_HLP_HEALTH_READINESS_PATH=/ready"
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_SVID_FILE_NAME=svid.pem" \
+    "SPIFFE_HELPER_SVID_KEY_FILE_NAME=svid-key.pem" \
+    "SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME=bundle.pem" \
+    "SPIFFE_HELPER_HEALTH_LISTENER_ENABLED=true" \
+    "SPIFFE_HELPER_HEALTH_BIND_PORT=8081" \
+    "SPIFFE_HELPER_HEALTH_LIVENESS_PATH=/live" \
+    "SPIFFE_HELPER_HEALTH_READINESS_PATH=/ready"
 
 # Test 5: JWT configuration
 echo -e "\n${GREEN}=== Test 5: JWT Configuration ===${NC}"
 run_test "JWT bundle filename" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_SVID_FILE_NAME=svid.pem" \
-    "SPIFFE_HLP_SVID_KEY_FILE_NAME=svid-key.pem" \
-    "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem" \
-    "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME=jwt-bundle.json"
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_SVID_FILE_NAME=svid.pem" \
+    "SPIFFE_HELPER_SVID_KEY_FILE_NAME=svid-key.pem" \
+    "SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME=bundle.pem" \
+    "SPIFFE_HELPER_JWT_BUNDLE_FILE_NAME=jwt-bundle.json"
 
 # Test 6: JWTSVIDs with YAML/JSON array env var
 echo -e "\n${GREEN}=== Test 6: JWTSVIDs - YAML/JSON Array ===${NC}"
 run_test "JWTSVIDs array format" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
-    'SPIFFE_HLP_JWT_SVIDS=[{"jwt_audience":"audience-0","jwt_svid_file_name":"file-0.token","jwt_extra_audiences":["extra1","extra2"]},{"jwt_audience":"audience-1","jwt_svid_file_name":"file-1.token"}]'
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
+    'SPIFFE_HELPER_JWT_SVIDS=[{"jwt_audience":"audience-0","jwt_svid_file_name":"file-0.token","jwt_extra_audiences":["extra1","extra2"]},{"jwt_audience":"audience-1","jwt_svid_file_name":"file-1.token"}]'
 
 # Test 7: JWTSVIDs with YAML list env var
 echo -e "\n${GREEN}=== Test 7: JWTSVIDs - YAML List ===${NC}"
 run_test "JWTSVIDs yaml list format" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
-    $'SPIFFE_HLP_JWT_SVIDS=- jwt_audience: audience-0\n  jwt_svid_file_name: file-0.token\n- jwt_audience: audience-2\n  jwt_svid_file_name: file-2.token\n  jwt_extra_audiences:\n    - extra1\n    - extra2\n    - extra3'
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
+    $'SPIFFE_HELPER_JWT_SVIDS=- jwt_audience: audience-0\n  jwt_svid_file_name: file-0.token\n- jwt_audience: audience-2\n  jwt_svid_file_name: file-2.token\n  jwt_extra_audiences:\n    - extra1\n    - extra2\n    - extra3'
 
 # Test 8: Complex configuration with all options
 echo -e "\n${GREEN}=== Test 8: Complex Configuration ===${NC}"
 run_test "All configuration options" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_SVID_FILE_NAME=svid.pem" \
-    "SPIFFE_HLP_SVID_KEY_FILE_NAME=svid-key.pem" \
-    "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem" \
-    "SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE=true" \
-    "SPIFFE_HLP_INCLUDE_FEDERATED_DOMAINS=true" \
-    "SPIFFE_HLP_OMIT_EXPIRED=false" \
-    "SPIFFE_HLP_CERT_FILE_MODE=0644" \
-    "SPIFFE_HLP_KEY_FILE_MODE=0600" \
-    "SPIFFE_HLP_JWT_BUNDLE_FILE_MODE=0600" \
-    "SPIFFE_HLP_JWT_SVID_FILE_MODE=0600" \
-    "SPIFFE_HLP_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
-    "SPIFFE_HLP_HEALTH_LISTENER_ENABLED=true" \
-    "SPIFFE_HLP_HEALTH_BIND_PORT=9090" \
-    "SPIFFE_HLP_HEALTH_LIVENESS_PATH=/health/live" \
-    "SPIFFE_HLP_HEALTH_READINESS_PATH=/health/ready" \
-    "SPIFFE_HLP_HINT=test-hint" \
-    "SPIFFE_HLP_RENEW_SIGNAL=SIGHUP" \
-    'SPIFFE_HLP_JWT_SVIDS=[{"jwt_audience":"test-audience","jwt_svid_file_name":"test.token","jwt_extra_audiences":["aud1","aud2"]}]'
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_SVID_FILE_NAME=svid.pem" \
+    "SPIFFE_HELPER_SVID_KEY_FILE_NAME=svid-key.pem" \
+    "SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME=bundle.pem" \
+    "SPIFFE_HELPER_ADD_INTERMEDIATES_TO_BUNDLE=true" \
+    "SPIFFE_HELPER_INCLUDE_FEDERATED_DOMAINS=true" \
+    "SPIFFE_HELPER_OMIT_EXPIRED=false" \
+    "SPIFFE_HELPER_CERT_FILE_MODE=0644" \
+    "SPIFFE_HELPER_KEY_FILE_MODE=0600" \
+    "SPIFFE_HELPER_JWT_BUNDLE_FILE_MODE=0600" \
+    "SPIFFE_HELPER_JWT_SVID_FILE_MODE=0600" \
+    "SPIFFE_HELPER_JWT_BUNDLE_FILE_NAME=jwt-bundle.json" \
+    "SPIFFE_HELPER_HEALTH_LISTENER_ENABLED=true" \
+    "SPIFFE_HELPER_HEALTH_BIND_PORT=9090" \
+    "SPIFFE_HELPER_HEALTH_LIVENESS_PATH=/health/live" \
+    "SPIFFE_HELPER_HEALTH_READINESS_PATH=/health/ready" \
+    "SPIFFE_HELPER_HINT=test-hint" \
+    "SPIFFE_HELPER_RENEW_SIGNAL=SIGHUP" \
+    'SPIFFE_HELPER_JWT_SVIDS=[{"jwt_audience":"test-audience","jwt_svid_file_name":"test.token","jwt_extra_audiences":["aud1","aud2"]}]'
 
 # Test 9: Daemon mode override
 echo -e "\n${GREEN}=== Test 9: Daemon Mode Environment Variable ===${NC}"
 run_test "Daemon mode via env var (false)" \
-    "SPIFFE_HLP_AGENT_ADDRESS=/tmp/test-agent.sock" \
-    "SPIFFE_HLP_CERT_DIR=/tmp/certs" \
-    "SPIFFE_HLP_SVID_FILE_NAME=svid.pem" \
-    "SPIFFE_HLP_SVID_KEY_FILE_NAME=svid-key.pem" \
-    "SPIFFE_HLP_SVID_BUNDLE_FILE_NAME=bundle.pem" \
-    "SPIFFE_HLP_DAEMON_MODE=false"
+    "SPIFFE_HELPER_AGENT_ADDRESS=/tmp/test-agent.sock" \
+    "SPIFFE_HELPER_CERT_DIR=/tmp/certs" \
+    "SPIFFE_HELPER_SVID_FILE_NAME=svid.pem" \
+    "SPIFFE_HELPER_SVID_KEY_FILE_NAME=svid-key.pem" \
+    "SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME=bundle.pem" \
+    "SPIFFE_HELPER_DAEMON_MODE=false"
 
 # Test 10: Missing required fields (should fail)
 echo -e "\n${GREEN}=== Test 10: Missing Required Fields (Expected to Fail) ===${NC}"
 echo -e "${YELLOW}Testing: Missing required configuration${NC}"
 echo -e "${YELLOW}Container output:${NC}"
-output=$(run_with_timeout 10 docker run --rm -e SPIFFE_HLP_LOG_LEVEL=debug "${IMAGE_NAME}" --daemon-mode=false 2>&1) || exit_code=$?
+output=$(run_with_timeout 10 docker run --rm -e SPIFFE_HELPER_LOG_LEVEL=debug "${IMAGE_NAME}" --daemon-mode=false 2>&1) || exit_code=$?
 echo "${output}"
 echo ""  # Empty line for readability
 

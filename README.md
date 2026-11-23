@@ -80,49 +80,49 @@ If the configuration file is not specified, does not exist, or is empty, the con
 
 ### Environment Variables
 
-All configuration fields can be set via environment variables. Environment variables use the `SPIFFE_HLP_` prefix followed by the field name in UPPER_SNAKE_CASE format.
+All configuration fields can be set via environment variables. Environment variables use the `SPIFFE_HELPER_` prefix followed by the field name in UPPER_SNAKE_CASE format.
 
 For example:
-- `agent_address` → `SPIFFE_HLP_AGENT_ADDRESS`
-- `svid_file_name` → `SPIFFE_HLP_SVID_FILE_NAME`
-- `jwt_bundle_file_name` → `SPIFFE_HLP_JWT_BUNDLE_FILE_NAME`
+- `agent_address` → `SPIFFE_HELPER_AGENT_ADDRESS`
+- `svid_file_name` → `SPIFFE_HELPER_SVID_FILE_NAME`
+- `jwt_bundle_file_name` → `SPIFFE_HELPER_JWT_BUNDLE_FILE_NAME`
 
 Environment variables override values from the configuration file. If a configuration file is provided, environment variables will override matching fields. If no configuration file is specified or the file does not exist, the entire configuration can be provided via environment variables.
 
  | Configuration                 | Environment Variable                         |
  |-------------------------------|----------------------------------------------|
- | `agent_address`               | `SPIFFE_HLP_AGENT_ADDRESS`                   |
- | `cmd`                         | `SPIFFE_HLP_CMD`                             |
- | `cmd_args`                    | `SPIFFE_HLP_CMD_ARGS`                        |
- | `pid_file_name`               | `SPIFFE_HLP_PID_FILE_NAME`                   |
- | `cert_dir`                    | `SPIFFE_HLP_CERT_DIR`                        |
- | `daemon_mode`                 | `SPIFFE_HLP_DAEMON_MODE`                     |
- | `add_intermediates_to_bundle` | `SPIFFE_HLP_ADD_INTERMEDIATES_TO_BUNDLE`     |
- | `renew_signal`                | `SPIFFE_HLP_RENEW_SIGNAL`                    |
- | `svid_file_name`              | `SPIFFE_HLP_SVID_FILE_NAME`                  |
- | `svid_key_file_name`          | `SPIFFE_HLP_SVID_KEY_FILE_NAME`              |
- | `svid_bundle_file_name`       | `SPIFFE_HLP_SVID_BUNDLE_FILE_NAME`           |
- | `jwt_svids`                   | `SPIFFE_HLP_JWT_SVIDS`                       |
- | `jwt_bundle_file_name`        | `SPIFFE_HLP_JWT_BUNDLE_FILE_NAME`            |
- | `include_federated_domains`   | `SPIFFE_HLP_INCLUDE_FEDERATED_DOMAINS`       |
- | `cert_file_mode`              | `SPIFFE_HLP_CERT_FILE_MODE`                  |
- | `key_file_mode`               | `SPIFFE_HLP_KEY_FILE_MODE`                   |
- | `jwt_bundle_file_mode`        | `SPIFFE_HLP_JWT_BUNDLE_FILE_MODE`            |
- | `jwt_svid_file_mode`          | `SPIFFE_HLP_JWT_SVID_FILE_MODE`              |
- | `hint`                        | `SPIFFE_HLP_HINT`                            |
- | `omit_expired`                | `SPIFFE_HLP_OMIT_EXPIRED`                    |
- | `log_level`                   | `SPIFFE_HLP_LOG_LEVEL`                       |
- | `health_checks.listener_enabled` | `SPIFFE_HLP_HEALTH_LISTENER_ENABLED`      |
- | `health_checks.bind_port`        | `SPIFFE_HLP_HEALTH_BIND_PORT`             |
- | `health_checks.liveness_path`    | `SPIFFE_HLP_HEALTH_LIVENESS_PATH`         |
- | `health_checks.readiness_path`   | `SPIFFE_HLP_HEALTH_READINESS_PATH`        |
+ | `agent_address`               | `SPIFFE_HELPER_AGENT_ADDRESS`                   |
+ | `cmd`                         | `SPIFFE_HELPER_CMD`                             |
+ | `cmd_args`                    | `SPIFFE_HELPER_CMD_ARGS`                        |
+ | `pid_file_name`               | `SPIFFE_HELPER_PID_FILE_NAME`                   |
+ | `cert_dir`                    | `SPIFFE_HELPER_CERT_DIR`                        |
+ | `daemon_mode`                 | `SPIFFE_HELPER_DAEMON_MODE`                     |
+ | `add_intermediates_to_bundle` | `SPIFFE_HELPER_ADD_INTERMEDIATES_TO_BUNDLE`     |
+ | `renew_signal`                | `SPIFFE_HELPER_RENEW_SIGNAL`                    |
+ | `svid_file_name`              | `SPIFFE_HELPER_SVID_FILE_NAME`                  |
+ | `svid_key_file_name`          | `SPIFFE_HELPER_SVID_KEY_FILE_NAME`              |
+ | `svid_bundle_file_name`       | `SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME`           |
+ | `jwt_svids`                   | `SPIFFE_HELPER_JWT_SVIDS`                       |
+ | `jwt_bundle_file_name`        | `SPIFFE_HELPER_JWT_BUNDLE_FILE_NAME`            |
+ | `include_federated_domains`   | `SPIFFE_HELPER_INCLUDE_FEDERATED_DOMAINS`       |
+ | `cert_file_mode`              | `SPIFFE_HELPER_CERT_FILE_MODE`                  |
+ | `key_file_mode`               | `SPIFFE_HELPER_KEY_FILE_MODE`                   |
+ | `jwt_bundle_file_mode`        | `SPIFFE_HELPER_JWT_BUNDLE_FILE_MODE`            |
+ | `jwt_svid_file_mode`          | `SPIFFE_HELPER_JWT_SVID_FILE_MODE`              |
+ | `hint`                        | `SPIFFE_HELPER_HINT`                            |
+ | `omit_expired`                | `SPIFFE_HELPER_OMIT_EXPIRED`                    |
+ | `log_level`                   | `SPIFFE_HELPER_LOG_LEVEL`                       |
+ | `health_checks.listener_enabled` | `SPIFFE_HELPER_HEALTH_LISTENER_ENABLED`      |
+ | `health_checks.bind_port`        | `SPIFFE_HELPER_HEALTH_BIND_PORT`             |
+ | `health_checks.liveness_path`    | `SPIFFE_HELPER_HEALTH_LIVENESS_PATH`         |
+ | `health_checks.readiness_path`   | `SPIFFE_HELPER_HEALTH_READINESS_PATH`        |
 
 #### Special Handling for `jwt_svids`
 
 The `jwt_svids` array can be set using a single YAML/JSON array environment variable:
 
 ```bash
-export SPIFFE_HLP_JWT_SVIDS='[
+export SPIFFE_HELPER_JWT_SVIDS='[
   {
     "jwt_audience": "audience-0",
     "jwt_svid_file_name": "file-0.token",
@@ -135,7 +135,7 @@ export SPIFFE_HLP_JWT_SVIDS='[
 ]'
 ```
 
-Setting `SPIFFE_HLP_JWT_SVIDS` replaces any `jwt_svids` entries from the config file.
+Setting `SPIFFE_HELPER_JWT_SVIDS` replaces any `jwt_svids` entries from the config file.
 
 ### Health Checks Configuration
 
@@ -354,22 +354,22 @@ jwt_svid_file_mode: 292
 Configuration can be provided entirely via environment variables when no config file is specified or the file does not exist:
 
 ```bash
-export SPIFFE_HLP_AGENT_ADDRESS="/tmp/spire-agent/public/api.sock"
-export SPIFFE_HLP_CMD="ghostunnel"
-export SPIFFE_HLP_CMD_ARGS="server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
-export SPIFFE_HLP_CERT_DIR="certs"
-export SPIFFE_HLP_RENEW_SIGNAL="SIGUSR1"
-export SPIFFE_HLP_SVID_FILE_NAME="svid.pem"
-export SPIFFE_HLP_SVID_KEY_FILE_NAME="svid_key.pem"
-export SPIFFE_HLP_SVID_BUNDLE_FILE_NAME="svid_bundle.pem"
-export SPIFFE_HLP_JWT_BUNDLE_FILE_NAME="bundle.json"
-export SPIFFE_HLP_CERT_FILE_MODE="292"
-export SPIFFE_HLP_KEY_FILE_MODE="292"
-export SPIFFE_HLP_JWT_BUNDLE_FILE_MODE="292"
-export SPIFFE_HLP_JWT_SVID_FILE_MODE="292"
+export SPIFFE_HELPER_AGENT_ADDRESS="/tmp/spire-agent/public/api.sock"
+export SPIFFE_HELPER_CMD="ghostunnel"
+export SPIFFE_HELPER_CMD_ARGS="server --listen localhost:8002 --target localhost:8001 --keystore certs/svid_key.pem --cacert certs/svid_bundle.pem --allow-uri-san spiffe://example.org/Database"
+export SPIFFE_HELPER_CERT_DIR="certs"
+export SPIFFE_HELPER_RENEW_SIGNAL="SIGUSR1"
+export SPIFFE_HELPER_SVID_FILE_NAME="svid.pem"
+export SPIFFE_HELPER_SVID_KEY_FILE_NAME="svid_key.pem"
+export SPIFFE_HELPER_SVID_BUNDLE_FILE_NAME="svid_bundle.pem"
+export SPIFFE_HELPER_JWT_BUNDLE_FILE_NAME="bundle.json"
+export SPIFFE_HELPER_CERT_FILE_MODE="292"
+export SPIFFE_HELPER_KEY_FILE_MODE="292"
+export SPIFFE_HELPER_JWT_BUNDLE_FILE_MODE="292"
+export SPIFFE_HELPER_JWT_SVID_FILE_MODE="292"
 
 # JWT SVIDs using YAML/JSON array environment variable
-export SPIFFE_HLP_JWT_SVIDS='[
+export SPIFFE_HELPER_JWT_SVIDS='[
   {
     "jwt_audience": "your-audience",
     "jwt_extra_audiences": ["your-extra-audience-1", "your-extra-audience-2"],
