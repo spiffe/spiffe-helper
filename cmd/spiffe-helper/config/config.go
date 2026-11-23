@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	env "github.com/caarlos0/env/v11"
+	"github.com/caarlos0/env/v11"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/token"
 	"github.com/sirupsen/logrus"
