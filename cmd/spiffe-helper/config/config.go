@@ -21,6 +21,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type FileMode int
+
 const (
 	configFormatAuto         = "auto"
 	configFormatHCL          = "hcl"
@@ -36,8 +38,6 @@ const (
 	defaultLivenessPath      = "/live"
 	defaultReadinessPath     = "/ready"
 )
-
-type FileMode int
 
 type Config struct {
 	AddIntermediatesToBundle bool          `hcl:"add_intermediates_to_bundle" yaml:"add_intermediates_to_bundle" env:"ADD_INTERMEDIATES_TO_BUNDLE"`
