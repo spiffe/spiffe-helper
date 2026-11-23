@@ -110,6 +110,25 @@ func TestParseConfigFileReturnsErrorForMissingFile(t *testing.T) {
 	}
 }
 
+func TestConfigFormatIsCaseInsensitive(t *testing.T) {
+	_, err := parseConfigFile("testdata/helper.conf", " HCL ")
+	require.NoError(t, err)
+
+	for _, tt := range []struct {
+		file     string
+		expected string
+	}{
+		{file: "helper.CONF", expected: configFormatHCL},
+		{file: "helper.JSON", expected: configFormatJSON},
+		{file: "helper.YAML", expected: configFormatYAML},
+		{file: "helper.YML", expected: configFormatYAML},
+	} {
+		t.Run(tt.file, func(t *testing.T) {
+			assert.Equal(t, tt.expected, detectConfigFormat(tt.file))
+		})
+	}
+}
+
 func TestValidateConfig(t *testing.T) {
 	for _, tt := range []struct {
 		name        string

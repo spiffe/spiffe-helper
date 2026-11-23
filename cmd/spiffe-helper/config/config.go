@@ -255,6 +255,7 @@ func parseConfigFile(file string, configFormat string) (*Config, error) {
 		return nil, fmt.Errorf("configuration file does not exist: %s", file)
 	}
 
+	configFormat = strings.ToLower(strings.TrimSpace(configFormat))
 	if configFormat == configFormatAuto {
 		configFormat = detectConfigFormat(file)
 	}
@@ -366,6 +367,8 @@ func configFileEmpty(file string) bool {
 }
 
 func detectConfigFormat(file string) string {
+	file = strings.ToLower(file)
+
 	switch {
 	case strings.HasSuffix(file, ".conf"):
 		return configFormatHCL
