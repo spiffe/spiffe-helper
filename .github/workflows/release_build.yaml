@@ -38,7 +38,7 @@ jobs:
           fetch-depth: 0
       - name: Calculate release version
         id: bump
-        uses: faisal-memon/pr-label-semver@v0.2.2
+        uses: faisal-memon/pr-label-semver@v0
         with:
           github-token: ${{ github.token }}
           version-bump: ${{ github.event_name == 'workflow_dispatch' && inputs.version_bump || '' }}

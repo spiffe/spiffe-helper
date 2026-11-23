@@ -23,7 +23,7 @@ The release workflow runs after changes merge to `main`. The merged PR's
 version. If no SemVer label is present, the workflow defaults to a patch
 release. Multiple SemVer labels are rejected.
 
-The workflow uses `faisal-memon/pr-label-semver@v0.2.2` to calculate the tag,
+The workflow uses `faisal-memon/pr-label-semver@v0` to calculate the tag,
 then runs the integration tests, builds the Linux artifacts and container, and
 creates the GitHub Release. The action calculates the tag; the release step
 creates it after the artifacts are ready.
