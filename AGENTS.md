@@ -18,19 +18,10 @@ the regular unit-test target because they start Compose services and SPIRE.
 
 ## Release Process
 
-The release workflow runs after changes merge to `main`. The merged PR's
-`semver:major`, `semver:minor`, or `semver:patch` label determines the next
-version. If no SemVer label is present, the workflow defaults to a patch
-release. Multiple SemVer labels are rejected.
-
-The workflow uses `faisal-memon/pr-label-semver@v0` to calculate the tag, then
-runs the integration tests, builds the Linux artifacts and container, and
-creates the GitHub Release. The action calculates the tag; the release step
-creates it after the artifacts are ready.
-
-Release jobs use workflow concurrency so two merges cannot calculate and
-publish the same version at the same time. Manual releases can be started with
-`workflow_dispatch` and an explicit version bump.
+Releases currently use a `release/<version>` branch created from the latest
+`main`, followed by a matching `v<version>` tag on the same commit. The tag
+starts the release workflow, which runs integration tests, builds the Linux
+artifacts and container, and creates the GitHub Release.
 
 ## Contribution Guidance
 
