@@ -1,13 +1,52 @@
 name: Release Build
 on:
   push:
-    tags:
-      - 'v[0-9].[0-9]+.[0-9]+'
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: Version segment to increment
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read
 
 jobs:
+  version:
+    name: calculate release version
+    runs-on: ubuntu-22.04
+
+    outputs:
+      new-tag: ${{ steps.bump.outputs.new-tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Calculate release version
+        id: bump
+        uses: faisal-memon/pr-label-semver@v0
+        with:
+          github-token: ${{ github.token }}
+          version-bump: ${{ github.event_name == 'workflow_dispatch' && inputs.version_bump || '' }}
+
   integration-test:
     name: integration test (linux)
     runs-on: ubuntu-22.04
+    needs: version
 
     permissions:
       contents: read
@@ -27,7 +66,7 @@ jobs:
   build:
     name: build (linux)
     runs-on: ubuntu-22.04
-    needs: integration-test
+    needs: [version, integration-test]
 
     steps:
       - name: Checkout
@@ -43,11 +82,11 @@ jobs:
       - name: Build artifact (x86_64)
         run: make build
       - name: Compress artifact (x86_64)
-        run: tar -czvf spiffe-helper_${{ github.ref_name }}_Linux-x86_64.tar.gz spiffe-helper
+        run: tar -czvf spiffe-helper_${{ needs.version.outputs.new-tag }}_Linux-x86_64.tar.gz spiffe-helper
       - name: Build artifact (arm64)
         run: GOARCH=arm64 make build
       - name: Compress artifact (arm64)
-        run: tar -czvf spiffe-helper_${{ github.ref_name }}_Linux-arm64.tar.gz spiffe-helper
+        run: tar -czvf spiffe-helper_${{ needs.version.outputs.new-tag }}_Linux-arm64.tar.gz spiffe-helper
       - name: Build docker artifact
         run: make docker-build
       - name: Archive artifact
@@ -55,13 +94,13 @@ jobs:
         with:
           name: spiffe-helper
           path: |
-            spiffe-helper_${{ github.ref_name }}_Linux-x86_64.tar.gz
-            spiffe-helper_${{ github.ref_name }}_Linux-arm64.tar.gz
+            spiffe-helper_${{ needs.version.outputs.new-tag }}_Linux-x86_64.tar.gz
+            spiffe-helper_${{ needs.version.outputs.new-tag }}_Linux-arm64.tar.gz
             spiffe-helper-image.tar
 
   release:
     runs-on: ubuntu-22.04
-    needs: build
+    needs: [version, build]
 
     permissions:
       contents: write
@@ -84,9 +123,14 @@ jobs:
       - name: Install regctl
         uses: regclient/actions/regctl-installer@main
       - name: Push docker image
-        run: ./.github/workflows/scripts/push-images.sh ${{ github.ref_name }}
+        run: ./.github/workflows/scripts/push-images.sh ${{ needs.version.outputs.new-tag }}
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Create the release using the version number as the title
-        run: gh release create "${GITHUB_REF#refs/tags/}" ./spiffe-helper_${{ github.ref_name }}_Linux-x86_64.tar.gz ./spiffe-helper_${{ github.ref_name }}_Linux-arm64.tar.gz --title "${GITHUB_REF#refs/tags/}" --generate-notes
+        run: >-
+          gh release create "${{ needs.version.outputs.new-tag }}"
+          ./spiffe-helper_${{ needs.version.outputs.new-tag }}_Linux-x86_64.tar.gz
+          ./spiffe-helper_${{ needs.version.outputs.new-tag }}_Linux-arm64.tar.gz
+          --title "${{ needs.version.outputs.new-tag }}"
+          --generate-notes
