@@ -82,7 +82,9 @@ func (c *Project) Up(tb testing.TB, services ...string) {
 func (c *Project) Build(tb testing.TB, services ...string) {
 	tb.Helper()
 
-	args := []string{"build"}
+	buildArgs := []string{"build"}
+	args := make([]string, 0, len(buildArgs)+len(services))
+	args = append(args, buildArgs...)
 	args = append(args, services...)
 	c.mustRun(tb, args...)
 }
@@ -174,15 +176,14 @@ func (c *Project) close(failed bool, logf func(string, ...any)) {
 	}
 }
 
-func (c *Project) mustRun(tb testing.TB, args ...string) string {
+func (c *Project) mustRun(tb testing.TB, args ...string) {
 	tb.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	stdout, stderr, err := c.run(ctx, args...)
+	_, stderr, err := c.run(ctx, args...)
 	require.NoError(tb, err, "docker compose %s failed:\n%s", strings.Join(args, " "), stderr)
-	return stdout
 }
 
 func execArgs(service string, command []string) []string {
