@@ -97,8 +97,7 @@ func (c *Project) Run(service string, env map[string]string, command ...string) 
 	}
 	sort.Strings(keys)
 
-	args := make([]string, 0, 6+2*len(keys)+len(command))
-	args = append(args, "run", "--build", "--rm", "--no-deps", "-T")
+	args := []string{"run", "--build", "--rm", "--no-deps", "-T"}
 	for _, key := range keys {
 		args = append(args, "--env", key+"="+env[key])
 	}
