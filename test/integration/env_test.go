@@ -28,9 +28,10 @@ func TestEnvironmentConfiguration(t *testing.T) {
 	}
 
 	tests := []struct {
-		name        string
-		env         map[string]string
-		expectError string
+		name          string
+		env           map[string]string
+		expectError   string
+		expectTimeout bool
 	}{
 		{
 			name: "required values",
@@ -65,6 +66,7 @@ func TestEnvironmentConfiguration(t *testing.T) {
 					"jwt_extra_audiences":["extra1","extra2"]
 				}]`,
 			}),
+			expectTimeout: true,
 		},
 		{
 			name: "missing required values",
@@ -81,6 +83,12 @@ func TestEnvironmentConfiguration(t *testing.T) {
 			output := result.Stdout + result.Stderr
 			if tt.expectError != "" {
 				require.Contains(t, output, tt.expectError)
+				return
+			}
+			if tt.expectTimeout {
+				require.Error(t, result.Err)
+				require.NotContains(t, output, "failed to parse configuration")
+				require.NotContains(t, output, "invalid configuration")
 				return
 			}
 
