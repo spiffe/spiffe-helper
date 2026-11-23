@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -83,6 +84,29 @@ func (c *Project) Exec(service string, command ...string) Result {
 	defer cancel()
 
 	return c.exec(ctx, service, command...)
+}
+
+// Run runs a one-off command in a Compose service.
+func (c *Project) Run(service string, env map[string]string, command ...string) Result {
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+
+	keys := make([]string, 0, len(env))
+	for key := range env {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	args := make([]string, 0, 6+2*len(keys)+len(command))
+	args = append(args, "run", "--build", "--rm", "--no-deps", "-T")
+	for _, key := range keys {
+		args = append(args, "--env", key+"="+env[key])
+	}
+	args = append(args, service)
+	args = append(args, command...)
+
+	stdout, stderr, err := c.run(ctx, args...)
+	return Result{Stdout: stdout, Stderr: stderr, Err: err}
 }
 
 // WaitForExec waits for a command in a docker compose service to succeed.

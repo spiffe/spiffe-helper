@@ -253,7 +253,7 @@ rpm:
 # Test targets
 ############################################################################
 
-.PHONY: test unit-test integration-test integration-test-verbose test-integration-docker test-wine
+.PHONY: test unit-test integration-test integration-test-verbose test-wine
 
 # If you want detailed test output run "GO_TEST_OPTS=-v make test"
 test: unit-test
@@ -266,10 +266,6 @@ integration-test: | go-check
 
 integration-test-verbose:
 	$(E)$(MAKE) GO_TEST_OPTS="-v $(GO_TEST_OPTS)" integration-test
-
-test-integration-docker:
-	@echo "Running Docker-based integration tests for environment variable configuration..."
-	$(E)bash script/docker/test-env-vars.sh
 
 # Invoke the test suite by cross-compiling for Windows and running with
 # Wine. If in future tests are added that run on real win32 but not wine

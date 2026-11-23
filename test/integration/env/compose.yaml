@@ -1,0 +1,8 @@
+services:
+  spiffe-helper-env:
+    image: spiffe-helper-integration-env:local
+    build:
+      context: ../../..
+      dockerfile: Dockerfile
+      args:
+        go_version: ${GO_VERSION}
