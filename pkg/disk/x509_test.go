@@ -288,9 +288,7 @@ func TestWriteX509ContextAppliesFileModesToExistingFiles(t *testing.T) {
 	require.NoError(t, disk.WriteX509Context(x509Context))
 
 	for _, file := range []string{disk.SVIDPath(), disk.SVIDKeyPath(), disk.SVIDBundlePath()} {
-		info, err := os.Stat(file)
-		require.NoError(t, err)
-		require.Equal(t, fs.FileMode(0640), info.Mode().Perm(), file)
+		assertFileMode(t, file, fs.FileMode(0640))
 	}
 
 	actualCerts, err := util.LoadCertificates(disk.SVIDPath())

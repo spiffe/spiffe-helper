@@ -244,9 +244,7 @@ func TestWriteJWTAppliesFileModeToExistingFiles(t *testing.T) {
 	require.NoError(t, second.WriteJWTBundleSet(jwtBundleSet))
 
 	for _, file := range []string{second.SVIDPath(jwtSVIDFilename), second.BundlePath()} {
-		info, err := os.Stat(file)
-		require.NoError(t, err)
-		require.Equal(t, fs.FileMode(0640), info.Mode().Perm(), file)
+		assertFileMode(t, file, fs.FileMode(0640))
 	}
 
 	actualToken, err := os.ReadFile(second.SVIDPath(jwtSVIDFilename))
