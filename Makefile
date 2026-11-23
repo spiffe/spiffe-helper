@@ -33,6 +33,7 @@ help:
 	@echo "  $(cyan)unit-test$(reset)                     - run unit tests"
 	@echo "  $(cyan)integration-test$(reset)              - run integration tests"
 	@echo "  $(cyan)integration-test-verbose$(reset)      - run integration tests with verbose output"
+	@echo "  $(cyan)test-integration-docker$(reset)       - run Docker-based integration tests for environment variable configuration"
 	@echo "  $(cyan)test-wine$(reset)                     - run unit tests for Windows with Wine"
 	@echo
 	@echo "$(bold)Code cleanliness:$(reset)"

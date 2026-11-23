@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -77,12 +78,50 @@ func (c *Project) Up(tb testing.TB, services ...string) {
 	c.mustRun(tb, args...)
 }
 
+// Build builds the images for the specified Compose services.
+func (c *Project) Build(tb testing.TB, services ...string) {
+	tb.Helper()
+
+	buildArgs := []string{"build"}
+	args := make([]string, 0, len(buildArgs)+len(services))
+	args = append(args, buildArgs...)
+	args = append(args, services...)
+	c.mustRun(tb, args...)
+}
+
 // Exec runs a command in a docker compose service and returns the result.
 func (c *Project) Exec(service string, command ...string) Result {
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
 	return c.exec(ctx, service, command...)
+}
+
+// Run runs a one-off command in a Compose service until the timeout expires.
+func (c *Project) Run(service string, timeout time.Duration, env map[string]string, command ...string) Result {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	keys := make([]string, 0, len(env))
+	for key := range env {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	baseArgs := []string{"run", "--rm", "--no-deps", "-T"}
+	envArgs := make([]string, 0, 2*len(keys))
+	for _, key := range keys {
+		envArgs = append(envArgs, "--env", key+"="+env[key])
+	}
+	serviceArgs := []string{service}
+	args := make([]string, 0, len(baseArgs)+len(envArgs)+len(serviceArgs)+len(command))
+	args = append(args, baseArgs...)
+	args = append(args, envArgs...)
+	args = append(args, serviceArgs...)
+	args = append(args, command...)
+
+	stdout, stderr, err := c.run(ctx, args...)
+	return Result{Stdout: stdout, Stderr: stderr, Err: err}
 }
 
 // WaitForExec waits for a command in a docker compose service to succeed.
@@ -137,15 +176,14 @@ func (c *Project) close(failed bool, logf func(string, ...any)) {
 	}
 }
 
-func (c *Project) mustRun(tb testing.TB, args ...string) string {
+func (c *Project) mustRun(tb testing.TB, args ...string) {
 	tb.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	stdout, stderr, err := c.run(ctx, args...)
+	_, stderr, err := c.run(ctx, args...)
 	require.NoError(tb, err, "docker compose %s failed:\n%s", strings.Join(args, " "), stderr)
-	return stdout
 }
 
 func execArgs(service string, command []string) []string {
