@@ -4,6 +4,7 @@ linters:
     - bodyclose
     - dupword
     - durationcheck
+    - errcheck
     - errorlint
     - goconst
     - gocritic
