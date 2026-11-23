@@ -3,6 +3,7 @@ module github.com/spiffe/spiffe-helper
 go 1.27.4
 
 require (
+	github.com/caarlos0/env/v11 v11.4.1
 	github.com/go-jose/go-jose/v3 v3.0.5
 	github.com/hashicorp/hcl v1.0.1-vault-7
 	github.com/sirupsen/logrus v1.10.2
@@ -10,6 +11,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sys v0.50.0
 	google.golang.org/grpc v1.85.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.37.2
 	k8s.io/client-go v0.37.2
 )

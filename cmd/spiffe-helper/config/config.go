@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/token"
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/spiffe-helper/pkg/disk"
 	"github.com/spiffe/spiffe-helper/pkg/health"
 	"github.com/spiffe/spiffe-helper/pkg/sidecar"
 	"gopkg.in/yaml.v3"
@@ -43,7 +44,7 @@ type Config struct {
 	AgentAddress             string        `hcl:"agent_address" yaml:"agent_address" env:"AGENT_ADDRESS"`
 	Cmd                      string        `hcl:"cmd" yaml:"cmd" env:"CMD"`
 	CmdArgs                  string        `hcl:"cmd_args" yaml:"cmd_args" env:"CMD_ARGS"`
-	PIDFilename              string        `hcl:"pid_file_name" yaml:"pid_file_name" env:"PID_FILE_NAME"`
+	PIDFileName              string        `hcl:"pid_file_name" yaml:"pid_file_name" env:"PID_FILE_NAME"`
 	CertDir                  string        `hcl:"cert_dir" yaml:"cert_dir" env:"CERT_DIR"`
 	CertFileMode             FileMode      `hcl:"cert_file_mode" yaml:"cert_file_mode" env:"CERT_FILE_MODE"`
 	KeyFileMode              FileMode      `hcl:"key_file_mode" yaml:"key_file_mode" env:"KEY_FILE_MODE"`
@@ -58,14 +59,14 @@ type Config struct {
 	LogLevel                 string        `hcl:"log_level" yaml:"log_level" env:"LOG_LEVEL"`
 
 	// x509 configuration
-	SVIDFilename       string `hcl:"svid_file_name" yaml:"svid_file_name" env:"SVID_FILE_NAME"`
-	SVIDKeyFilename    string `hcl:"svid_key_file_name" yaml:"svid_key_file_name" env:"SVID_KEY_FILE_NAME"`
-	SVIDBundleFilename string `hcl:"svid_bundle_file_name" yaml:"svid_bundle_file_name" env:"SVID_BUNDLE_FILE_NAME"`
+	SVIDFileName       string `hcl:"svid_file_name" yaml:"svid_file_name" env:"SVID_FILE_NAME"`
+	SVIDKeyFileName    string `hcl:"svid_key_file_name" yaml:"svid_key_file_name" env:"SVID_KEY_FILE_NAME"`
+	SVIDBundleFileName string `hcl:"svid_bundle_file_name" yaml:"svid_bundle_file_name" env:"SVID_BUNDLE_FILE_NAME"`
 
 	// JWT configuration
 	// SPIFFE_HLP_JWT_SVIDS accepts a YAML/JSON array and replaces file-configured entries.
 	JWTSVIDs          []JWTConfig `hcl:"jwt_svids" yaml:"jwt_svids" env:"JWT_SVIDS"`
-	JWTBundleFilename string      `hcl:"jwt_bundle_file_name" yaml:"jwt_bundle_file_name" env:"JWT_BUNDLE_FILE_NAME"`
+	JWTBundleFileName string      `hcl:"jwt_bundle_file_name" yaml:"jwt_bundle_file_name" env:"JWT_BUNDLE_FILE_NAME"`
 
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions" yaml:"-"`
 }
@@ -73,7 +74,7 @@ type Config struct {
 type JWTConfig struct {
 	JWTAudience       string   `hcl:"jwt_audience" yaml:"jwt_audience"`
 	JWTExtraAudiences []string `hcl:"jwt_extra_audiences" yaml:"jwt_extra_audiences"`
-	JWTSVIDFilename   string   `hcl:"jwt_svid_file_name" yaml:"jwt_svid_file_name"`
+	JWTSVIDFileName   string   `hcl:"jwt_svid_file_name" yaml:"jwt_svid_file_name"`
 
 	UnusedKeyPositions map[string][]token.Pos `hcl:",unusedKeyPositions" yaml:"-"`
 }
@@ -106,7 +107,7 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	}
 
 	for _, jwtConfig := range c.JWTSVIDs {
-		if jwtConfig.JWTSVIDFilename == "" {
+		if jwtConfig.JWTSVIDFileName == "" {
 			return errors.New("'jwt_file_name' is required in 'jwt_svids'")
 		}
 		if jwtConfig.JWTAudience == "" {
@@ -115,18 +116,9 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 	}
 
 	if c.AgentAddress == "" {
-		spireAgentAddress := os.Getenv("SPIRE_AGENT_ADDRESS")
-		spiffeEndpointSocket := os.Getenv("SPIFFE_ENDPOINT_SOCKET")
-
-		switch {
-		case spireAgentAddress != "" && spiffeEndpointSocket == "":
-			log.Warn("SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0. Use SPIFFE_ENDPOINT_SOCKET instead.")
-			c.AgentAddress = spireAgentAddress
-		case spireAgentAddress != "" && spiffeEndpointSocket != "":
-			return errors.New("both SPIRE_AGENT_ADDRESS and SPIFFE_ENDPOINT_SOCKET set. Use SPIFFE_ENDPOINT_SOCKET only. Support for SPIRE_AGENT_ADDRESS is deprecated and will be removed in 0.10.0")
-		case spireAgentAddress == "" && spiffeEndpointSocket != "":
+		if spiffeEndpointSocket := os.Getenv("SPIFFE_ENDPOINT_SOCKET"); spiffeEndpointSocket != "" {
 			c.AgentAddress = spiffeEndpointSocket
-		default:
+		} else {
 			c.AgentAddress = defaultAgentAddress
 		}
 	}
@@ -141,12 +133,12 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		// pid_file_name is new enough that there should not be existing configurations that use it without daemon_mode
 		// so we can error here without backcompat worries. In future we may support one-shot signalling of a process, but
 		// it's ignored at the moment so we shouldn't allow the user to think it's doing something.
-		if c.PIDFilename != "" {
+		if c.PIDFileName != "" {
 			return errors.New("pid_file_name is set but daemon_mode is false. pid_file_name is only supported in daemon_mode")
 		}
 	}
 
-	if c.PIDFilename != "" && c.RenewSignal == "" {
+	if c.PIDFileName != "" && c.RenewSignal == "" {
 		return errors.New("must specify renew_signal when using pid_file_name")
 	}
 
@@ -195,6 +187,9 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 		if c.HealthCheck.ReadinessPath == "" {
 			c.HealthCheck.ReadinessPath = defaultReadinessPath
 		}
+		if c.HealthCheck.LivenessPath == c.HealthCheck.ReadinessPath {
+			return errors.New("'liveness_path' and 'readiness_path' must be different")
+		}
 	}
 
 	return nil
@@ -202,32 +197,52 @@ func (c *Config) ValidateConfig(log logrus.FieldLogger) error {
 
 func NewSidecarConfig(config *Config, log logrus.FieldLogger) *sidecar.Config {
 	sidecarConfig := &sidecar.Config{
-		AddIntermediatesToBundle: config.AddIntermediatesToBundle,
-		AgentAddress:             config.AgentAddress,
-		Cmd:                      config.Cmd,
-		CmdArgs:                  config.CmdArgs,
-		PIDFilename:              config.PIDFilename,
-		CertDir:                  config.CertDir,
-		CertFileMode:             fs.FileMode(config.CertFileMode),      //nolint:gosec
-		KeyFileMode:              fs.FileMode(config.KeyFileMode),       //nolint:gosec
-		JWTBundleFileMode:        fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
-		JWTSVIDFileMode:          fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
-		IncludeFederatedDomains:  config.IncludeFederatedDomains,
-		OmitExpired:              config.OmitExpired,
-		JWTBundleFilename:        config.JWTBundleFilename,
-		Log:                      log,
-		RenewSignal:              config.RenewSignal,
-		SVIDFilename:             config.SVIDFilename,
-		SVIDKeyFilename:          config.SVIDKeyFilename,
-		SVIDBundleFilename:       config.SVIDBundleFilename,
-		Hint:                     config.Hint,
+		AgentAddress: config.AgentAddress,
+		Cmd:          config.Cmd,
+		CmdArgs:      config.CmdArgs,
+		PIDFileName:  config.PIDFileName,
+		Log:          log,
+		RenewSignal:  config.RenewSignal,
+	}
+
+	x509Enabled := config.SVIDFileName != "" && config.SVIDKeyFileName != "" && config.SVIDBundleFileName != ""
+	if x509Enabled {
+		sidecarConfig.X509 = sidecar.X509Config{
+			Enabled: true,
+			Disk: disk.NewX509(disk.X509Config{
+				Dir:                      config.CertDir,
+				CertFileMode:             fs.FileMode(config.CertFileMode), //nolint:gosec
+				KeyFileMode:              fs.FileMode(config.KeyFileMode),  //nolint:gosec
+				SVIDFileName:             config.SVIDFileName,
+				SVIDKeyFileName:          config.SVIDKeyFileName,
+				SVIDBundleFileName:       config.SVIDBundleFileName,
+				AddIntermediatesToBundle: config.AddIntermediatesToBundle,
+				IncludeFederatedDomains:  config.IncludeFederatedDomains,
+				OmitExpired:              config.OmitExpired,
+				Hint:                     config.Hint,
+			}),
+		}
+	}
+
+	jwtBundleEnabled, jwtSVIDsEnabled := validateJWTConfig(config)
+	if jwtBundleEnabled || jwtSVIDsEnabled {
+		sidecarConfig.JWT = sidecar.JWTConfig{
+			Enabled: true,
+			Disk: disk.NewJWT(disk.JWTConfig{
+				Dir:            config.CertDir,
+				Hint:           config.Hint,
+				BundleFileName: config.JWTBundleFileName,
+				BundleFileMode: fs.FileMode(config.JWTBundleFileMode), //nolint:gosec
+				SVIDFileMode:   fs.FileMode(config.JWTSVIDFileMode),   //nolint:gosec
+			}),
+		}
 	}
 
 	for _, jwtSVID := range config.JWTSVIDs {
-		sidecarConfig.JWTSVIDs = append(sidecarConfig.JWTSVIDs, sidecar.JWTConfig{
+		sidecarConfig.JWT.SVIDs = append(sidecarConfig.JWT.SVIDs, sidecar.JWTSVIDConfig{
 			JWTAudience:       jwtSVID.JWTAudience,
 			JWTExtraAudiences: jwtSVID.JWTExtraAudiences,
-			JWTSVIDFilename:   jwtSVID.JWTSVIDFilename,
+			JWTSVIDFileName:   jwtSVID.JWTSVIDFileName,
 		})
 	}
 
@@ -379,7 +394,7 @@ func (c *Config) checkForUnknownConfig() error {
 }
 
 func validateX509Config(c *Config) (bool, error) {
-	x509EmptyCount := countEmpty(c.SVIDFilename, c.SVIDBundleFilename, c.SVIDKeyFilename)
+	x509EmptyCount := countEmpty(c.SVIDFileName, c.SVIDBundleFileName, c.SVIDKeyFileName)
 	if x509EmptyCount != 0 && x509EmptyCount != 3 {
 		return false, errors.New("all or none of 'svid_file_name', 'svid_key_file_name', 'svid_bundle_file_name' must be specified")
 	}
@@ -388,7 +403,7 @@ func validateX509Config(c *Config) (bool, error) {
 }
 
 func validateJWTConfig(c *Config) (bool, bool) {
-	jwtBundleEmptyCount := countEmpty(c.JWTBundleFilename)
+	jwtBundleEmptyCount := countEmpty(c.JWTBundleFileName)
 
 	return jwtBundleEmptyCount == 0, len(c.JWTSVIDs) > 0
 }
