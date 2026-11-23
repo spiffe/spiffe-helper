@@ -97,11 +97,16 @@ func (c *Project) Run(service string, env map[string]string, command ...string) 
 	}
 	sort.Strings(keys)
 
-	args := []string{"run", "--build", "--rm", "--no-deps", "-T"}
+	baseArgs := []string{"run", "--build", "--rm", "--no-deps", "-T"}
+	envArgs := make([]string, 0, 2*len(keys))
 	for _, key := range keys {
-		args = append(args, "--env", key+"="+env[key])
+		envArgs = append(envArgs, "--env", key+"="+env[key])
 	}
-	args = append(args, service)
+	serviceArgs := []string{service}
+	args := make([]string, 0, len(baseArgs)+len(envArgs)+len(serviceArgs)+len(command))
+	args = append(args, baseArgs...)
+	args = append(args, envArgs...)
+	args = append(args, serviceArgs...)
 	args = append(args, command...)
 
 	stdout, stderr, err := c.run(ctx, args...)
