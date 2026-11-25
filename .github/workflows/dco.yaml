@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Run dco-check
         if: github.event_name != 'merge_group'
-        uses: christophebedard/dco-check@ec8bfc43106afe98b323ace9133650df10497e12 # 0.5.1
+        uses: christophebedard/dco-check@ce494b79603fa6a2d61ce759a6fe051a67219c1c # 0.6.0
         with:
           args: --exclude-pattern '(dependabot|github-actions)\[bot\]@users\.noreply\.github\.com'
         env:
