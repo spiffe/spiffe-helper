@@ -64,8 +64,13 @@ jobs:
   unit-test:
     strategy:
       matrix:
-        OS: [ubuntu-24.04, macos-latest]
-    runs-on: ${{ matrix.OS }}
+        include:
+          - os: ubuntu-24.04
+            name: linux
+          - os: macos-latest
+            name: macOS
+    name: unit-test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
     needs: cache-deps
 
     permissions:
