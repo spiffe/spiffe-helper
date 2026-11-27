@@ -9,7 +9,7 @@ permissions:
 jobs:
   cache-deps:
     name: cache-deps (linux)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read
@@ -31,7 +31,7 @@ jobs:
 
   lint:
     name: lint (linux)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: cache-deps
 
     permissions:
@@ -64,8 +64,13 @@ jobs:
   unit-test:
     strategy:
       matrix:
-        OS: [ubuntu-22.04, macos-latest]
-    runs-on: ${{ matrix.OS }}
+        include:
+          - os: ubuntu-24.04
+            name: linux
+          - os: macos-latest
+            name: macOS
+    name: unit-test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
     needs: cache-deps
 
     permissions:
@@ -108,7 +113,7 @@ jobs:
 
   integration-test:
     name: integration test (linux)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: [lint, unit-test, build]
 
     permissions:
@@ -128,7 +133,7 @@ jobs:
 
   build:
     name: build (linux)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: cache-deps
 
     permissions:
@@ -162,7 +167,7 @@ jobs:
           path: spiffe-helper
 
   build-images:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read

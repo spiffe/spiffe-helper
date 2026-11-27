@@ -7,7 +7,7 @@ on:
 jobs:
   integration-test:
     name: integration test (linux)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: read
@@ -26,7 +26,7 @@ jobs:
 
   build:
     name: build (linux)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: integration-test
 
     steps:
@@ -60,7 +60,7 @@ jobs:
             spiffe-helper-image.tar
 
   release:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: build
 
     permissions:
